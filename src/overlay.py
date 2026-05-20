@@ -228,6 +228,13 @@ class CaptureOverlay(QWidget):
 
         add_sep()
 
+        close_btn = QToolButton()
+        close_btn.setIcon(self._load_icon("close"))
+        close_btn.setIconSize(QSize(16, 16))
+        close_btn.setToolTip("关闭（退出截图）")
+        close_btn.clicked.connect(self.close)
+        toolbar_layout.addWidget(close_btn)
+
         pin_btn = QToolButton()
         pin_btn.setIcon(self._load_icon("pin"))
         pin_btn.setIconSize(QSize(16, 16))
@@ -235,19 +242,19 @@ class CaptureOverlay(QWidget):
         pin_btn.clicked.connect(self._on_pin)
         toolbar_layout.addWidget(pin_btn)
 
-        copy_btn = QToolButton()
-        copy_btn.setIcon(self._load_icon("copy"))
-        copy_btn.setIconSize(QSize(16, 16))
-        copy_btn.setToolTip("复制到剪贴板")
-        copy_btn.clicked.connect(self._on_copy)
-        toolbar_layout.addWidget(copy_btn)
-
         save_btn = QToolButton()
         save_btn.setIcon(self._load_icon("save"))
         save_btn.setIconSize(QSize(16, 16))
         save_btn.setToolTip("保存到文件")
         save_btn.clicked.connect(self._on_save)
         toolbar_layout.addWidget(save_btn)
+
+        copy_btn = QToolButton()
+        copy_btn.setIcon(self._load_icon("copy"))
+        copy_btn.setIconSize(QSize(16, 16))
+        copy_btn.setToolTip("复制到剪贴板")
+        copy_btn.clicked.connect(self._on_copy)
+        toolbar_layout.addWidget(copy_btn)
 
         self.toolbar.hide()
         self.toolbar.installEventFilter(self)
