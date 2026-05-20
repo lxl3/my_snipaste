@@ -829,5 +829,6 @@ self, "保存截图", "截图.png",
     def closeEvent(self, event):
         if self.toolbar.parent() is None:
             self.toolbar.close()
+        self.deleteLater()
         super().closeEvent(event)
 

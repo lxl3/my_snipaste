@@ -1,16 +1,67 @@
-import sys
 from threading import Thread
 
-from PySide6.QtCore import QObject, Signal, QTimer, Qt
-from PySide6.QtGui import QAction, QPixmap, QImage
+from PySide6.QtCore import QObject, Signal, Qt, QPoint
+from PySide6.QtGui import QAction, QPixmap, QPainter, QColor, QPen
 from PySide6.QtWidgets import (
-    QApplication, QSystemTrayIcon, QMenu, QMessageBox,
+    QApplication, QSystemTrayIcon, QMenu, QMessageBox, QWidget, QFileDialog,
 )
-
 from .overlay import CaptureOverlay
-from .editor import EditorWindow
 from .ocr_engine import extract_text
 from .utils import create_app_icon
+
+
+class PinWindow(QWidget):
+    def __init__(self, pixmap: QPixmap, pos):
+        super().__init__()
+        self.pixmap = pixmap
+        self.setWindowFlags(
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+        )
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+        dpr = pixmap.devicePixelRatio()
+        w = int(pixmap.width() / dpr)
+        h = int(pixmap.height() / dpr)
+        self.resize(w, h)
+        self.move(pos)
+
+        self.setMouseTracking(True)
+        self._dragging = False
+        self._drag_pos = QPoint()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        painter.drawPixmap(self.rect(), self.pixmap, self.pixmap.rect())
+
+        pen = QPen(QColor(200, 200, 200, 100), 1)
+        painter.setPen(pen)
+        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._dragging = True
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+
+    def mouseMoveEvent(self, event):
+        if self._dragging:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._dragging = False
+
+    def mouseDoubleClickEvent(self, event):
+        self.close()
+
+    def closeEvent(self, event):
+        self.deleteLater()
+        super().closeEvent(event)
+        self.close()
+
+    def closeEvent(self, event):
+        self.deleteLater()
+        super().closeEvent(event)
 
 
 class HotkeyListener(QObject):
@@ -61,7 +112,7 @@ class SnipasteApp(QApplication):
         self.setQuitOnLastWindowClosed(False)
 
         self.overlay = None
-        self.editor = None
+        self.pin_windows = []
 
         self.setup_tray()
         self.setup_hotkeys()
@@ -106,27 +157,30 @@ class SnipasteApp(QApplication):
     def start_capture(self):
         if self.overlay is not None:
             return
-        if self.editor is not None:
-            self.editor.close()
-            self.editor = None
 
         self.overlay = CaptureOverlay()
-        self.overlay.capture_completed.connect(self._on_capture_completed)
-        self.overlay.capture_cancelled.connect(self._on_capture_cancelled)
+        self.overlay.pin_requested.connect(self._on_pin)
+        self.overlay.copy_requested.connect(self._on_copy)
+        self.overlay.save_requested.connect(self._on_save)
+        self.overlay.destroyed.connect(lambda: setattr(self, 'overlay', None))
         self.overlay.show()
 
-    def _on_capture_completed(self, pixmap: QPixmap, capture_pos):
-        if self.overlay:
-            self.overlay.close()
-            self.overlay = None
+    def _on_pin(self, pixmap: QPixmap, pos):
+        win = PinWindow(pixmap, pos)
+        win.destroyed.connect(lambda: self.pin_windows.remove(win) if win in self.pin_windows else None)
+        self.pin_windows.append(win)
+        win.show()
 
-        self.editor = EditorWindow(pixmap, capture_pos)
-        self.editor.show()
+    def _on_copy(self, pixmap: QPixmap):
+        self.clipboard().setPixmap(pixmap)
 
-    def _on_capture_cancelled(self):
-        if self.overlay:
-            self.overlay.close()
-            self.overlay = None
+    def _on_save(self, pixmap: QPixmap):
+        file_path, _ = QFileDialog.getSaveFileName(
+            None, "保存截图", "截图.png",
+            "PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg);;所有文件 (*)",
+        )
+        if file_path:
+            pixmap.save(file_path)
 
     def ocr_clipboard(self):
         clipboard = self.clipboard()
@@ -134,8 +188,7 @@ class SnipasteApp(QApplication):
         if pixmap is None or pixmap.isNull():
             QMessageBox.information(
                 None, "OCR 剪贴板",
-                "剪贴板中没有图片。\n"
-                "请先复制一张图片，然后再试。"
+                "剪贴板中没有图片。\n请先复制一张图片，然后再试。"
             )
             return
 
