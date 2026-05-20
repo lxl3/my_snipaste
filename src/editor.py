@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsEllipseItem,
     QGraphicsLineItem, QGraphicsPathItem, QGraphicsTextItem,
     QGraphicsItem, QSizePolicy, QToolButton, QFrame, QMessageBox, QLabel,
-    QGraphicsDropShadowEffect, QMenu,
+    QGraphicsDropShadowEffect, QMenu, QWidgetAction,
 )
 from PySide6.QtGui import (
     QPixmap, QPainter, QColor, QPen, QFont, QIcon, QAction,
@@ -16,8 +16,10 @@ from PySide6.QtGui import (
     QClipboard, QBrush,
 )
 from PySide6.QtCore import Qt, QRectF, QPointF, Signal, QLineF, QTimer, QEvent, QRect, QSize
+from PySide6.QtSvg import QSvgRenderer
 
 from .ocr_engine import extract_text
+from .resources.icons.toolbar_icons import TOOLBAR_ICONS
 
 class ArrowItem(QGraphicsLineItem):
     def __init__(self, start: QPointF, end: QPointF, color: QColor = QColor(255, 0, 0), width: float = 3):
@@ -303,6 +305,17 @@ class EditorWindow(QWidget):
                 (screen.height() - self.height()) // 2,
             )
 
+        self.scene = QGraphicsScene()
+        self.pixmap_item = QGraphicsPixmapItem(self.captured_pixmap)
+        self.pixmap_item.setFlag(QGraphicsItem.ItemIsSelectable, False)
+        self.pixmap_item.setFlag(QGraphicsItem.ItemIsMovable, False)
+        self.scene.addItem(self.pixmap_item)
+
+        self.view = AnnotationView(self.scene)
+        self.view.source_pixmap = self.captured_pixmap
+        self.view.current_color = QColor(255, 50, 50)
+        self.view.current_width = 3
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -312,68 +325,74 @@ class EditorWindow(QWidget):
 
         toolbar = QFrame()
         toolbar.setObjectName("floatingToolbar")
-        toolbar.setFixedHeight(36)  # 固定高度
+        toolbar.setFixedHeight(28)
         toolbar.setStyleSheet("""
             #floatingToolbar {
-                background: rgba(45, 45, 45, 230);
-                border: 1px solid #555;
+                background: white;
+                border: 1px solid #ccc;
                 border-radius: 4px;
             }
             QToolButton {
-                color: #ccc;
+                color: #333;
                 background: transparent;
                 border: 1px solid transparent;
                 border-radius: 3px;
-                padding: 6px;
-                margin: 1px;
-                font-size: 16px;
-                min-width: 24px;
-                min-height: 24px;
+                padding: 1px 2px;
+                margin: 0px;
+                min-width: 18px;
+                min-height: 18px;
             }
             QToolButton:hover {
-                background: #3d3d3d;
-                border-color: #555;
+                background: #e8e8e8;
+                border-color: #ccc;
             }
             QToolButton:checked {
-                background: #0a7dff;
-                color: white;
+                background: #d0e4ff;
+                color: #1a73e8;
             }
-            QToolButton#saveBtn {
-                background: #4caf50;
-                color: white;
-            }
-            QToolButton#saveBtn:hover {
-                background: #388e3c;
-            }
-            QToolButton#closeBtn {
-                background: #d32f2f;
-                color: white;
-            }
-            QToolButton#closeBtn:hover {
-                background: #b71c1c;
-            }
+
             QSpinBox {
-                background: #3d3d3d;
-                color: #ccc;
-                border: 1px solid #555;
+                background: transparent;
+                color: #333;
+                border: 1px solid #ccc;
                 border-radius: 3px;
                 padding: 2px;
                 font-size: 11px;
                 max-width: 45px;
                 min-height: 22px;
             }
+            QSpinBox::up-button, QSpinBox::down-button {
+                width: 0px;
+            }
         """)
         toolbar_layout = QHBoxLayout(toolbar)
-        toolbar_layout.setContentsMargins(4, 3, 4, 3)
-        toolbar_layout.setSpacing(2)
+        toolbar_layout.setContentsMargins(1, 1, 1, 1)
+        toolbar_layout.setSpacing(0)
 
         self.tool_buttons = {}
         self._tool_group_map = {}  # maps sub-tool -> group button
 
-        def _make_tool_btn(text, tooltip, tool_id, checkable=True):
+        def _load_icon(name, color="#333333"):
+            svg = TOOLBAR_ICONS.get(name, "")
+            if svg:
+                svg_data = svg.replace("currentColor", color)
+                renderer = QSvgRenderer(svg_data.encode("utf-8"))
+                pm = QPixmap(16, 16)
+                pm.fill(Qt.transparent)
+                p = QPainter(pm)
+                renderer.render(p)
+                p.end()
+                return QIcon(pm)
+            return QIcon()
+
+        def _make_tool_btn(text, tooltip, tool_id, icon_name=None, checkable=True):
             btn = QToolButton()
-            btn.setText(text)
+            if icon_name:
+                btn.setIcon(_load_icon(icon_name))
+            else:
+                btn.setText(text)
             btn.setToolTip(tooltip)
+            btn.setIconSize(QSize(16, 16))
             if checkable:
                 btn.setCheckable(True)
             btn.clicked.connect(lambda: self._on_tool_selected(tool_id))
@@ -381,20 +400,25 @@ class EditorWindow(QWidget):
             toolbar_layout.addWidget(btn)
             return btn
 
-        def _make_menu_btn(text, tooltip, menu_items, default_tool):
-            """Create a tool button with popup menu (MenuButtonPopup)"""
+        def _make_menu_btn(text, tooltip, menu_items, default_tool, icon_name=None):
             btn = QToolButton()
-            btn.setText(text)
+            if icon_name:
+                btn.setIcon(_load_icon(icon_name))
+            else:
+                btn.setText(text)
             btn.setToolTip(tooltip)
+            btn.setIconSize(QSize(16, 16))
             btn.setPopupMode(QToolButton.MenuButtonPopup)
             btn.setCheckable(True)
 
             menu = QMenu(self)
             for item_text, item_tool in menu_items:
-                action = QAction(item_text, self)
+                icn = _load_icon(icon_name or item_tool)
+                action = QAction(icn, item_text, self)
                 action.triggered.connect(lambda checked, t=item_tool, b=btn, txt=item_text: self._on_menu_tool(t, b, txt))
                 menu.addAction(action)
                 self._tool_group_map[item_tool] = btn
+            btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
             btn.setMenu(menu)
 
             first_action = menu.actions()[0]
@@ -404,25 +428,81 @@ class EditorWindow(QWidget):
             return btn
 
         # Shape - with submenu
-        _make_menu_btn("▭", "形状（矩形/圆形）", [
+        _make_menu_btn("", "形状（矩形/圆形）", [
             ("▭ 矩形", "rect"),
             ("○ 圆形", "ellipse"),
-        ], "rect")
+        ], "rect", "rectangle")
 
         # Arrow - with submenu
-        _make_menu_btn("➜", "箭头（有箭头/无箭头）", [
+        _make_menu_btn("", "箭头（有箭头/无箭头）", [
             ("➜ 有箭头", "arrow"),
             ("─ 无箭头", "line"),
-        ], "arrow")
+        ], "arrow", "arrow")
 
-        # Pen
-        _make_tool_btn("✎", "画笔", "freehand")
+        # Pen - with color & width submenu
+        pen_btn = QToolButton()
+        pen_btn.setIcon(_load_icon("pen"))
+        pen_btn.setIconSize(QSize(16, 16))
+        pen_btn.setToolTip("画笔")
+        pen_btn.setPopupMode(QToolButton.MenuButtonPopup)
+        pen_btn.setCheckable(True)
+        pen_btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
+
+        pen_menu = QMenu(self)
+
+        color_action = QWidgetAction(pen_menu)
+        color_widget = QWidget()
+        color_layout = QVBoxLayout(color_widget)
+        color_layout.setContentsMargins(4, 4, 4, 4)
+        color_layout.setSpacing(2)
+        color_label = QLabel("颜色")
+        color_label.setStyleSheet("font-weight: bold; font-size: 11px; color: #666;")
+        color_layout.addWidget(color_label)
+        color_grid = QWidget()
+        grid_layout = QHBoxLayout(color_grid)
+        grid_layout.setContentsMargins(0, 0, 0, 0)
+        grid_layout.setSpacing(2)
+        colors = ["#ff3232", "#ff8c00", "#ffd700", "#32cd32", "#1e90ff", "#8a2be2", "#ffffff", "#000000"]
+        for c in colors:
+            cb = QPushButton()
+            cb.setFixedSize(18, 18)
+            cb.setStyleSheet(
+                f"background: {c}; border: 1px solid #ccc; border-radius: 2px;"
+            )
+            cb.clicked.connect(lambda checked, col=c: self._set_pen_color(col))
+            grid_layout.addWidget(cb)
+        color_layout.addWidget(color_grid)
+        color_action.setDefaultWidget(color_widget)
+        pen_menu.addAction(color_action)
+        pen_menu.addSeparator()
+
+        width_action = QWidgetAction(pen_menu)
+        width_widget = QWidget()
+        width_layout = QVBoxLayout(width_widget)
+        width_layout.setContentsMargins(4, 4, 4, 4)
+        width_layout.setSpacing(2)
+        width_label = QLabel("粗细")
+        width_label.setStyleSheet("font-weight: bold; font-size: 11px; color: #666;")
+        width_layout.addWidget(width_label)
+        ws = QSpinBox()
+        ws.setRange(1, 20)
+        ws.setValue(self.view.current_width)
+        ws.setButtonSymbols(QSpinBox.NoButtons)
+        ws.valueChanged.connect(lambda v: setattr(self.view, 'current_width', v))
+        width_layout.addWidget(ws)
+        width_action.setDefaultWidget(width_widget)
+        pen_menu.addAction(width_action)
+
+        pen_btn.setMenu(pen_menu)
+        pen_btn.clicked.connect(lambda: self._on_tool_selected("freehand"))
+        self.tool_buttons["freehand"] = pen_btn
+        toolbar_layout.addWidget(pen_btn)
 
         # Mosaic
-        _make_tool_btn("▨", "马赛克", "mosaic")
+        _make_tool_btn("", "马赛克", "mosaic", "mosaic")
 
         # Text
-        _make_tool_btn("A", "文字", "text")
+        _make_tool_btn("", "文字", "text", "text")
 
         # OCR
         ocr_btn = QToolButton()
@@ -433,36 +513,17 @@ class EditorWindow(QWidget):
 
         toolbar_layout.addWidget(self._make_separator())
 
-        self.color_btn = QToolButton()
-        self.color_btn.setText("●")
-        self.color_btn.setToolTip("选择颜色")
-        self.color_btn.setStyleSheet(
-            "QToolButton { background: #ff3232; border: 1px solid #666; color: white; }"
-        )
-        self.color_btn.clicked.connect(self._pick_color)
-        toolbar_layout.addWidget(self.color_btn)
-
-        self.width_spin = QSpinBox()
-        self.width_spin.setRange(1, 20)
-        self.width_spin.setValue(3)
-        self.width_spin.setToolTip("线条粗细")
-        self.width_spin.setButtonSymbols(QSpinBox.NoButtons)
-        self.width_spin.valueChanged.connect(
-            lambda v: setattr(self.view, 'current_width', v)
-        )
-        toolbar_layout.addWidget(self.width_spin)
-
-        toolbar_layout.addWidget(self._make_separator())
-
         self.undo_btn = QToolButton()
-        self.undo_btn.setText("↶")
+        self.undo_btn.setIcon(_load_icon("undo"))
+        self.undo_btn.setIconSize(QSize(16, 16))
         self.undo_btn.setToolTip("撤销")
         self.undo_btn.setEnabled(False)
         self.undo_btn.clicked.connect(self._undo)
         toolbar_layout.addWidget(self.undo_btn)
 
         self.redo_btn = QToolButton()
-        self.redo_btn.setText("↷")
+        self.redo_btn.setIcon(_load_icon("redo"))
+        self.redo_btn.setIconSize(QSize(16, 16))
         self.redo_btn.setToolTip("反向撤销")
         self.redo_btn.setEnabled(False)
         self.redo_btn.clicked.connect(self._redo)
@@ -472,20 +533,23 @@ class EditorWindow(QWidget):
 
         cancel_btn = QToolButton()
         cancel_btn.setObjectName("closeBtn")
-        cancel_btn.setText("✕")
+        cancel_btn.setIcon(_load_icon("close"))
+        cancel_btn.setIconSize(QSize(16, 16))
         cancel_btn.setToolTip("取消（退出截图）")
         cancel_btn.clicked.connect(self.close)
         toolbar_layout.addWidget(cancel_btn)
 
         save_btn = QToolButton()
         save_btn.setObjectName("saveBtn")
-        save_btn.setText("💾")
+        save_btn.setIcon(_load_icon("save"))
+        save_btn.setIconSize(QSize(16, 16))
         save_btn.setToolTip("保存到文件")
         save_btn.clicked.connect(self._save_to_file)
         toolbar_layout.addWidget(save_btn)
 
         copy_btn = QToolButton()
-        copy_btn.setText("📋")
+        copy_btn.setIcon(_load_icon("copy"))
+        copy_btn.setIconSize(QSize(16, 16))
         copy_btn.setToolTip("复制到剪贴板")
         copy_btn.clicked.connect(self._copy_to_clipboard)
         toolbar_layout.addWidget(copy_btn)
@@ -495,16 +559,8 @@ class EditorWindow(QWidget):
         self.toolbar.updateGeometry()
         QApplication.processEvents()
         toolbar_width = self.toolbar.sizeHint().width()
-        self.toolbar.setFixedWidth(max(toolbar_width + 20, 680))
+        self.toolbar.setFixedWidth(max(toolbar_width + 10, 480))
 
-        self.scene = QGraphicsScene()
-        self.pixmap_item = QGraphicsPixmapItem(self.captured_pixmap)
-        self.pixmap_item.setFlag(QGraphicsItem.ItemIsSelectable, False)
-        self.pixmap_item.setFlag(QGraphicsItem.ItemIsMovable, False)
-        self.scene.addItem(self.pixmap_item)
-
-        self.view = AnnotationView(self.scene)
-        self.view.source_pixmap = self.captured_pixmap
         self.view.annotation_added.connect(self._on_annotation_changed)
         layout.addWidget(self.view)
 
@@ -526,8 +582,6 @@ class EditorWindow(QWidget):
             Qt.FramelessWindowHint |
             Qt.WindowStaysOnTopHint
         )
-        self.toolbar.setAttribute(Qt.WA_TranslucentBackground)
-
         window_rect = self.frameGeometry()
         x = window_rect.right() - self.toolbar.width()
         y = window_rect.bottom() + 8
@@ -593,13 +647,10 @@ class EditorWindow(QWidget):
         if tool in self._tool_group_map:
             self._tool_group_map[tool].setChecked(True)
 
-    def _pick_color(self):
-        color = QColorDialog.getColor(self.view.current_color, self, "选择颜色")
-        if color.isValid():
-            self.view.current_color = color
-            self.color_btn.setStyleSheet(
-                f"QToolButton {{ background: {color.name()}; border: 1px solid #666; }}"
-            )
+    def _set_pen_color(self, color_hex: str):
+        self.view.current_color = QColor(color_hex)
+
+
 
     def eventFilter(self, obj, event):
         if obj is self.view.viewport():
