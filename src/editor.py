@@ -550,6 +550,14 @@ class EditorWindow(QWidget):
         cancel_btn.clicked.connect(self.close)
         toolbar_layout.addWidget(cancel_btn)
 
+        pin_btn = QToolButton()
+        pin_btn.setObjectName("pinBtn")
+        pin_btn.setIcon(_load_icon("pin"))
+        pin_btn.setIconSize(QSize(16, 16))
+        pin_btn.setToolTip("悬浮（钉在桌面上）")
+        pin_btn.clicked.connect(self._pin)
+        toolbar_layout.addWidget(pin_btn)
+
         save_btn = QToolButton()
         save_btn.setObjectName("saveBtn")
         save_btn.setIcon(_load_icon("save"))
@@ -766,6 +774,13 @@ class EditorWindow(QWidget):
 
         dlg_layout.addLayout(btn_layout)
         dialog.exec()
+
+    def _pin(self):
+        self.toolbar.hide()
+        self.setWindowFlags(
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+        )
+        self.show()
 
     def _copy_text(self, text: str):
         QApplication.clipboard().setText(text)
