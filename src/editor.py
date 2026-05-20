@@ -603,6 +603,10 @@ class EditorWindow(QWidget):
 
     def eventFilter(self, obj, event):
         if obj is self.view.viewport():
+            if event.type() == QEvent.MouseButtonDblClick and event.button() == Qt.LeftButton:
+                self.close()
+                return True
+
             if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
                 self._press_pos = event.globalPosition().toPoint()
                 self._window_dragging = False
