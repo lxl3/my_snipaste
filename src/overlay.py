@@ -138,7 +138,9 @@ class CaptureOverlay(QWidget):
         return captured
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.RightButton:
+            self.capture_cancelled.emit()
+        elif event.button() == Qt.LeftButton:
             self.is_selecting = True
             self.start_point = event.position().toPoint()
             self.end_point = self.start_point

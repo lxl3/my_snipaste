@@ -1,12 +1,12 @@
+from __future__ import annotations
 import sys
+import math
+
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QToolButton, QGridLayout, QLabel
 from PySide6.QtCore import Qt
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import QPixmap, QPainter, QIcon
 
-# ... existing code ...
-
-# 定义所有工具栏图标
 TOOLBAR_ICONS = {
     "rectangle": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -71,7 +71,18 @@ TOOLBAR_ICONS = {
 def get_icon_svg(name):
     return TOOLBAR_ICONS.get(name, "")
 
-# ... existing code ...
+def create_icon_from_svg(svg_code: str, size: int = 24, color: str = "#cccccc"):
+    """从 SVG 代码创建 QIcon"""
+    svg_code = svg_code.replace("currentColor", color)
+    renderer = QSvgRenderer()
+    if not renderer.load(svg_code.encode('utf-8')):
+        return QIcon()
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    renderer.render(painter)
+    painter.end()
+    return QIcon(pixmap)
 
 class DemoWindow(QWidget):
     def __init__(self):
@@ -82,7 +93,6 @@ class DemoWindow(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setAlignment(Qt.AlignTop)
 
-        # 使用网格布局
         grid = QGridLayout()
         grid.setSpacing(15)
 
@@ -91,10 +101,7 @@ class DemoWindow(QWidget):
         col = 0
 
         for name, svg_code in TOOLBAR_ICONS.items():
-            # 创建图标
             icon = create_icon_from_svg(svg_code, size=48, color="#ffffff")
-
-            # 创建容器以包含图标和标签
             container = QWidget()
             v_layout = QVBoxLayout(container)
             v_layout.setContentsMargins(0, 0, 0, 0)
@@ -135,8 +142,7 @@ class DemoWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setStyle("Fusion") # 使用 Fusion 风格以获得更好的深色模式支持
+    app.setStyle("Fusion")
     window = DemoWindow()
     window.show()
     sys.exit(app.exec())
-
