@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:\\\\Users\\\\lixinlin\\\\.claude\\\\plugins\\\\cache\\\\superpowers-marketplace\\\\superpowers\\\\5.1.0\\\\scripts\\\\start-server.sh *)",
+      "Bash(/c/Users/lixinlin/.claude/plugins/cache/superpowers-marketplace/superpowers/5.1.0/scripts/start-server.sh *)",
+      "Bash(/c/Users/lixinlin/.claude/plugins/cache/superpowers-marketplace/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:executing-plans)",
+      "Bash(python *)"
+    ]
+  }
+}
