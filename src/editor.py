@@ -311,6 +311,17 @@ class EditorWindow(QWidget):
         self.pixmap_item.setFlag(QGraphicsItem.ItemIsMovable, False)
         self.scene.addItem(self.pixmap_item)
 
+        border = QGraphicsRectItem(self.pixmap_item.boundingRect())
+        border.setPen(QPen(QColor(10, 125, 255, 80), 2))
+        border.setBrush(Qt.NoBrush)
+        self.scene.addItem(border)
+
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(15)
+        shadow.setColor(QColor(0, 0, 0, 60))
+        shadow.setOffset(0, 2)
+        self.pixmap_item.setGraphicsEffect(shadow)
+
         self.view = AnnotationView(self.scene)
         self.view.source_pixmap = self.captured_pixmap
         self.view.current_color = QColor(255, 50, 50)
