@@ -6,6 +6,9 @@ from PIL import Image
 from PySide6.QtCore import Qt, QRect, QBuffer, QIODevice, QTimer
 from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen
 from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel, QWidget
+from .logger import setup_logger
+
+logger = setup_logger("utils")
 
 
 def capture_all_screens() -> QPixmap:

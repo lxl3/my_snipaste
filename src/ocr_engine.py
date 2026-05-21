@@ -6,6 +6,9 @@ from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import QThread, Signal
 
 from .utils import qpixmap_to_pil, qimage_to_pil
+from .logger import setup_logger
+
+logger = setup_logger("ocr")
 
 
 def setup_bundled_tesseract():
@@ -22,15 +25,18 @@ def setup_bundled_tesseract():
         if os.path.exists(tesseract_exe):
             # 设置 pytesseract 使用打包的 tesseract
             pytesseract.pytesseract.tesseract_cmd = tesseract_exe
+            logger.info(f"使用打包的 Tesseract: {tesseract_exe}")
 
             # 设置 TESSDATA_PREFIX 环境变量
             tessdata_dir = os.path.join(tesseract_dir, 'tessdata')
             if os.path.exists(tessdata_dir):
                 os.environ['TESSDATA_PREFIX'] = tessdata_dir
+                logger.debug(f"设置 TESSDATA_PREFIX: {tessdata_dir}")
 
             return True
         else:
             # 打包的 tesseract 不存在，尝试从网络下载
+            logger.warning("打包的 Tesseract 不存在，尝试下载")
             return _download_tesseract_runtime(tesseract_dir)
     return False
 
@@ -113,8 +119,10 @@ def check_tesseract_langs():
     """检查 Tesseract 可用的语言"""
     try:
         langs = pytesseract.get_languages()
+        logger.debug(f"可用语言: {langs}")
         return langs
-    except:
+    except Exception as e:
+        logger.error(f"获取语言列表失败: {e}")
         return []
 
 
@@ -124,13 +132,16 @@ def get_optimal_lang():
 
     # 优先使用中英文
     if 'chi_sim' in available_langs and 'eng' in available_langs:
-        return 'eng+chi_sim'
+        lang = 'eng+chi_sim'
     elif 'chi_sim' in available_langs:
-        return 'chi_sim'
+        lang = 'chi_sim'
     elif 'eng' in available_langs:
-        return 'eng'
+        lang = 'eng'
     else:
-        return None
+        lang = None
+    
+    logger.debug(f"选择 OCR 语言: {lang}")
+    return lang
 
 
 class OcrWorker(QThread):
@@ -145,11 +156,16 @@ class OcrWorker(QThread):
     def run(self):
         try:
             if self.lang is None:
+                logger.error("OCR 识别失败: 未找到可用的语言包")
                 self.error.emit("未找到可用的语言包")
                 return
+            logger.info(f"开始 OCR 识别，语言: {self.lang}")
             text = pytesseract.image_to_string(self.pil_image, lang=self.lang)
-            self.finished.emit(text.strip())
+            result = text.strip()
+            logger.info(f"OCR 识别完成，{len(result)} 个字符")
+            self.finished.emit(result)
         except Exception as e:
+            logger.error(f"OCR 识别异常: {e}")
             self.error.emit(str(e))
 
 

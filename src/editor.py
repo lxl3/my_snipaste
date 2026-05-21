@@ -20,6 +20,9 @@ from PySide6.QtSvg import QSvgRenderer
 
 from .ocr_engine import extract_text
 from .resources.icons.toolbar_icons import TOOLBAR_ICONS
+from .logger import setup_logger
+
+logger = setup_logger("editor")
 
 class ArrowItem(QGraphicsLineItem):
     def __init__(self, start: QPointF, end: QPointF, color: QColor = QColor(255, 0, 0), width: float = 3):
@@ -755,6 +758,7 @@ class EditorWindow(QWidget):
         from .ocr_engine import OcrWorker
         from .utils import qpixmap_to_pil
 
+        logger.info("开始 OCR 识别")
         # 显示可取消的进度提示
         self._ocr_progress = QMessageBox(self)
         self._ocr_progress.setWindowTitle("OCR 识别中")
@@ -773,6 +777,7 @@ class EditorWindow(QWidget):
 
     def _cancel_ocr(self):
         """取消OCR操作"""
+        logger.info("用户取消 OCR")
         if hasattr(self, '_ocr_worker') and self._ocr_worker.isRunning():
             self._ocr_worker.terminate()  # 强制终止线程
             self._ocr_worker.wait(1000)  # 等待最多1秒
@@ -792,6 +797,7 @@ class EditorWindow(QWidget):
             delattr(self, '_ocr_worker')
 
         self.ocr_text = text
+        logger.info(f"OCR 识别完成，{len(text)} 个字符")
 
         from .utils import OcrResultDialog
         dialog = OcrResultDialog(text if text else "(未检测到文字)", self)
@@ -811,6 +817,7 @@ class EditorWindow(QWidget):
             self._ocr_worker.deleteLater()
             delattr(self, '_ocr_worker')
 
+        logger.error(f"OCR 识别失败: {error_msg}")
         QMessageBox.critical(
             self, "OCR 错误",
             f"文字识别失败：\n{error_msg}"

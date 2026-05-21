@@ -6,6 +6,9 @@ from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QSize, QE
 
 from .utils import capture_all_screens
 from .resources.icons.toolbar_icons import TOOLBAR_ICONS
+from .logger import setup_logger
+
+logger = setup_logger("overlay")
 
 
 class CaptureOverlay(QWidget):
@@ -20,7 +23,9 @@ class CaptureOverlay(QWidget):
         for screen in QApplication.screens():
             self.total_geometry = self.total_geometry.united(screen.geometry())
 
+        logger.info(f"初始化截图覆盖层，屏幕区域: {self.total_geometry}")
         self.full_screenshot = capture_all_screens()
+        logger.debug(f"截图尺寸: {self.full_screenshot.width()}x{self.full_screenshot.height()}")
 
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
@@ -28,6 +33,7 @@ class CaptureOverlay(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setGeometry(self.total_geometry)
         self.setCursor(Qt.CrossCursor)
+        self.grabKeyboard()
 
         self.is_selecting = False
         self.start_point = QPoint()
@@ -1520,6 +1526,7 @@ class CaptureOverlay(QWidget):
                 self.close()
 
     def closeEvent(self, event):
+        logger.debug("关闭截图覆盖层")
         self.releaseKeyboard()
         self.deleteLater()
         super().closeEvent(event)

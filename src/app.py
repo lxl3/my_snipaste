@@ -8,6 +8,9 @@ from PySide6.QtWidgets import (
 from .overlay import CaptureOverlay
 from .ocr_engine import extract_text
 from .utils import create_app_icon
+from .logger import setup_logger
+
+logger = setup_logger("app")
 
 
 class PinWindow(QWidget):
@@ -96,9 +99,9 @@ class HotkeyListener(QObject):
             with keyboard.Listener(on_press=on_press) as self.listener:
                 self.listener.join()
         except ImportError:
-            pass
+            logger.warning("pynput 未安装，全局快捷键不可用")
         except Exception as e:
-            print(f"Hotkey listener error: {e}")
+            logger.error(f"快捷键监听异常: {e}")
 
     def __del__(self):
         self.stop()
@@ -116,6 +119,7 @@ class SnipasteApp(QApplication):
 
         self.setup_tray()
         self.setup_hotkeys()
+        logger.info("MySnipaste 应用初始化完成")
 
     def setup_tray(self):
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -156,8 +160,10 @@ class SnipasteApp(QApplication):
 
     def start_capture(self):
         if self.overlay is not None:
+            logger.debug("截图覆盖层已存在，跳过")
             return
 
+        logger.info("启动截图")
         self.overlay = CaptureOverlay()
         self.overlay.pin_requested.connect(self._on_pin)
         self.overlay.copy_requested.connect(self._on_copy)
@@ -185,9 +191,11 @@ class SnipasteApp(QApplication):
                 self.overlay.close()
 
     def ocr_clipboard(self):
+        logger.info("开始 OCR 剪贴板图片")
         clipboard = self.clipboard()
         pixmap = clipboard.pixmap()
         if pixmap is None or pixmap.isNull():
+            logger.warning("剪贴板中没有图片")
             QMessageBox.information(
                 None, "OCR 剪贴板",
                 "剪贴板中没有图片。\n请先复制一张图片，然后再试。"
@@ -197,10 +205,13 @@ class SnipasteApp(QApplication):
         text = extract_text(pixmap)
         if text:
             clipboard.setText(text)
+            logger.info(f"OCR 识别成功，{len(text)} 个字符已复制到剪贴板")
             QMessageBox.information(
                 None, "OCR 结果",
                 f"文本已提取并复制到剪贴板：\n\n{text[:500]}"
             )
+        else:
+            logger.warning("OCR 识别结果为空")
 
     def cleanup(self):
         if hasattr(self, 'hotkey_listener'):

@@ -1,0 +1,5 @@
+16:56:09 [INFO] app: MySnipaste 应用初始化完成
+16:56:11 [INFO] app: 启动截图
+16:56:11 [INFO] overlay: 初始化截图覆盖层，屏幕区域: PySide6.QtCore.QRect(0, 0, 1280, 800)
+16:56:11 [DEBUG] overlay: 截图尺寸: 1920x1200
+16:56:17 [DEBUG] overlay: 关闭截图覆盖层
