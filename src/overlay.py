@@ -376,13 +376,14 @@ class CaptureOverlay(QWidget):
                     painter.drawPath(path)
             elif t == "mosaic":
                 dpr = self.full_screenshot.devicePixelRatio()
-                r = QRectF(ann["rect"]).translated(offset).toRect()
+                r = QRectF(ann["rect"]).translated(offset).toRect()  # r是绘制目标位置
                 sel = self.selection_rect
+                # 从full_screenshot复制时，使用原始的ann["rect"]（相对选区）加上选区偏移
                 src_rect = QRect(
-                    round((sel.x() + r.x()) * dpr),
-                    round((sel.y() + r.y()) * dpr),
-                    round(r.width() * dpr),
-                    round(r.height() * dpr)
+                    round((sel.x() + ann["rect"].x()) * dpr),
+                    round((sel.y() + ann["rect"].y()) * dpr),
+                    round(ann["rect"].width() * dpr),
+                    round(ann["rect"].height() * dpr)
                 )
                 if src_rect.width() > 0 and src_rect.height() > 0:
                     src = self.full_screenshot.copy(src_rect)
@@ -433,11 +434,12 @@ class CaptureOverlay(QWidget):
                 painter.drawLine(start, end)
             elif t == "mosaic":
                 dpr = self.full_screenshot.devicePixelRatio()
-                r = QRectF(ann["rect"]).translated(offset).toRect()
+                r = QRectF(ann["rect"]).translated(offset).toRect()  # r是绘制目标位置
                 sel = self.selection_rect
+                # 从full_screenshot复制时，使用原始的ann["rect"]（相对选区）加上选区偏移
                 src_rect = QRect(
-                    round((sel.x() + r.x()) * dpr), round((sel.y() + r.y()) * dpr),
-                    round(r.width() * dpr), round(r.height() * dpr)
+                    round((sel.x() + ann["rect"].x()) * dpr), round((sel.y() + ann["rect"].y()) * dpr),
+                    round(ann["rect"].width() * dpr), round(ann["rect"].height() * dpr)
                 )
                 if src_rect.width() > 0 and src_rect.height() > 0:
                     src = self.full_screenshot.copy(src_rect)
