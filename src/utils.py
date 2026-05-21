@@ -98,8 +98,8 @@ class OcrResultDialog(QDialog):
         self.setMaximumSize(900, 700)
         self.setFocusPolicy(Qt.StrongFocus)
         
-        # 设置窗口属性：圆角、阴影、无边框
-        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
+        # 设置窗口属性：圆角、阴影、无边框，不在任务栏显示
+        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         
         # 主容器

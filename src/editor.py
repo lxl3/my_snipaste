@@ -280,8 +280,8 @@ class EditorWindow(QWidget):
         self.captured_pixmap = pixmap
         self.ocr_text = ""
 
-        # 无边框窗口，保持在最上层
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        # 无边框窗口，保持在最上层，不在任务栏显示
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowTitle("MySnipaste - 编辑器")
 
