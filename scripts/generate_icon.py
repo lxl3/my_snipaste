@@ -20,8 +20,8 @@ ASSETS_DIR = PROJECT_DIR / "assets" / "icons"
 
 # 设计规格
 COLORS = {
-    'primary': '#000000',        # 黑色主色（线条）
-    'background': (0, 0, 0, 0)   # 透明背景
+    'primary': '#FFFFFF',        # 白色线条
+    'background': '#3498DB'      # 浅蓝色背景
 }
 
 # 支持的尺寸
