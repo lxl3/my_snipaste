@@ -6,12 +6,19 @@ from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent
 
 from .utils import capture_all_screens
 from .overlay_toolbar import OverlayToolbar
+from .ocr_mixin import OcrMixin
+from .constants import (
+    DEFAULT_ANNOTATION_COLOR, SELECTION_BORDER_COLOR, DIM_OVERLAY_COLOR,
+    HANDLE_SIZE, MIN_SELECTION_SIZE, MIN_DRAW_THRESHOLD, TOOLBAR_MARGIN,
+    ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR,
+    DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, DEFAULT_LINE_WIDTH,
+)
 from .logger import setup_logger
 
 logger = setup_logger("overlay")
 
 
-class CaptureOverlay(QWidget):
+class CaptureOverlay(QWidget, OcrMixin):
     pin_requested = Signal(object, object)
     copy_requested = Signal(object)
     save_requested = Signal(object)
@@ -44,8 +51,8 @@ class CaptureOverlay(QWidget):
         self._drag_start_rect = QRect()
 
         self.current_tool = "select"
-        self.current_color = QColor(255, 50, 50)
-        self.current_width = 3
+        self.current_color = QColor(DEFAULT_ANNOTATION_COLOR)
+        self.current_width = DEFAULT_LINE_WIDTH
         self.annotations = []
         self._redo_stack = []
         self._drawing = False
@@ -56,11 +63,11 @@ class CaptureOverlay(QWidget):
         self._text_editor = None
         self._text_editor_pos = None
 
-        self.text_font_family = "Segoe UI"
-        self.text_font_size = 20
+        self.text_font_family = DEFAULT_FONT_FAMILY
+        self.text_font_size = DEFAULT_FONT_SIZE
         self.text_bold = False
         self.text_italic = False
-        self.text_color = QColor(255, 50, 50)
+        self.text_color = QColor(DEFAULT_ANNOTATION_COLOR)
 
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
@@ -77,18 +84,17 @@ class CaptureOverlay(QWidget):
         return QPointF(pos - self.selection_rect.topLeft())
 
     def _get_all_handles(self, rect):
-        size = 8
-        half = size // 2
+        half = HANDLE_SIZE // 2
         r = rect
         return [
-            QRect(r.left() - half, r.top() - half, size, size),
-            QRect(r.right() - half, r.top() - half, size, size),
-            QRect(r.left() - half, r.bottom() - half, size, size),
-            QRect(r.right() - half, r.bottom() - half, size, size),
-            QRect(r.center().x() - half, r.top() - half, size, size),
-            QRect(r.center().x() - half, r.bottom() - half, size, size),
-            QRect(r.left() - half, r.center().y() - half, size, size),
-            QRect(r.right() - half, r.center().y() - half, size, size),
+            QRect(r.left() - half, r.top() - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(r.right() - half, r.top() - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(r.left() - half, r.bottom() - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(r.right() - half, r.bottom() - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(r.center().x() - half, r.top() - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(r.center().x() - half, r.bottom() - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(r.left() - half, r.center().y() - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(r.right() - half, r.center().y() - half, HANDLE_SIZE, HANDLE_SIZE),
         ]
 
     def _handle_at_pos(self, pos):
@@ -167,11 +173,10 @@ class CaptureOverlay(QWidget):
             self._draw_text(painter, ann, offset)
 
     def _draw_arrowhead(self, painter, start, end, width):
-        arrow_size = 10 + width
+        arrow_size = ARROW_SIZE_BASE + width
         angle = math.atan2(end.y() - start.y(), end.x() - start.x())
-        spread = math.pi / 6
-        p1 = end - QPointF(arrow_size * math.cos(angle + spread), arrow_size * math.sin(angle + spread))
-        p2 = end - QPointF(arrow_size * math.cos(angle - spread), arrow_size * math.sin(angle - spread))
+        p1 = end - QPointF(arrow_size * math.cos(angle + ARROW_SPREAD_ANGLE), arrow_size * math.sin(angle + ARROW_SPREAD_ANGLE))
+        p2 = end - QPointF(arrow_size * math.cos(angle - ARROW_SPREAD_ANGLE), arrow_size * math.sin(angle - ARROW_SPREAD_ANGLE))
         painter.drawLine(end, p1)
         painter.drawLine(end, p2)
 
@@ -187,7 +192,7 @@ class CaptureOverlay(QWidget):
         )
         if src_rect.width() > 0 and src_rect.height() > 0:
             src = self.full_screenshot.copy(src_rect)
-            small = src.scaled(max(src.width() // 8, 1), max(src.height() // 8, 1), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+            small = src.scaled(max(src.width() // MOSAIC_SCALE_FACTOR, 1), max(src.height() // MOSAIC_SCALE_FACTOR, 1), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
             blurred = small.scaled(src.width(), src.height(), Qt.IgnoreAspectRatio, Qt.FastTransformation)
             painter.drawPixmap(r, blurred, blurred.rect())
 
@@ -215,21 +220,7 @@ class CaptureOverlay(QWidget):
         self._ocr_worker.finished.connect(self._on_ocr_finished)
         self._ocr_worker.error.connect(self._on_ocr_error)
         self._ocr_worker.start()
-
-        self._ocr_progress = QMessageBox(self)
-        self._ocr_progress.setWindowTitle("OCR 识别中")
-        self._ocr_progress.setText("正在识别文字，请稍候...")
-        self._ocr_progress.setStandardButtons(QMessageBox.Cancel)
-        self._ocr_progress.setWindowModality(Qt.NonModal)
-        self._ocr_progress.rejected.connect(self._cancel_ocr)
-        self._ocr_progress.show()
-
-    def _cancel_ocr(self):
-        if hasattr(self, '_ocr_worker') and self._ocr_worker.isRunning():
-            self._ocr_worker.terminate()
-            self._ocr_worker.wait(1000)
-        if hasattr(self, '_ocr_progress'):
-            self._ocr_progress.close()
+        self._show_ocr_progress(self._cancel_ocr)
 
     def _on_ocr_finished(self, text):
         self._cleanup_ocr()
@@ -242,13 +233,6 @@ class CaptureOverlay(QWidget):
     def _on_ocr_error(self, error_msg):
         self._cleanup_ocr()
         QMessageBox.critical(self, "OCR 错误", f"文字识别失败：\n{error_msg}")
-
-    def _cleanup_ocr(self):
-        for attr in ('_ocr_progress', '_ocr_worker'):
-            if hasattr(self, attr):
-                obj = getattr(self, attr)
-                obj.close() if attr == '_ocr_progress' else obj.deleteLater()
-                delattr(self, attr)
 
     def _on_pin(self):
         if self.selection_rect.isNull():
@@ -345,7 +329,7 @@ class CaptureOverlay(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self.full_screenshot)
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 140))
+        painter.fillRect(self.rect(), DIM_OVERLAY_COLOR)
 
         rect = self.selection_rect
         if not rect.isNull():
@@ -358,12 +342,12 @@ class CaptureOverlay(QWidget):
             painter.drawPixmap(rect, self.full_screenshot, physical_rect)
             self._draw_annotations(painter, rect.size(), rect.topLeft())
 
-            painter.setPen(QPen(QColor(0, 120, 215), 2))
+            painter.setPen(QPen(SELECTION_BORDER_COLOR, 2))
             painter.setBrush(Qt.NoBrush)
             painter.drawRect(rect)
 
             for h_rect in self._get_all_handles(rect):
-                painter.fillRect(h_rect, QColor(0, 120, 215))
+                painter.fillRect(h_rect, SELECTION_BORDER_COLOR)
                 painter.setPen(QPen(Qt.white, 1))
                 painter.drawRect(h_rect)
 
@@ -526,14 +510,14 @@ class CaptureOverlay(QWidget):
                     "type": self.current_tool, "rect": QRectF(self._draw_start, local).normalized(),
                     "color": QColor(self.current_color), "width": self.current_width,
                 }
-            elif self.current_tool in ("arrow", "line") and (abs(dx) > 3 or abs(dy) > 3):
+            elif self.current_tool in ("arrow", "line") and (abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD):
                 self._preview_annotation = {
                     "type": self.current_tool, "start": QPointF(self._draw_start),
                     "end": QPointF(local), "color": QColor(self.current_color), "width": self.current_width,
                 }
             elif self.current_tool == "mosaic":
                 r = QRectF(self._draw_start, local).normalized()
-                if r.width() > 3 and r.height() > 3:
+                if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
                     self._preview_annotation = {"type": "mosaic", "rect": r}
         self.update()
 
@@ -572,7 +556,7 @@ class CaptureOverlay(QWidget):
             return
         if self.is_selecting:
             self.is_selecting = False
-            if self.selection_rect.width() > 5 and self.selection_rect.height() > 5:
+            if self.selection_rect.width() > MIN_SELECTION_SIZE and self.selection_rect.height() > MIN_SELECTION_SIZE:
                 self._position_toolbar()
             else:
                 self.selection_rect = QRect()
@@ -581,14 +565,14 @@ class CaptureOverlay(QWidget):
         self._drawing = False
         if self._preview_annotation and self._preview_annotation["type"] != "freehand":
             ann = self._preview_annotation
-            if ann["type"] in ("rect", "ellipse", "mosaic") and ann["rect"].width() > 3 and ann["rect"].height() > 3:
+            if ann["type"] in ("rect", "ellipse", "mosaic") and ann["rect"].width() > MIN_DRAW_THRESHOLD and ann["rect"].height() > MIN_DRAW_THRESHOLD:
                 self.annotations.append(ann)
                 self._redo_stack.clear()
                 self.toolbar.update_undo_redo_state()
             elif ann["type"] in ("arrow", "line"):
                 dx = ann["end"].x() - ann["start"].x()
                 dy = ann["end"].y() - ann["start"].y()
-                if abs(dx) > 3 or abs(dy) > 3:
+                if abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD:
                     self.annotations.append(ann)
                     self._redo_stack.clear()
                     self.toolbar.update_undo_redo_state()

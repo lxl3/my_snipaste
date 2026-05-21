@@ -3,11 +3,16 @@ from PySide6.QtWidgets import (
     QWidgetAction, QPushButton, QSpinBox, QVBoxLayout,
     QComboBox, QColorDialog,
 )
-from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtGui import QPainter, QPixmap, QColor, QIcon
+from PySide6.QtGui import QColor, QIcon
 from PySide6.QtCore import Qt, QPoint, QSize, QTimer
 
 from .resources.icons.toolbar_icons import TOOLBAR_ICONS
+from .utils import load_icon_from_svg
+from .constants import (
+    PRESET_COLORS, TEXT_PRESET_COLORS, ICON_SIZE_SMALL, ICON_SIZE_MENU,
+    ICON_SIZE_BTN, DEFAULT_ANNOTATION_COLOR, DEFAULT_LINE_WIDTH,
+    DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE,
+)
 from .logger import setup_logger
 
 logger = setup_logger("overlay_toolbar")
@@ -32,12 +37,6 @@ TOOLBAR_STYLE = """
     QToolButton:hover { background: #e8e8e8; }
     QToolButton:checked { background: #d0e4ff; }
 """
-
-PRESET_COLORS = ["#ff3232", "#ff8c00", "#ffd700", "#32cd32", "#1e90ff", "#8a2be2", "#ffffff", "#000000"]
-TEXT_PRESET_COLORS = [
-    ["#000000", "#ffffff", "#ff3232", "#ff8c00", "#ffd700"],
-    ["#32cd32", "#1e90ff", "#8a2be2", "#ff69b4", "#808080"]
-]
 
 
 class OverlayToolbar:
@@ -91,22 +90,7 @@ class OverlayToolbar:
             child.installEventFilter(self.overlay)
 
     def _load_icon(self, name, color="#333333"):
-        svg = TOOLBAR_ICONS.get(name, "")
-        if svg:
-            svg_data = svg.replace("currentColor", color)
-            renderer = QSvgRenderer(svg_data.encode("utf-8"))
-            size = 48
-            pm = QPixmap(size, size)
-            pm.fill(Qt.transparent)
-            p = QPainter(pm)
-            p.setRenderHint(QPainter.Antialiasing)
-            p.setRenderHint(QPainter.SmoothPixmapTransform)
-            renderer.render(p)
-            p.end()
-            dpr = QApplication.primaryScreen().devicePixelRatio()
-            pm.setDevicePixelRatio(dpr)
-            return QIcon(pm)
-        return QIcon()
+        return load_icon_from_svg(TOOLBAR_ICONS.get(name, ""), color)
 
     def _make_submenu_btn(self, btn_icon, btn_tooltip, parent_layout):
         btn = QToolButton()

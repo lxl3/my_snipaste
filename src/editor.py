@@ -10,12 +10,18 @@ from PySide6.QtCore import Qt, QRectF, QEvent, QTimer
 
 from .editor_view import AnnotationView
 from .editor_toolbar import EditorToolbar
+from .ocr_mixin import OcrMixin
+from .constants import (
+    SCREEN_MARGIN, MIN_EDITOR_SIZE, BORDER_BLUE, SHADOW_BLUR, SHADOW_OFFSET,
+    SHADOW_COLOR, TOOLBAR_SHADOW_BLUR, TOOLBAR_SHADOW_OFFSET, TOOLBAR_SHADOW_COLOR,
+    DRAG_THRESHOLD, RESIZE_DEBOUNCE_MS, DEFAULT_ANNOTATION_COLOR, DEFAULT_LINE_WIDTH,
+)
 from .logger import setup_logger
 
 logger = setup_logger("editor")
 
 
-class EditorWindow(QWidget):
+class EditorWindow(QWidget, OcrMixin):
     def __init__(self, pixmap, capture_pos=None):
         super().__init__()
         self.captured_pixmap = pixmap
@@ -26,8 +32,8 @@ class EditorWindow(QWidget):
         self.setWindowTitle("MySnipaste - 编辑器")
 
         screen = QApplication.primaryScreen().availableGeometry()
-        max_w, max_h = screen.width() - 20, screen.height() - 20
-        self.setMinimumSize(100, 100)
+        max_w, max_h = screen.width() - SCREEN_MARGIN, screen.height() - SCREEN_MARGIN
+        self.setMinimumSize(*MIN_EDITOR_SIZE)
 
         dpr = pixmap.devicePixelRatio()
         self.resize(min(int(pixmap.width() / dpr), max_w), min(int(pixmap.height() / dpr), max_h))
@@ -43,20 +49,20 @@ class EditorWindow(QWidget):
         self.scene.addItem(self.pixmap_item)
 
         border = QGraphicsRectItem(self.pixmap_item.boundingRect())
-        border.setPen(QPen(QColor(10, 125, 255, 80), 2))
+        border.setPen(QPen(BORDER_BLUE, 2))
         border.setBrush(Qt.NoBrush)
         self.scene.addItem(border)
 
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(15)
-        shadow.setColor(QColor(0, 0, 0, 60))
-        shadow.setOffset(0, 2)
+        shadow.setBlurRadius(SHADOW_BLUR)
+        shadow.setColor(SHADOW_COLOR)
+        shadow.setOffset(*SHADOW_OFFSET)
         self.pixmap_item.setGraphicsEffect(shadow)
 
         self.view = AnnotationView(self.scene)
         self.view.source_pixmap = pixmap
-        self.view.current_color = QColor(255, 50, 50)
-        self.view.current_width = 3
+        self.view.current_color = QColor(DEFAULT_ANNOTATION_COLOR)
+        self.view.current_width = DEFAULT_LINE_WIDTH
 
         self.undo_stack = []
         self.redo_stack = []
@@ -80,7 +86,7 @@ class EditorWindow(QWidget):
         self.toolbar.toolbar.setParent(None)
         self.toolbar.toolbar.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         window_rect = self.frameGeometry()
-        self.toolbar.toolbar.move(window_rect.right() - self.toolbar.toolbar.width(), window_rect.bottom() + 8)
+        self.toolbar.toolbar.move(window_rect.right() - self.toolbar.toolbar.width(), window_rect.bottom() + TOOLBAR_MARGIN)
         self.toolbar.toolbar.show()
         self.toolbar.toolbar.raise_()
         self.toolbar.toolbar.installEventFilter(self)
@@ -88,16 +94,16 @@ class EditorWindow(QWidget):
             child.installEventFilter(self)
 
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(12)
-        shadow.setOffset(2, 2)
-        shadow.setColor(QColor(0, 0, 0, 120))
+        shadow.setBlurRadius(TOOLBAR_SHADOW_BLUR)
+        shadow.setOffset(*TOOLBAR_SHADOW_OFFSET)
+        shadow.setColor(TOOLBAR_SHADOW_COLOR)
         self.toolbar.toolbar.setGraphicsEffect(shadow)
 
     def _update_toolbar_position(self):
         if self.toolbar.toolbar.parent() is not None:
             return
         window_rect = self.frameGeometry()
-        self.toolbar.toolbar.move(window_rect.right() - self.toolbar.toolbar.width(), window_rect.bottom() + 8)
+        self.toolbar.toolbar.move(window_rect.right() - self.toolbar.toolbar.width(), window_rect.bottom() + TOOLBAR_MARGIN)
 
     def eventFilter(self, obj, event):
         if obj is self.view.viewport():
@@ -115,7 +121,7 @@ class EditorWindow(QWidget):
                     return True
                 if self.view.current_tool == "select":
                     distance = (event.globalPosition().toPoint() - self._press_pos).manhattanLength()
-                    if distance > 10:
+                    if distance > DRAG_THRESHOLD:
                         self._window_dragging = True
                         self._drag_start_global = self._press_pos
                         self._drag_start_window = self.pos()
@@ -173,26 +179,11 @@ class EditorWindow(QWidget):
     def _do_ocr(self):
         from .ocr_engine import OcrWorker
         from .utils import qpixmap_to_pil
-
-        self._ocr_progress = QMessageBox(self)
-        self._ocr_progress.setWindowTitle("OCR 识别中")
-        self._ocr_progress.setText("正在识别文字，请稍候...")
-        self._ocr_progress.setStandardButtons(QMessageBox.Cancel)
-        self._ocr_progress.setWindowModality(Qt.NonModal)
-        self._ocr_progress.rejected.connect(self._cancel_ocr)
-        self._ocr_progress.show()
-
+        self._show_ocr_progress(self._cancel_ocr)
         self._ocr_worker = OcrWorker(qpixmap_to_pil(self.captured_pixmap))
         self._ocr_worker.finished.connect(self._on_ocr_finished)
         self._ocr_worker.error.connect(self._on_ocr_error)
         self._ocr_worker.start()
-
-    def _cancel_ocr(self):
-        if hasattr(self, '_ocr_worker') and self._ocr_worker.isRunning():
-            self._ocr_worker.terminate()
-            self._ocr_worker.wait(1000)
-        if hasattr(self, '_ocr_progress'):
-            self._ocr_progress.close()
 
     def _on_ocr_finished(self, text):
         self._cleanup_ocr()
@@ -203,13 +194,6 @@ class EditorWindow(QWidget):
     def _on_ocr_error(self, error_msg):
         self._cleanup_ocr()
         QMessageBox.critical(self, "OCR 错误", f"文字识别失败：\n{error_msg}")
-
-    def _cleanup_ocr(self):
-        for attr in ('_ocr_progress', '_ocr_worker'):
-            if hasattr(self, attr):
-                obj = getattr(self, attr)
-                obj.close() if attr == '_ocr_progress' else obj.deleteLater()
-                delattr(self, attr)
 
     def _pin(self):
         self.toolbar.toolbar.hide()
@@ -238,7 +222,7 @@ class EditorWindow(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._update_toolbar_position()
-        QTimer.singleShot(50, self.fit_in_view)
+        QTimer.singleShot(RESIZE_DEBOUNCE_MS, self.fit_in_view)
 
     def moveEvent(self, event):
         super().moveEvent(event)

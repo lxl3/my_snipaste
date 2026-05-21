@@ -6,9 +6,32 @@ from PIL import Image
 from PySide6.QtCore import Qt, QRect, QBuffer, QIODevice, QTimer
 from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen
 from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel, QWidget
+from PySide6.QtSvg import QSvgRenderer
 from .logger import setup_logger
 
 logger = setup_logger("utils")
+
+ICON_RENDER_SIZE = 48
+
+
+def load_icon_from_svg(svg_content: str, color: str = "#333333", size: int = ICON_RENDER_SIZE) -> "QIcon":
+    """将 SVG 字符串渲染为 QIcon，支持颜色替换和高 DPI。"""
+    if not svg_content:
+        from PySide6.QtGui import QIcon
+        return QIcon()
+    svg_data = svg_content.replace("currentColor", color)
+    renderer = QSvgRenderer(svg_data.encode("utf-8"))
+    pm = QPixmap(size, size)
+    pm.fill(Qt.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.setRenderHint(QPainter.SmoothPixmapTransform)
+    renderer.render(p)
+    p.end()
+    dpr = QApplication.primaryScreen().devicePixelRatio()
+    pm.setDevicePixelRatio(dpr)
+    from PySide6.QtGui import QIcon
+    return QIcon(pm)
 
 
 def capture_all_screens() -> QPixmap:

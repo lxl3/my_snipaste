@@ -4,6 +4,8 @@ from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsItem
 from PySide6.QtGui import QPen, QPolygonF, QColor
 from PySide6.QtCore import Qt, QRectF, QRect, QPointF
 
+from .constants import ARROWHEAD_SIZE_BASE, ARROW_SPREAD_ANGLE, MIN_DRAW_THRESHOLD
+
 
 class ArrowItem(QGraphicsItem):
     def __init__(self, start, end, color=QColor(255, 0, 0), width=3):
@@ -16,7 +18,7 @@ class ArrowItem(QGraphicsItem):
         self.setFlag(QGraphicsItem.ItemIsMovable, True)
 
     def boundingRect(self):
-        extra = 12 + self.arrow_width * 2
+        extra = ARROWHEAD_SIZE_BASE + self.arrow_width * 2
         return QRectF(self.start, self.end).normalized().adjusted(-extra, -extra, extra, extra)
 
     def paint(self, painter, option, widget):
@@ -30,9 +32,9 @@ class ArrowItem(QGraphicsItem):
             return
 
         angle = math.atan2(dy, dx)
-        arrow_size = 12 + self.arrow_width * 2
-        p1 = self.end - QPointF(arrow_size * math.cos(angle - math.pi / 6), arrow_size * math.sin(angle - math.pi / 6))
-        p2 = self.end - QPointF(arrow_size * math.cos(angle + math.pi / 6), arrow_size * math.sin(angle + math.pi / 6))
+        arrow_size = ARROWHEAD_SIZE_BASE + self.arrow_width * 2
+        p1 = self.end - QPointF(arrow_size * math.cos(angle - ARROW_SPREAD_ANGLE), arrow_size * math.sin(angle - ARROW_SPREAD_ANGLE))
+        p2 = self.end - QPointF(arrow_size * math.cos(angle + ARROW_SPREAD_ANGLE), arrow_size * math.sin(angle + ARROW_SPREAD_ANGLE))
         painter.setBrush(self.arrow_color)
         painter.setPen(Qt.NoPen)
         painter.drawPolygon(QPolygonF([self.end, p1, p2]))

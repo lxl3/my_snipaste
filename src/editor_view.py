@@ -5,6 +5,10 @@ from PySide6.QtGui import QPainter, QPen, QBrush, QFont, QPainterPath
 from PySide6.QtCore import Qt, QRectF, QPointF, QLineF, Signal
 
 from .editor_items import ArrowItem, MosaicItem
+from .constants import (
+    DEFAULT_ANNOTATION_COLOR, DEFAULT_LINE_WIDTH, MIN_DRAW_THRESHOLD,
+    MIN_SELECTION_SIZE, ZOOM_FACTOR, ARROWHEAD_SIZE_BASE, ARROW_SPREAD_ANGLE,
+)
 
 
 class AnnotationView(QGraphicsView):
@@ -24,8 +28,8 @@ class AnnotationView(QGraphicsView):
         self.setStyleSheet("QGraphicsView { border: none; background: #2d2d2d; }")
 
         self.current_tool = "select"
-        self.current_color = QColor(255, 50, 50)
-        self.current_width = 3
+        self.current_color = QColor(DEFAULT_ANNOTATION_COLOR)
+        self.current_width = DEFAULT_LINE_WIDTH
         self.current_fill = Qt.transparent
         self.source_pixmap = None
         self.drawing_item = None
@@ -158,7 +162,7 @@ class AnnotationView(QGraphicsView):
 
     def wheelEvent(self, event):
         if event.modifiers() & Qt.ControlModifier:
-            scale = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
+            scale = ZOOM_FACTOR if event.angleDelta().y() > 0 else 1 / ZOOM_FACTOR
             self.scale(scale, scale)
         else:
             super().wheelEvent(event)

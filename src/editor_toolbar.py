@@ -2,11 +2,12 @@ from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QVBoxLayout, QToolButton, QMenu, QWidget,
     QLabel, QPushButton, QSpinBox, QWidgetAction,
 )
-from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QColor
+from PySide6.QtGui import QAction, QColor
 from PySide6.QtCore import Qt, QSize
 
-from PySide6.QtSvg import QSvgRenderer
 from .resources.icons.toolbar_icons import TOOLBAR_ICONS
+from .utils import load_icon_from_svg
+from .constants import TOOLBAR_HEIGHT, PRESET_COLORS
 
 
 class EditorToolbar:
@@ -19,7 +20,7 @@ class EditorToolbar:
     def setup(self):
         self.toolbar = QFrame()
         self.toolbar.setObjectName("floatingToolbar")
-        self.toolbar.setFixedHeight(28)
+        self.toolbar.setFixedHeight(TOOLBAR_HEIGHT)
         self.toolbar.setStyleSheet("""
             #floatingToolbar { background: white; border: 1px solid #ccc; border-radius: 4px; }
             QToolButton { color: #333; background: transparent; border: 1px solid transparent; border-radius: 3px; padding: 1px 2px; margin: 0px; min-width: 18px; min-height: 18px; }
@@ -45,17 +46,7 @@ class EditorToolbar:
         self._build_action_btns(toolbar_layout)
 
     def _load_icon(self, name, color="#333333"):
-        svg = TOOLBAR_ICONS.get(name, "")
-        if svg:
-            svg_data = svg.replace("currentColor", color)
-            renderer = QSvgRenderer(svg_data.encode("utf-8"))
-            pm = QPixmap(16, 16)
-            pm.fill(Qt.transparent)
-            p = QPainter(pm)
-            renderer.render(p)
-            p.end()
-            return QIcon(pm)
-        return QIcon()
+        return load_icon_from_svg(TOOLBAR_ICONS.get(name, ""), color, size=16)
 
     def _make_separator(self):
         sep = QFrame()
@@ -123,7 +114,7 @@ class EditorToolbar:
         grid_layout = QHBoxLayout(grid)
         grid_layout.setContentsMargins(0, 0, 0, 0)
         grid_layout.setSpacing(2)
-        for c in ["#ff3232", "#ff8c00", "#ffd700", "#32cd32", "#1e90ff", "#8a2be2", "#ffffff", "#000000"]:
+        for c in PRESET_COLORS:
             cb = QPushButton()
             cb.setFixedSize(18, 18)
             cb.setStyleSheet(f"background: {c}; border: 1px solid #ccc; border-radius: 2px;")
