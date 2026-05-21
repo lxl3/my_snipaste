@@ -195,15 +195,15 @@ class EditorWindow(QWidget, OcrMixin):
         self._cleanup_ocr()
         QMessageBox.critical(self, "OCR 错误", f"文字识别失败：\n{error_msg}")
 
-    def _pin(self):
+    def pin(self):
         self.toolbar.toolbar.hide()
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.show()
 
-    def _copy_to_clipboard(self):
+    def copy_to_clipboard(self):
         QApplication.clipboard().setPixmap(self._get_image_with_annotations())
 
-    def _save_to_file(self):
+    def save_to_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
             self, "保存截图", "截图.png",
             "PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg);;所有文件 (*)",

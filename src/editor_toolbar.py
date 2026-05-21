@@ -188,9 +188,9 @@ class EditorToolbar:
     def _build_action_btns(self, layout):
         for icon, tooltip, fn in [
             ("close", "取消（退出截图）", self.editor.close),
-            ("pin", "悬浮（钉在桌面上）", self.editor._pin),
-            ("save", "保存到文件", self.editor._save_to_file),
-            ("copy", "复制到剪贴板", self.editor._copy_to_clipboard),
+            ("pin", "悬浮（钉在桌面上）", self.editor.pin),
+            ("save", "保存到文件", self.editor.save_to_file),
+            ("copy", "复制到剪贴板", self.editor.copy_to_clipboard),
         ]:
             btn = QToolButton()
             btn.setIcon(self._load_icon(icon))

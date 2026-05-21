@@ -1,20 +1,24 @@
 import io
 import sys
 import os
+from typing import TYPE_CHECKING
 
 from PIL import Image
 from PySide6.QtCore import Qt, QRect, QBuffer, QIODevice, QTimer
-from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen
+from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen, QScreen
 from PySide6.QtWidgets import QApplication, QDialog, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel, QWidget
 from PySide6.QtSvg import QSvgRenderer
 from .logger import setup_logger
+
+if TYPE_CHECKING:
+    from PIL.Image import Image as PILImage
 
 logger = setup_logger("utils")
 
 ICON_RENDER_SIZE = 48
 
 
-def load_icon_from_svg(svg_content: str, color: str = "#333333", size: int = ICON_RENDER_SIZE) -> "QIcon":
+def load_icon_from_svg(svg_content: str, color: str = "#333333", size: int = ICON_RENDER_SIZE) -> QIcon:
     """将 SVG 字符串渲染为 QIcon，支持颜色替换和高 DPI。"""
     if not svg_content:
         from PySide6.QtGui import QIcon
@@ -57,7 +61,7 @@ def capture_all_screens() -> QPixmap:
     return combined
 
 
-def _grab_and_fit(screen) -> QPixmap:
+def _grab_and_fit(screen: "QScreen") -> QPixmap:
     geo = screen.geometry()
     pixmap = screen.grabWindow(0)
     dpr = screen.devicePixelRatio()
@@ -67,7 +71,7 @@ def _grab_and_fit(screen) -> QPixmap:
     return pixmap
 
 
-def qpixmap_to_pil(pixmap: QPixmap) -> Image.Image:
+def qpixmap_to_pil(pixmap: QPixmap) -> "PILImage":
     qimage = pixmap.toImage()
     buffer = QBuffer()
     buffer.open(QIODevice.ReadWrite)
@@ -75,14 +79,14 @@ def qpixmap_to_pil(pixmap: QPixmap) -> Image.Image:
     return Image.open(io.BytesIO(buffer.data()))
 
 
-def qimage_to_pil(qimage: QImage) -> Image.Image:
+def qimage_to_pil(qimage: QImage) -> "PILImage":
     buffer = QBuffer()
     buffer.open(QIODevice.ReadWrite)
     qimage.save(buffer, "PNG")
     return Image.open(io.BytesIO(buffer.data()))
 
 
-def pil_to_qpixmap(pil_image: Image.Image) -> QPixmap:
+def pil_to_qpixmap(pil_image: "PILImage") -> QPixmap:
     buffer = io.BytesIO()
     pil_image.save(buffer, "PNG")
     pixmap = QPixmap()
@@ -429,14 +433,12 @@ class OcrResultDialog(QDialog):
             QApplication.clipboard().setText(text)
             self._show_copy_feedback("已复制")
         
-        # 关闭父窗口（截图编辑器）
         if self.parent():
-            QTimer.singleShot(300, lambda: self.parent().close())
+            QTimer.singleShot(300, self.parent().close)
         QTimer.singleShot(300, self.accept)
             
     def _show_copy_feedback(self, message: str):
         """显示复制成功的微交互反馈"""
         original_text = self.copy_btn.text()
-        self.copy_btn.setText(f"✅ {message}")
+        self.copy_btn.setText(f"[OK] {message}")
         self.copy_btn.setEnabled(False)
-        # 不再恢复文字，因为对话框很快会关闭

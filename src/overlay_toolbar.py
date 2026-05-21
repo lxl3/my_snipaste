@@ -357,9 +357,9 @@ class OverlayToolbar:
     def _build_action_btns(self, toolbar_layout):
         for icon, tooltip, fn in [
             ("close", "关闭（退出截图）", self.overlay.close),
-            ("pin", "悬浮（钉在桌面上）", self.overlay._on_pin),
-            ("save", "保存到文件", self.overlay._on_save),
-            ("copy", "复制到剪贴板", self.overlay._on_copy),
+            ("pin", "悬浮（钉在桌面上）", self.overlay.on_pin),
+            ("save", "保存到文件", self.overlay.on_save),
+            ("copy", "复制到剪贴板", self.overlay.on_copy),
         ]:
             btn = QToolButton()
             btn.setIcon(self._load_icon(icon))

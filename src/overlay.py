@@ -234,19 +234,19 @@ class CaptureOverlay(QWidget, OcrMixin):
         self._cleanup_ocr()
         QMessageBox.critical(self, "OCR 错误", f"文字识别失败：\n{error_msg}")
 
-    def _on_pin(self):
+    def on_pin(self):
         if self.selection_rect.isNull():
             return
         self.pin_requested.emit(self._render_annotated_pixmap(), self._capture_pos())
         self.close()
 
-    def _on_copy(self):
+    def on_copy(self):
         if self.selection_rect.isNull():
             return
         self.copy_requested.emit(self._render_annotated_pixmap())
         self.close()
 
-    def _on_save(self):
+    def on_save(self):
         if self.selection_rect.isNull():
             return
         self.save_requested.emit(self._render_annotated_pixmap())
