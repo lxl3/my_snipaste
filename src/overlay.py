@@ -43,6 +43,7 @@ class CaptureOverlay(QWidget):
         self.current_color = QColor(255, 50, 50)
         self.current_width = 3
         self.annotations = []
+        self._redo_stack = []  # 用于存储被撤销的操作
         self._drawing = False
         self._draw_start = QPointF()
         self._draw_points = []
@@ -74,11 +75,19 @@ class CaptureOverlay(QWidget):
         if svg:
             svg_data = svg.replace("currentColor", color)
             renderer = QSvgRenderer(svg_data.encode("utf-8"))
-            pm = QPixmap(16, 16)
+            # 使用更高分辨率（48x48）以支持高DPI显示
+            size = 48
+            pm = QPixmap(size, size)
             pm.fill(Qt.transparent)
             p = QPainter(pm)
+            # 启用抗锯齿以获得更清晰的渲染效果
+            p.setRenderHint(QPainter.Antialiasing)
+            p.setRenderHint(QPainter.SmoothPixmapTransform)
             renderer.render(p)
             p.end()
+            # 设置设备像素比，让Qt自动处理DPI缩放
+            dpr = QApplication.primaryScreen().devicePixelRatio()
+            pm.setDevicePixelRatio(dpr)
             return QIcon(pm)
         return QIcon()
 
@@ -375,9 +384,9 @@ class CaptureOverlay(QWidget):
 
         # OCR
         ocr_btn = QToolButton()
-        ocr_btn.setText("OCR")
+        ocr_btn.setIcon(self._load_icon("OCR"))
+        ocr_btn.setIconSize(QSize(16, 16))
         ocr_btn.setToolTip("文字识别")
-        ocr_btn.setStyleSheet("font-size: 11px; padding: 2px 4px;")
         ocr_btn.clicked.connect(self._on_ocr)
         toolbar_layout.addWidget(ocr_btn)
 
@@ -545,12 +554,20 @@ class CaptureOverlay(QWidget):
             self._set_text_color(color.name())
 
     def _undo(self):
+        """撤销最后一个操作"""
         if self.annotations:
-            self.annotations.pop()
+            # 将最后一个annotation移到redo栈
+            last_annotation = self.annotations.pop()
+            self._redo_stack.append(last_annotation)
             self.update()
 
     def _redo(self):
-        pass
+        """重做上一个被撤销的操作"""
+        if self._redo_stack:
+            # 从redo栈中取出并恢复到annotations
+            annotation = self._redo_stack.pop()
+            self.annotations.append(annotation)
+            self.update()
 
     def _adjust_text_editor_size(self):
         """根据文本内容调整编辑器大小，保持左边位置不变"""
@@ -595,6 +612,7 @@ class CaptureOverlay(QWidget):
                 "bold": self.text_bold,
                 "italic": self.text_italic,
             })
+            self._redo_stack.clear()  # 添加新操作后清空redo栈
             self.update()
 
         # 清理编辑器（先断开信号避免重复触发）
@@ -1091,6 +1109,7 @@ class CaptureOverlay(QWidget):
                         "color": QColor(self.current_color),
                         "width": self.current_width,
                     })
+                    self._redo_stack.clear()  # 添加新操作后清空redo栈
                 elif len(self._draw_points) > 2:
                     # 继续画，更新当前annotation
                     if self.annotations and self.annotations[-1]["type"] == "freehand":
@@ -1174,11 +1193,13 @@ class CaptureOverlay(QWidget):
                     if ann["type"] in ("rect", "ellipse", "mosaic"):
                         if ann["rect"].width() > 3 and ann["rect"].height() > 3:
                             self.annotations.append(ann)
+                            self._redo_stack.clear()  # 添加新操作后清空redo栈
                     elif ann["type"] in ("arrow", "line"):
                         dx = ann["end"].x() - ann["start"].x()
                         dy = ann["end"].y() - ann["start"].y()
                         if abs(dx) > 3 or abs(dy) > 3:
                             self.annotations.append(ann)
+                            self._redo_stack.clear()  # 添加新操作后清空redo栈
                 elif self.current_tool == "freehand":
                     if self.annotations and self.annotations[-1]["type"] == "freehand":
                         pts = self.annotations[-1]["points"]
