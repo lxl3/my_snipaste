@@ -1,6 +1,6 @@
 from threading import Thread
 
-from PySide6.QtCore import QObject, Signal, Qt, QPoint
+from PySide6.QtCore import QObject, Signal, Qt, QPoint, QTimer
 from PySide6.QtGui import QAction, QPixmap, QPainter, QColor, QPen
 from PySide6.QtWidgets import (
     QApplication, QSystemTrayIcon, QMenu, QMessageBox, QWidget, QFileDialog,
@@ -120,6 +120,9 @@ class SnipasteApp(QApplication):
         self.setup_tray()
         self.setup_hotkeys()
         logger.info("MySnipaste 应用初始化完成")
+        
+        # 延迟显示启动提示（确保事件循环已启动）
+        QTimer.singleShot(500, self._show_startup_notification)
 
     def setup_tray(self):
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -148,14 +151,22 @@ class SnipasteApp(QApplication):
         self.tray_icon.setContextMenu(menu)
         self.tray_icon.activated.connect(self._on_tray_activated)
         self.tray_icon.show()
+        logger.info("系统托盘图标已显示")
 
-        # 启动成功通知
-        self.tray_icon.showMessage(
-            "MySnipaste 已启动",
-            "按 F12 开始截图，双击托盘图标也可启动",
-            QSystemTrayIcon.Information,
-            3000,  # 显示 3 秒
-        )
+    def _show_startup_notification(self):
+        """显示启动通知 - 使用简单提示框"""
+        msg = QMessageBox()
+        msg.setWindowTitle("MySnipaste")
+        msg.setText("✨ MySnipaste 已启动")
+        msg.setInformativeText("按 F12 开始截图\n双击托盘图标也可启动")
+        msg.setIcon(QMessageBox.Information)
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
+        
+        # 3秒后自动关闭
+        QTimer.singleShot(3000, msg.close)
+        msg.exec()
+        logger.info("启动提示框已关闭")
 
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
