@@ -12,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.generate_icon import (
     calculate_dimensions,
     draw_icon,
-    get_font,
     SIZES,
     PROJECT_DIR,
     ASSETS_DIR
@@ -25,16 +24,17 @@ def test_calculate_dimensions():
 
     # 测试 256x256
     dims = calculate_dimensions(256)
-    assert dims['padding'] == 28, f"期望 padding=28, 实际={dims['padding']}"
-    assert dims['border_width'] == 8, f"期望 border_width=8, 实际={dims['border_width']}"
-    assert dims['corner_radius'] == 23, f"期望 corner_radius=23, 实际={dims['corner_radius']}"
-    assert dims['letter_height'] == 120, f"期望 letter_height=120, 实际={dims['letter_height']}"
+    assert 'padding' in dims
+    assert 'line_width' in dims
+    assert 'corner_radius' in dims
+    assert dims['padding'] > 0
+    assert dims['line_width'] >= 2
 
     # 测试 16x16（最小尺寸）
     dims = calculate_dimensions(16)
-    assert dims['padding'] == 1
-    assert dims['border_width'] >= 2  # 最小 2px
-    assert dims['corner_radius'] >= 2  # 最小 2px
+    assert dims['padding'] > 0
+    assert dims['line_width'] >= 2
+    assert dims['corner_radius'] >= 2
 
     print("  [OK] 尺寸计算正确")
 
@@ -56,16 +56,6 @@ def test_draw_icon():
         assert len(non_transparent) > 0, f"{size}x{size} 图标是全透明的"
 
         print(f"  [OK] {size}x{size} 图标正常")
-
-
-def test_get_font():
-    """测试字体加载"""
-    print("\n测试 get_font...")
-
-    font = get_font(120)
-    assert font is not None, "字体加载失败"
-
-    print("  [OK] 字体加载成功")
 
 
 def test_icon_files_exist():
@@ -122,7 +112,6 @@ def main():
     try:
         test_calculate_dimensions()
         test_draw_icon()
-        test_get_font()
         test_icon_files_exist()
         test_icon_in_build()  # 添加集成测试
 

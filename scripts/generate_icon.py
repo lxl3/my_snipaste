@@ -12,7 +12,7 @@ MySnipaste 图标生成脚本
 
 import sys
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 # 项目根目录
 PROJECT_DIR = Path(__file__).parent.parent
@@ -20,9 +20,8 @@ ASSETS_DIR = PROJECT_DIR / "assets" / "icons"
 
 # 设计规格
 COLORS = {
-    'frame': '#2C3E50',      # 深灰色框线
-    'text': '#ECF0F1',       # 浅灰白色文字
-    'background': (0, 0, 0, 0)  # 透明背景
+    'primary': '#000000',        # 黑色主色（线条）
+    'background': (0, 0, 0, 0)   # 透明背景
 }
 
 # 支持的尺寸
@@ -39,15 +38,17 @@ def calculate_dimensions(size):
         dict: 包含各元素尺寸的字典
     """
     return {
-        'padding': int(size * 0.11),           # 边距 11%
-        'border_width': max(2, size // 32),    # 框线宽度
-        'corner_radius': max(2, size // 11),   # 圆角半径
-        'letter_height': int(size * 0.47),     # 字母高度
+        'padding': int(size * 0.15),           # 边距 15%
+        'line_width': max(2, size // 16),      # 线条宽度
+        'corner_radius': max(3, size // 12),   # 圆角半径
+        'rect_size': int(size * 0.5),          # 矩形框大小
+        'magnifier_radius': int(size * 0.2),   # 放大镜半径
+        'handle_length': int(size * 0.15),     # 放大镜手柄长度
     }
 
 
 def draw_icon(size):
-    """绘制指定尺寸的图标
+    """绘制指定尺寸的图标（参考 doubao 风格：截图框+放大镜）
 
     Args:
         size: 图标尺寸
@@ -62,76 +63,63 @@ def draw_icon(size):
     # 计算尺寸
     dims = calculate_dimensions(size)
     padding = dims['padding']
-    border_width = dims['border_width']
+    line_width = dims['line_width']
     corner_radius = dims['corner_radius']
 
-    # 绘制圆角矩形框
-    box_coords = [padding, padding, size - padding, size - padding]
+    # 绘制截图矩形框（左上角，带虚线效果的选区）
+    rect_left = padding
+    rect_top = padding
+    rect_right = rect_left + dims['rect_size']
+    rect_bottom = rect_top + dims['rect_size']
+
+    # 绘制主矩形框
     draw.rounded_rectangle(
-        box_coords,
+        [rect_left, rect_top, rect_right, rect_bottom],
         radius=corner_radius,
-        outline=COLORS['frame'],
-        width=border_width
+        outline=COLORS['primary'],
+        width=line_width
     )
 
-    # 绘制字母 'A'
-    draw_letter_a(draw, size, dims)
+    # 绘制内部文本线条（表示内容）
+    line_spacing = dims['rect_size'] // 5
+    line_start_x = rect_left + line_width * 2
+    line_end_x = rect_right - line_width * 2
+
+    for i in range(3):
+        y = rect_top + line_spacing * (i + 1)
+        if y < rect_bottom - line_spacing:
+            draw.line(
+                [(line_start_x, y), (line_end_x, y)],
+                fill=COLORS['primary'],
+                width=max(1, line_width - 1)
+            )
+
+    # 绘制放大镜（右下角，象征 OCR/识别）
+    mag_center_x = size - padding - dims['magnifier_radius']
+    mag_center_y = size - padding - dims['magnifier_radius']
+    mag_radius = dims['magnifier_radius']
+
+    # 放大镜圆圈
+    draw.ellipse(
+        [mag_center_x - mag_radius, mag_center_y - mag_radius,
+         mag_center_x + mag_radius, mag_center_y + mag_radius],
+        outline=COLORS['primary'],
+        width=line_width
+    )
+
+    # 放大镜手柄
+    handle_start_x = mag_center_x + mag_radius * 0.7
+    handle_start_y = mag_center_y + mag_radius * 0.7
+    handle_end_x = handle_start_x + dims['handle_length']
+    handle_end_y = handle_start_y + dims['handle_length']
+
+    draw.line(
+        [(handle_start_x, handle_start_y), (handle_end_x, handle_end_y)],
+        fill=COLORS['primary'],
+        width=line_width + 1
+    )
 
     return img
-
-
-def draw_letter_a(draw, size, dims):
-    """在图标中央绘制字母 'A'
-
-    Args:
-        draw: ImageDraw 对象
-        size: 图标尺寸
-        dims: 尺寸参数字典
-    """
-    letter_height = dims['letter_height']
-
-    # 尝试加载系统字体
-    font = get_font(letter_height)
-
-    # 计算文字位置（居中）
-    text = 'A'
-    bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = bbox[2] - bbox[0]
-    text_height = bbox[3] - bbox[1]
-
-    x = (size - text_width) // 2
-    y = (size - text_height) // 2 - bbox[1]
-
-    # 绘制文字
-    draw.text((x, y), text, fill=COLORS['text'], font=font)
-
-
-def get_font(size):
-    """获取合适的字体
-
-    Args:
-        size: 字体大小
-
-    Returns:
-        ImageFont: 字体对象
-    """
-    # 尝试常见的无衬线字体
-    font_names = [
-        'arial.ttf',
-        'Arial.ttf',
-        'helvetica.ttf',
-        'DejaVuSans.ttf',
-        'LiberationSans-Regular.ttf',
-    ]
-
-    for font_name in font_names:
-        try:
-            return ImageFont.truetype(font_name, size)
-        except OSError:
-            continue
-
-    # 如果都找不到，使用默认字体
-    return ImageFont.load_default()
 
 
 def generate_png_icons():
