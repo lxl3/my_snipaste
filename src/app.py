@@ -181,6 +181,8 @@ class SnipasteApp(QApplication):
         )
         if file_path:
             pixmap.save(file_path)
+            if self.overlay:
+                self.overlay.close()
 
     def ocr_clipboard(self):
         clipboard = self.clipboard()
