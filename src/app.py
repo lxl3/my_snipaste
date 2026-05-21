@@ -233,12 +233,21 @@ class SnipasteApp(QApplication):
             logger.warning("OCR 识别结果为空")
 
     def cleanup(self):
+        """清理资源，防止退出后托盘图标残留"""
         if hasattr(self, 'hotkey_listener'):
             self.hotkey_listener.stop()
+        
+        # 清理系统托盘图标（防止退出后图标残留）
+        if hasattr(self, 'tray_icon'):
+            self.tray_icon.hide()
+            self.tray_icon.deleteLater()
+            del self.tray_icon
 
     def quit(self):
+        logger.info("用户请求退出应用")
         self.cleanup()
-        super().quit()
+        # 延迟退出，确保托盘图标已清理
+        QTimer.singleShot(100, super().quit)
 
     def __del__(self):
         self.cleanup()
