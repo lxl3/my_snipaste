@@ -52,6 +52,7 @@ class CaptureOverlay(QWidget):
         # 保存画笔菜单控件的引用，用于更新状态
         self._color_buttons = []
         self._width_spinbox = None
+        self._current_menu = None  # 记录当前打开的菜单
 
         # 文本输入控件
         self._text_editor = None
@@ -126,22 +127,23 @@ class CaptureOverlay(QWidget):
             widget_action = QWidgetAction(menu)
             container = QWidget()
             h_layout = QHBoxLayout(container)
-            h_layout.setContentsMargins(4, 4, 4, 4)
-            h_layout.setSpacing(4)
+            h_layout.setContentsMargins(3, 3, 3, 3)
+            h_layout.setSpacing(3)
 
             # 为每个菜单项创建按钮并横向排列
             for item_icon, item_tool in menu_items:
                 tool_btn = QToolButton()
                 tool_btn.setIcon(self._load_icon(item_icon))
-                tool_btn.setIconSize(QSize(18, 18))
+                tool_btn.setIconSize(QSize(20, 20))
+                tool_btn.setFixedSize(24, 24)
                 tool_btn.setToolTip(item_tool)
                 tool_btn.setCheckable(True)
                 tool_btn.setProperty("tool_type", item_tool)  # 保存工具类型
                 tool_btn.setStyleSheet("""
                     QToolButton {
                         border: 1px solid #ccc;
-                        border-radius: 3px;
-                        padding: 1px;
+                        border-radius: 2px;
+                        padding: 2px;
                         background: white;
                     }
                     QToolButton:hover { background: #e8e8e8; }
@@ -163,27 +165,199 @@ class CaptureOverlay(QWidget):
 
         self._tool_btns = {}
 
-        # Shape - with submenu
-        shape_btn = add_menu_btn("rectangle", "形状（矩形/圆形）", [
-            ("rectangle", "rect"),
-            ("ellipse", "ellipse"),
-        ], "rect")
+        # Shape - with submenu and color picker
+        shape_btn = QToolButton()
+        shape_btn.setIcon(self._load_icon("rectangle"))
+        shape_btn.setIconSize(QSize(16, 16))
+        shape_btn.setToolTip("形状（矩形/圆形）")
+        shape_btn.setPopupMode(QToolButton.InstantPopup)
+        shape_btn.setCheckable(True)
+        shape_btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        shape_btn.setStyleSheet("QToolButton::menu-indicator { image: none; }")
+        shape_menu = QMenu(self)
+
+        shape_action = QWidgetAction(shape_menu)
+        shape_container = QWidget()
+        shape_layout = QHBoxLayout(shape_container)
+        shape_layout.setContentsMargins(3, 3, 3, 3)
+        shape_layout.setSpacing(3)
+
+        # 工具选择按钮
+        for item_icon, item_tool in [("rectangle", "rect"), ("ellipse", "ellipse")]:
+            tool_btn = QToolButton()
+            tool_btn.setIcon(self._load_icon(item_icon))
+            tool_btn.setIconSize(QSize(20, 20))
+            tool_btn.setFixedSize(24, 24)
+            tool_btn.setToolTip(item_tool)
+            tool_btn.setCheckable(True)
+            tool_btn.setProperty("tool_type", item_tool)
+            tool_btn.setStyleSheet("""
+                QToolButton {
+                    border: 1px solid #ccc;
+                    border-radius: 2px;
+                    padding: 2px;
+                    background: white;
+                }
+                QToolButton:hover { background: #e8e8e8; }
+                QToolButton:checked {
+                    background: #d0e4ff;
+                    border: 2px solid #0078d4;
+                }
+            """)
+            tool_btn.clicked.connect(lambda checked, t=item_tool, b=shape_btn, ic=item_icon, menu_obj=shape_menu:
+                self._toggle_or_select_tool(t, b, ic, menu_obj)
+            )
+            shape_layout.addWidget(tool_btn)
+
+        # 分隔线
+        sep1 = QFrame()
+        sep1.setFrameShape(QFrame.VLine)
+        sep1.setStyleSheet("color: #ddd;")
+        sep1.setFixedWidth(1)
+        shape_layout.addWidget(sep1)
+
+        # 颜色选择器
+        from PySide6.QtWidgets import QColorDialog
+        color_picker_btn = QPushButton("🎨")
+        color_picker_btn.setFixedSize(20, 20)
+        color_picker_btn.setStyleSheet("""
+            QPushButton { border: 1px solid #ccc; border-radius: 2px; background: white; font-size: 12px; }
+            QPushButton:hover { background: #e8e8e8; }
+        """)
+        color_picker_btn.clicked.connect(lambda: self._open_shape_color_picker())
+        shape_layout.addWidget(color_picker_btn)
+
+        # 预设颜色
+        colors = ["#ff3232", "#ff8c00", "#ffd700", "#32cd32", "#1e90ff", "#8a2be2", "#ffffff", "#000000"]
+        self._shape_color_buttons = []
+        for c in colors:
+            cb = QPushButton()
+            cb.setFixedSize(18, 18)
+            cb.setProperty("color", c)
+            is_current = (c.lower() == self.current_color.name().lower())
+            border = "2px solid #0078d4" if is_current else "1px solid #ccc"
+            cb.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+            cb.clicked.connect(lambda checked, col=c: self._set_shape_color(col))
+            shape_layout.addWidget(cb)
+            self._shape_color_buttons.append(cb)
+
+        shape_action.setDefaultWidget(shape_container)
+        shape_menu.addAction(shape_action)
+
+        # 设置无边框工具窗口，去掉标题栏和关闭按钮
+        shape_menu.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+
+        # 修改为点击切换显示/隐藏
+        shape_btn.setPopupMode(QToolButton.InstantPopup)
+        shape_btn.clicked.connect(lambda: self._toggle_menu(shape_menu, shape_btn))
+
+        # 更新菜单状态，默认选择第一个工具（矩形）
+        def _setup_shape_menu():
+            # 如果当前不是形状工具，默认选择矩形
+            if self.current_tool not in ["rect", "ellipse"]:
+                self._select_tool("rect", shape_btn, "rectangle")
+            self._update_submenu_state(shape_menu, ["rect", "ellipse"])
+
+        shape_menu.aboutToShow.connect(_setup_shape_menu)
+        toolbar_layout.addWidget(shape_btn)
         self._tool_btns["rect"] = shape_btn
         self._tool_btns["ellipse"] = shape_btn
-        # 添加再次点击取消功能
-        shape_menu = shape_btn.menu()
-        shape_menu.aboutToShow.connect(lambda: self._check_and_cancel_tool(["rect", "ellipse"], shape_menu))
 
-        # Arrow - with submenu
-        arrow_btn = add_menu_btn("arrow", "箭头（有箭头/无箭头）", [
-            ("arrow", "arrow"),
-            ("line", "line"),
-        ], "arrow")
+        # Arrow - with submenu and color picker
+        arrow_btn = QToolButton()
+        arrow_btn.setIcon(self._load_icon("arrow"))
+        arrow_btn.setIconSize(QSize(16, 16))
+        arrow_btn.setToolTip("箭头（有箭头/无箭头）")
+        arrow_btn.setPopupMode(QToolButton.InstantPopup)
+        arrow_btn.setCheckable(True)
+        arrow_btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        arrow_btn.setStyleSheet("QToolButton::menu-indicator { image: none; }")
+        arrow_menu = QMenu(self)
+
+        arrow_action = QWidgetAction(arrow_menu)
+        arrow_container = QWidget()
+        arrow_layout = QHBoxLayout(arrow_container)
+        arrow_layout.setContentsMargins(3, 3, 3, 3)
+        arrow_layout.setSpacing(3)
+
+        # 工具选择按钮
+        for item_icon, item_tool in [("arrow", "arrow"), ("line", "line")]:
+            tool_btn = QToolButton()
+            tool_btn.setIcon(self._load_icon(item_icon))
+            tool_btn.setIconSize(QSize(20, 20))
+            tool_btn.setFixedSize(24, 24)
+            tool_btn.setToolTip(item_tool)
+            tool_btn.setCheckable(True)
+            tool_btn.setProperty("tool_type", item_tool)
+            tool_btn.setStyleSheet("""
+                QToolButton {
+                    border: 1px solid #ccc;
+                    border-radius: 2px;
+                    padding: 2px;
+                    background: white;
+                }
+                QToolButton:hover { background: #e8e8e8; }
+                QToolButton:checked {
+                    background: #d0e4ff;
+                    border: 2px solid #0078d4;
+                }
+            """)
+            tool_btn.clicked.connect(lambda checked, t=item_tool, b=arrow_btn, ic=item_icon, menu_obj=arrow_menu:
+                self._toggle_or_select_tool(t, b, ic, menu_obj)
+            )
+            arrow_layout.addWidget(tool_btn)
+
+        # 分隔线
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.VLine)
+        sep2.setStyleSheet("color: #ddd;")
+        sep2.setFixedWidth(1)
+        arrow_layout.addWidget(sep2)
+
+        # 颜色选择器
+        color_picker_btn2 = QPushButton("🎨")
+        color_picker_btn2.setFixedSize(20, 20)
+        color_picker_btn2.setStyleSheet("""
+            QPushButton { border: 1px solid #ccc; border-radius: 2px; background: white; font-size: 12px; }
+            QPushButton:hover { background: #e8e8e8; }
+        """)
+        color_picker_btn2.clicked.connect(lambda: self._open_shape_color_picker())
+        arrow_layout.addWidget(color_picker_btn2)
+
+        # 预设颜色
+        self._arrow_color_buttons = []
+        for c in colors:
+            cb = QPushButton()
+            cb.setFixedSize(18, 18)
+            cb.setProperty("color", c)
+            is_current = (c.lower() == self.current_color.name().lower())
+            border = "2px solid #0078d4" if is_current else "1px solid #ccc"
+            cb.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+            cb.clicked.connect(lambda checked, col=c: self._set_shape_color(col))
+            arrow_layout.addWidget(cb)
+            self._arrow_color_buttons.append(cb)
+
+        arrow_action.setDefaultWidget(arrow_container)
+        arrow_menu.addAction(arrow_action)
+
+        # 设置无边框工具窗口，去掉标题栏和关闭按钮
+        arrow_menu.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+
+        # 修改为点击切换显示/隐藏
+        arrow_btn.setPopupMode(QToolButton.InstantPopup)
+        arrow_btn.clicked.connect(lambda: self._toggle_menu(arrow_menu, arrow_btn))
+
+        # 更新菜单状态，默认选择第一个工具（箭头）
+        def _setup_arrow_menu():
+            # 如果当前不是箭头工具，默认选择箭头
+            if self.current_tool not in ["arrow", "line"]:
+                self._select_tool("arrow", arrow_btn, "arrow")
+            self._update_submenu_state(arrow_menu, ["arrow", "line"])
+
+        arrow_menu.aboutToShow.connect(_setup_arrow_menu)
+        toolbar_layout.addWidget(arrow_btn)
         self._tool_btns["arrow"] = arrow_btn
         self._tool_btns["line"] = arrow_btn
-        # 添加再次点击取消功能
-        arrow_menu = arrow_btn.menu()
-        arrow_menu.aboutToShow.connect(lambda: self._check_and_cancel_tool(["arrow", "line"], arrow_menu))
 
         # Pen - with color & width submenu
         pen_btn = QToolButton()
@@ -200,60 +374,56 @@ class CaptureOverlay(QWidget):
         pen_action = QWidgetAction(pen_menu)
         pen_container = QWidget()
         container_layout = QHBoxLayout(pen_container)
-        container_layout.setContentsMargins(4, 4, 4, 4)
-        container_layout.setSpacing(8)
+        container_layout.setContentsMargins(3, 3, 3, 3)
+        container_layout.setSpacing(4)
 
-        # 颜色部分（垂直布局内容）
-        color_widget = QWidget()
-        color_layout = QVBoxLayout(color_widget)
-        color_layout.setContentsMargins(0, 0, 0, 0)
-        color_layout.setSpacing(2)
-        color_label = QLabel("颜色")
-        color_label.setStyleSheet("font-weight: bold; font-size: 11px; color: #666;")
-        color_layout.addWidget(color_label)
-        color_grid = QWidget()
-        grid_layout = QHBoxLayout(color_grid)
-        grid_layout.setContentsMargins(0, 0, 0, 0)
-        grid_layout.setSpacing(2)
+        # 颜色按钮（去掉标签，直接水平排列）
         colors = ["#ff3232", "#ff8c00", "#ffd700", "#32cd32", "#1e90ff", "#8a2be2", "#ffffff", "#000000"]
         self._color_buttons = []
         for c in colors:
             cb = QPushButton()
-            cb.setFixedSize(16, 16)
-            cb.setProperty("color", c)  # 保存颜色值
+            cb.setFixedSize(18, 18)
+            cb.setProperty("color", c)
             # 检查是否是当前颜色
             is_current = (c.lower() == self.current_color.name().lower())
             border = "2px solid #0078d4" if is_current else "1px solid #ccc"
             cb.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
             cb.clicked.connect(lambda checked, col=c, btn=cb: self._set_pen_color(col, btn))
-            grid_layout.addWidget(cb)
+            container_layout.addWidget(cb)
             self._color_buttons.append(cb)
-        color_layout.addWidget(color_grid)
 
-        # 粗细部分（垂直布局内容）
-        width_widget = QWidget()
-        width_layout = QVBoxLayout(width_widget)
-        width_layout.setContentsMargins(0, 0, 0, 0)
-        width_layout.setSpacing(2)
-        width_label = QLabel("粗细")
-        width_label.setStyleSheet("font-weight: bold; font-size: 11px; color: #666;")
-        width_layout.addWidget(width_label)
+        # 分隔线
+        sep = QFrame()
+        sep.setFrameShape(QFrame.VLine)
+        sep.setStyleSheet("color: #ddd; max-width: 1px;")
+        sep.setFixedWidth(1)
+        container_layout.addWidget(sep)
+
+        # 粗细调整（去掉标签）
         self._width_spinbox = QSpinBox()
         self._width_spinbox.setRange(1, 20)
         self._width_spinbox.setValue(self.current_width)
+        self._width_spinbox.setFixedWidth(50)
         self._width_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
         self._width_spinbox.valueChanged.connect(lambda v: self._set_width(v))
-        width_layout.addWidget(self._width_spinbox)
-
-        # 添加到水平容器
-        container_layout.addWidget(color_widget)
-        container_layout.addWidget(width_widget)
+        container_layout.addWidget(self._width_spinbox)
 
         pen_action.setDefaultWidget(pen_container)
         pen_menu.addAction(pen_action)
 
-        pen_btn.setMenu(pen_menu)
-        pen_menu.aboutToShow.connect(lambda: self._check_and_cancel_tool(["freehand"], pen_menu) or self._select_tool("freehand"))
+        # 设置无边框工具窗口，去掉标题栏和关闭按钮
+        pen_menu.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+
+        # 修改为点击切换显示/隐藏
+        pen_btn.setPopupMode(QToolButton.InstantPopup)
+        pen_btn.clicked.connect(lambda: self._toggle_menu(pen_menu, pen_btn))
+
+        # 更新菜单状态
+        def _setup_pen_menu():
+            if not self._check_and_cancel_tool(["freehand"], pen_menu):
+                self._select_tool("freehand")
+
+        pen_menu.aboutToShow.connect(_setup_pen_menu)
         toolbar_layout.addWidget(pen_btn)
         self._tool_btns["freehand"] = pen_btn
 
@@ -263,7 +433,7 @@ class CaptureOverlay(QWidget):
         mosaic_btn.setIconSize(QSize(16, 16))
         mosaic_btn.setToolTip("马赛克")
         mosaic_btn.setCheckable(True)
-        mosaic_btn.clicked.connect(lambda: self._toggle_tool("mosaic"))
+        mosaic_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("mosaic")))
         toolbar_layout.addWidget(mosaic_btn)
         self._tool_btns["mosaic"] = mosaic_btn
 
@@ -283,8 +453,8 @@ class CaptureOverlay(QWidget):
         text_action = QWidgetAction(text_menu)
         text_container = QWidget()
         text_main_layout = QHBoxLayout(text_container)
-        text_main_layout.setContentsMargins(6, 6, 6, 6)
-        text_main_layout.setSpacing(6)
+        text_main_layout.setContentsMargins(3, 3, 3, 3)
+        text_main_layout.setSpacing(4)
         text_main_layout.setAlignment(Qt.AlignCenter)
 
         # 字体选择
@@ -377,8 +547,20 @@ class CaptureOverlay(QWidget):
 
         text_action.setDefaultWidget(text_container)
         text_menu.addAction(text_action)
-        text_btn.setMenu(text_menu)
-        text_menu.aboutToShow.connect(lambda: self._check_and_cancel_tool(["text"], text_menu) or self._select_tool("text"))
+
+        # 设置无边框工具窗口，去掉标题栏和关闭按钮
+        text_menu.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+
+        # 修改为点击切换显示/隐藏
+        text_btn.setPopupMode(QToolButton.InstantPopup)
+        text_btn.clicked.connect(lambda: self._toggle_menu(text_menu, text_btn))
+
+        # 更新菜单状态
+        def _setup_text_menu():
+            if not self._check_and_cancel_tool(["text"], text_menu):
+                self._select_tool("text")
+
+        text_menu.aboutToShow.connect(_setup_text_menu)
         toolbar_layout.addWidget(text_btn)
         self._tool_btns["text"] = text_btn
 
@@ -387,7 +569,7 @@ class CaptureOverlay(QWidget):
         ocr_btn.setIcon(self._load_icon("OCR"))
         ocr_btn.setIconSize(QSize(16, 16))
         ocr_btn.setToolTip("文字识别")
-        ocr_btn.clicked.connect(self._on_ocr)
+        ocr_btn.clicked.connect(lambda: (self._close_current_menu(), self._on_ocr()))
         toolbar_layout.addWidget(ocr_btn)
 
         add_sep()
@@ -469,14 +651,13 @@ class CaptureOverlay(QWidget):
         if self.current_tool == tool_id:
             # 已选中，取消选择
             self._select_tool("select")
-            if menu_obj:
-                menu_obj.close()
+            # 不关闭菜单，让用户可以继续选择其他工具或颜色
         else:
             # 未选中，选择该工具
             self._select_tool(tool_id, btn, icon_name)
             if menu_obj:
                 self._update_submenu_check_state(menu_obj, tool_id)
-                menu_obj.close()
+            # 不关闭菜单，让用户可以在工作区操作的同时看到菜单
 
     def _check_and_cancel_tool(self, tool_ids, menu_obj):
         """检查当前工具是否在给定的工具列表中，如果是则取消并关闭菜单"""
@@ -495,6 +676,37 @@ class CaptureOverlay(QWidget):
         else:
             self._select_tool(tool_id)
 
+    def _close_current_menu(self):
+        """关闭当前打开的菜单"""
+        if self._current_menu and self._current_menu.isVisible():
+            self._current_menu.hide()
+            self._current_menu = None
+        # 取消所有工具按钮的选中状态
+        for tid, b in self._tool_btns.items():
+            b.setChecked(False)
+
+    def _toggle_menu(self, menu, button):
+        """切换菜单的显示/隐藏状态"""
+        # 关闭之前打开的菜单（如果有且不是当前菜单）
+        if self._current_menu and self._current_menu != menu and self._current_menu.isVisible():
+            self._current_menu.hide()
+
+        # 确保只有当前按钮被选中，其他工具按钮取消选中
+        for tid, b in self._tool_btns.items():
+            if b != button:
+                b.setChecked(False)
+
+        if menu.isVisible():
+            menu.hide()
+            button.setChecked(False)
+            self._current_menu = None
+        else:
+            button.setChecked(True)
+            # 在按钮下方显示菜单
+            pos = button.mapToGlobal(QPoint(0, button.height()))
+            menu.popup(pos)
+            self._current_menu = menu
+
     def _update_submenu_check_state(self, menu, selected_tool):
         """更新子菜单中按钮的选中状态"""
         for action in menu.actions():
@@ -506,18 +718,56 @@ class CaptureOverlay(QWidget):
                     if tool_type:
                         child.setChecked(tool_type == selected_tool)
 
+    def _update_submenu_state(self, menu, tool_ids):
+        """更新子菜单的工具和颜色选中状态"""
+        # 更新工具按钮的选中状态
+        if self.current_tool in tool_ids:
+            self._update_submenu_check_state(menu, self.current_tool)
+
+        # 更新颜色按钮的边框样式
+        for action in menu.actions():
+            widget = action.defaultWidget()
+            if widget:
+                # 查找所有颜色按钮（QPushButton with color property）
+                for child in widget.findChildren(QPushButton):
+                    c = child.property("color")
+                    if c:
+                        is_current = (c.lower() == self.current_color.name().lower())
+                        border = "2px solid #0078d4" if is_current else "1px solid #ccc"
+                        child.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+
     def _set_pen_color(self, color_hex, clicked_btn=None):
+        """设置画笔颜色（同时更新形状和箭头的颜色）"""
+        self._set_shape_color(color_hex)
+
+    def _set_width(self, w):
+        self.current_width = w
+
+    def _set_shape_color(self, color_hex):
+        """设置形状/箭头颜色"""
         self.current_color = QColor(color_hex)
-        # 更新所有颜色按钮的边框，突出显示当前选中的颜色
-        for btn in self._color_buttons:
+        # 更新所有颜色按钮的边框
+        all_color_buttons = []
+        if hasattr(self, '_color_buttons'):
+            all_color_buttons.extend(self._color_buttons)
+        if hasattr(self, '_shape_color_buttons'):
+            all_color_buttons.extend(self._shape_color_buttons)
+        if hasattr(self, '_arrow_color_buttons'):
+            all_color_buttons.extend(self._arrow_color_buttons)
+
+        for btn in all_color_buttons:
             c = btn.property("color")
             if c:
                 is_current = (c.lower() == color_hex.lower())
                 border = "2px solid #0078d4" if is_current else "1px solid #ccc"
                 btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
 
-    def _set_width(self, w):
-        self.current_width = w
+    def _open_shape_color_picker(self):
+        """打开形状/箭头颜色选择器"""
+        from PySide6.QtWidgets import QColorDialog
+        color = QColorDialog.getColor(self.current_color, self, "选择颜色")
+        if color.isValid():
+            self._set_shape_color(color.name())
 
     def _set_text_font(self, font_family):
         """设置文字字体"""
