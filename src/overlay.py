@@ -56,6 +56,13 @@ class CaptureOverlay(QWidget):
         self._text_editor = None
         self._text_editor_pos = None
 
+        # 文本样式设置
+        self.text_font_family = "Segoe UI"
+        self.text_font_size = 20
+        self.text_bold = False
+        self.text_italic = False
+        self.text_color = QColor(255, 50, 50)
+
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
         self.grabKeyboard()
@@ -105,12 +112,42 @@ class CaptureOverlay(QWidget):
             btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
             btn.setStyleSheet("QToolButton::menu-indicator { image: none; }")
             menu = QMenu(self)
+
+            # 使用水平布局的容器
+            widget_action = QWidgetAction(menu)
+            container = QWidget()
+            h_layout = QHBoxLayout(container)
+            h_layout.setContentsMargins(4, 4, 4, 4)
+            h_layout.setSpacing(4)
+
+            # 为每个菜单项创建按钮并横向排列
             for item_icon, item_tool in menu_items:
-                icn = self._load_icon(item_icon)
-                action = QAction(icn, "", self)
-                action.setToolTip(item_tool)
-                action.triggered.connect(lambda checked, t=item_tool, b=btn, ic=item_icon: self._select_tool(t, b, ic))
-                menu.addAction(action)
+                tool_btn = QToolButton()
+                tool_btn.setIcon(self._load_icon(item_icon))
+                tool_btn.setIconSize(QSize(18, 18))
+                tool_btn.setToolTip(item_tool)
+                tool_btn.setCheckable(True)
+                tool_btn.setProperty("tool_type", item_tool)  # 保存工具类型
+                tool_btn.setStyleSheet("""
+                    QToolButton {
+                        border: 1px solid #ccc;
+                        border-radius: 3px;
+                        padding: 1px;
+                        background: white;
+                    }
+                    QToolButton:hover { background: #e8e8e8; }
+                    QToolButton:checked {
+                        background: #d0e4ff;
+                        border: 2px solid #0078d4;
+                    }
+                """)
+                tool_btn.clicked.connect(lambda checked, t=item_tool, b=btn, ic=item_icon, menu_obj=menu:
+                    self._toggle_or_select_tool(t, b, ic, menu_obj)
+                )
+                h_layout.addWidget(tool_btn)
+
+            widget_action.setDefaultWidget(container)
+            menu.addAction(widget_action)
             btn.setMenu(menu)
             toolbar_layout.addWidget(btn)
             return btn
@@ -124,6 +161,9 @@ class CaptureOverlay(QWidget):
         ], "rect")
         self._tool_btns["rect"] = shape_btn
         self._tool_btns["ellipse"] = shape_btn
+        # 添加再次点击取消功能
+        shape_menu = shape_btn.menu()
+        shape_menu.aboutToShow.connect(lambda: self._check_and_cancel_tool(["rect", "ellipse"], shape_menu))
 
         # Arrow - with submenu
         arrow_btn = add_menu_btn("arrow", "箭头（有箭头/无箭头）", [
@@ -132,6 +172,9 @@ class CaptureOverlay(QWidget):
         ], "arrow")
         self._tool_btns["arrow"] = arrow_btn
         self._tool_btns["line"] = arrow_btn
+        # 添加再次点击取消功能
+        arrow_menu = arrow_btn.menu()
+        arrow_menu.aboutToShow.connect(lambda: self._check_and_cancel_tool(["arrow", "line"], arrow_menu))
 
         # Pen - with color & width submenu
         pen_btn = QToolButton()
@@ -144,10 +187,17 @@ class CaptureOverlay(QWidget):
         pen_btn.setStyleSheet("QToolButton::menu-indicator { image: none; }")
         pen_menu = QMenu(self)
 
-        color_action = QWidgetAction(pen_menu)
+        # 使用水平布局的容器
+        pen_action = QWidgetAction(pen_menu)
+        pen_container = QWidget()
+        container_layout = QHBoxLayout(pen_container)
+        container_layout.setContentsMargins(4, 4, 4, 4)
+        container_layout.setSpacing(8)
+
+        # 颜色部分（垂直布局内容）
         color_widget = QWidget()
         color_layout = QVBoxLayout(color_widget)
-        color_layout.setContentsMargins(4, 4, 4, 4)
+        color_layout.setContentsMargins(0, 0, 0, 0)
         color_layout.setSpacing(2)
         color_label = QLabel("颜色")
         color_label.setStyleSheet("font-weight: bold; font-size: 11px; color: #666;")
@@ -170,14 +220,11 @@ class CaptureOverlay(QWidget):
             grid_layout.addWidget(cb)
             self._color_buttons.append(cb)
         color_layout.addWidget(color_grid)
-        color_action.setDefaultWidget(color_widget)
-        pen_menu.addAction(color_action)
-        pen_menu.addSeparator()
 
-        width_action = QWidgetAction(pen_menu)
+        # 粗细部分（垂直布局内容）
         width_widget = QWidget()
         width_layout = QVBoxLayout(width_widget)
-        width_layout.setContentsMargins(4, 4, 4, 4)
+        width_layout.setContentsMargins(0, 0, 0, 0)
         width_layout.setSpacing(2)
         width_label = QLabel("粗细")
         width_label.setStyleSheet("font-weight: bold; font-size: 11px; color: #666;")
@@ -185,14 +232,19 @@ class CaptureOverlay(QWidget):
         self._width_spinbox = QSpinBox()
         self._width_spinbox.setRange(1, 20)
         self._width_spinbox.setValue(self.current_width)
-        self._width_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)  # 显示上下箭头
+        self._width_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
         self._width_spinbox.valueChanged.connect(lambda v: self._set_width(v))
         width_layout.addWidget(self._width_spinbox)
-        width_action.setDefaultWidget(width_widget)
-        pen_menu.addAction(width_action)
+
+        # 添加到水平容器
+        container_layout.addWidget(color_widget)
+        container_layout.addWidget(width_widget)
+
+        pen_action.setDefaultWidget(pen_container)
+        pen_menu.addAction(pen_action)
 
         pen_btn.setMenu(pen_menu)
-        pen_menu.aboutToShow.connect(lambda: self._select_tool("freehand"))
+        pen_menu.aboutToShow.connect(lambda: self._check_and_cancel_tool(["freehand"], pen_menu) or self._select_tool("freehand"))
         toolbar_layout.addWidget(pen_btn)
         self._tool_btns["freehand"] = pen_btn
 
@@ -202,17 +254,122 @@ class CaptureOverlay(QWidget):
         mosaic_btn.setIconSize(QSize(16, 16))
         mosaic_btn.setToolTip("马赛克")
         mosaic_btn.setCheckable(True)
-        mosaic_btn.clicked.connect(lambda: self._select_tool("mosaic"))
+        mosaic_btn.clicked.connect(lambda: self._toggle_tool("mosaic"))
         toolbar_layout.addWidget(mosaic_btn)
         self._tool_btns["mosaic"] = mosaic_btn
 
         # Text
+        # Text - with font options submenu
         text_btn = QToolButton()
         text_btn.setIcon(self._load_icon("text"))
         text_btn.setIconSize(QSize(16, 16))
         text_btn.setToolTip("文字")
         text_btn.setCheckable(True)
-        text_btn.clicked.connect(lambda: self._select_tool("text"))
+        text_btn.setPopupMode(QToolButton.InstantPopup)
+        text_btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        text_btn.setStyleSheet("QToolButton::menu-indicator { image: none; }")
+        text_menu = QMenu(self)
+
+        # 文字菜单的水平布局容器
+        text_action = QWidgetAction(text_menu)
+        text_container = QWidget()
+        text_main_layout = QHBoxLayout(text_container)
+        text_main_layout.setContentsMargins(6, 6, 6, 6)
+        text_main_layout.setSpacing(6)
+        text_main_layout.setAlignment(Qt.AlignCenter)
+
+        # 字体选择
+        from PySide6.QtWidgets import QComboBox
+        self._font_combo = QComboBox()
+        self._font_combo.addItems(["Segoe UI", "Arial", "微软雅黑", "宋体", "黑体", "楷体"])
+        self._font_combo.setCurrentText(self.text_font_family)
+        self._font_combo.setFixedWidth(100)
+        self._font_combo.currentTextChanged.connect(self._set_text_font)
+        text_main_layout.addWidget(self._font_combo)
+
+        # 字号
+        self._font_size_spinbox = QSpinBox()
+        self._font_size_spinbox.setRange(8, 72)
+        self._font_size_spinbox.setValue(self.text_font_size)
+        self._font_size_spinbox.setFixedWidth(100)
+        self._font_size_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._font_size_spinbox.valueChanged.connect(self._set_text_size)
+        text_main_layout.addWidget(self._font_size_spinbox)
+
+        # 样式按钮（加粗、斜体）
+        self._bold_btn = QPushButton("B")
+        self._bold_btn.setFixedSize(20, 20)
+        self._bold_btn.setCheckable(True)
+        self._bold_btn.setStyleSheet("""
+            QPushButton { font-weight: bold; border: 1px solid #ccc; border-radius: 2px; background: white; }
+            QPushButton:hover { background: #e8e8e8; }
+            QPushButton:checked { background: #d0e4ff; border: 2px solid #0078d4; }
+        """)
+        self._bold_btn.clicked.connect(self._toggle_bold)
+        text_main_layout.addWidget(self._bold_btn)
+
+        self._italic_btn = QPushButton("I")
+        self._italic_btn.setFixedSize(20, 20)
+        self._italic_btn.setCheckable(True)
+        self._italic_btn.setStyleSheet("""
+            QPushButton { font-style: italic; border: 1px solid #ccc; border-radius: 2px; background: white; }
+            QPushButton:hover { background: #e8e8e8; }
+            QPushButton:checked { background: #d0e4ff; border: 2px solid #0078d4; }
+        """)
+        self._italic_btn.clicked.connect(self._toggle_italic)
+        text_main_layout.addWidget(self._italic_btn)
+
+        # 取色器按钮（放在最前面）
+        from PySide6.QtWidgets import QColorDialog
+        color_picker_btn = QPushButton("🎨")
+        color_picker_btn.setFixedSize(20, 20)
+        color_picker_btn.setStyleSheet("""
+            QPushButton { border: 1px solid #ccc; border-radius: 2px; background: white; font-size: 14px; }
+            QPushButton:hover { background: #e8e8e8; }
+        """)
+        color_picker_btn.clicked.connect(self._open_color_picker)
+        text_main_layout.addWidget(color_picker_btn)
+
+        # 颜色选择（分成两排，更小的按钮）
+        color_container = QWidget()
+        color_grid_layout = QVBoxLayout(color_container)
+        color_grid_layout.setContentsMargins(0, 0, 0, 0)
+        color_grid_layout.setSpacing(2)
+
+        colors = [
+            ["#000000", "#ffffff", "#ff3232", "#ff8c00", "#ffd700"],
+            ["#32cd32", "#1e90ff", "#8a2be2", "#ff69b4", "#808080"]
+        ]
+        self._text_color_buttons = []
+
+        for row_colors in colors:
+            row_widget = QWidget()
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(2)
+
+            for c in row_colors:
+                cb = QPushButton()
+                cb.setFixedSize(16, 16)
+                cb.setProperty("color", c)
+                is_current = (c.lower() == self.text_color.name().lower())
+                border = "2px solid #0078d4" if is_current else "1px solid #ccc"
+                cb.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+                cb.clicked.connect(lambda checked, col=c: self._set_text_color(col))
+                row_layout.addWidget(cb)
+                self._text_color_buttons.append(cb)
+
+            color_grid_layout.addWidget(row_widget)
+
+        text_main_layout.addWidget(color_container)
+
+        # 添加到菜单
+
+
+        text_action.setDefaultWidget(text_container)
+        text_menu.addAction(text_action)
+        text_btn.setMenu(text_menu)
+        text_menu.aboutToShow.connect(lambda: self._check_and_cancel_tool(["text"], text_menu) or self._select_tool("text"))
         toolbar_layout.addWidget(text_btn)
         self._tool_btns["text"] = text_btn
 
@@ -298,6 +455,48 @@ class CaptureOverlay(QWidget):
         else:
             self.setCursor(Qt.CrossCursor)
 
+    def _toggle_or_select_tool(self, tool_id, btn=None, icon_name=None, menu_obj=None):
+        """切换或选择工具：如果已选中则取消，否则选中"""
+        if self.current_tool == tool_id:
+            # 已选中，取消选择
+            self._select_tool("select")
+            if menu_obj:
+                menu_obj.close()
+        else:
+            # 未选中，选择该工具
+            self._select_tool(tool_id, btn, icon_name)
+            if menu_obj:
+                self._update_submenu_check_state(menu_obj, tool_id)
+                menu_obj.close()
+
+    def _check_and_cancel_tool(self, tool_ids, menu_obj):
+        """检查当前工具是否在给定的工具列表中，如果是则取消并关闭菜单"""
+        if self.current_tool in tool_ids:
+            # 使用 QTimer 延迟关闭菜单，避免菜单还没显示就关闭
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(0, menu_obj.close)
+            self._select_tool("select")
+            return True
+        return False
+
+    def _toggle_tool(self, tool_id):
+        """切换工具：如果已选中则取消，否则选中"""
+        if self.current_tool == tool_id:
+            self._select_tool("select")
+        else:
+            self._select_tool(tool_id)
+
+    def _update_submenu_check_state(self, menu, selected_tool):
+        """更新子菜单中按钮的选中状态"""
+        for action in menu.actions():
+            widget = action.defaultWidget()
+            if widget:
+                # 遍历容器中的所有按钮
+                for child in widget.findChildren(QToolButton):
+                    tool_type = child.property("tool_type")
+                    if tool_type:
+                        child.setChecked(tool_type == selected_tool)
+
     def _set_pen_color(self, color_hex, clicked_btn=None):
         self.current_color = QColor(color_hex)
         # 更新所有颜色按钮的边框，突出显示当前选中的颜色
@@ -310,6 +509,40 @@ class CaptureOverlay(QWidget):
 
     def _set_width(self, w):
         self.current_width = w
+
+    def _set_text_font(self, font_family):
+        """设置文字字体"""
+        self.text_font_family = font_family
+
+    def _set_text_size(self, size):
+        """设置文字大小"""
+        self.text_font_size = size
+
+    def _toggle_bold(self):
+        """切换加粗"""
+        self.text_bold = self._bold_btn.isChecked()
+
+    def _toggle_italic(self):
+        """切换斜体"""
+        self.text_italic = self._italic_btn.isChecked()
+
+    def _set_text_color(self, color_hex):
+        """设置文字颜色"""
+        self.text_color = QColor(color_hex)
+        # 更新颜色按钮边框
+        for btn in self._text_color_buttons:
+            c = btn.property("color")
+            if c:
+                is_current = (c.lower() == color_hex.lower())
+                border = "2px solid #0078d4" if is_current else "1px solid #ccc"
+                btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+
+    def _open_color_picker(self):
+        """打开取色器"""
+        from PySide6.QtWidgets import QColorDialog
+        color = QColorDialog.getColor(self.text_color, self, "选择文字颜色")
+        if color.isValid():
+            self._set_text_color(color.name())
 
     def _undo(self):
         if self.annotations:
@@ -356,8 +589,11 @@ class CaptureOverlay(QWidget):
                 "type": "text",
                 "pos": self._text_editor_pos,
                 "text": text,
-                "color": QColor(self.current_color),
-                "font_size": 20,
+                "color": QColor(self.text_color),
+                "font_family": self.text_font_family,
+                "font_size": self.text_font_size,
+                "bold": self.text_bold,
+                "italic": self.text_italic,
             })
             self.update()
 
@@ -451,7 +687,12 @@ class CaptureOverlay(QWidget):
                 pos = ann["pos"] + offset
                 p = QPen(ann["color"])
                 painter.setPen(p)
-                font = QFont("Segoe UI", ann["font_size"])
+                # 应用字体样式
+                font_family = ann.get("font_family", "Segoe UI")
+                font_size = ann.get("font_size", 20)
+                font = QFont(font_family, font_size)
+                font.setBold(ann.get("bold", False))
+                font.setItalic(ann.get("italic", False))
                 painter.setFont(font)
                 # 使用boundingRect来获取文本高度，确保与编辑器位置一致
                 fm = painter.fontMetrics()
@@ -776,19 +1017,22 @@ class CaptureOverlay(QWidget):
                     # 创建内嵌的文本编辑器
                     self._text_editor_pos = local
                     self._text_editor = QLineEdit(self)
-                    self._text_editor.setFont(QFont("Segoe UI", 20))
+                    # 应用文字样式设置
+                    font = QFont(self.text_font_family, self.text_font_size)
+                    font.setBold(self.text_bold)
+                    font.setItalic(self.text_italic)
+                    self._text_editor.setFont(font)
                     # 保存编辑器位置，用于调整大小时保持左边不动
                     self._text_editor_window_pos = self.selection_rect.topLeft() + local.toPoint()
-                    # 设置样式，包括光标颜色
-                    cursor_color = self.current_color.name() if self.current_color.lightnessF() > 0.5 else "white"
+                    # 设置样式
                     self._text_editor.setStyleSheet("""
                         QLineEdit {
                             background: transparent;
                             border: 1px solid white;
-                            padding: 1px 2px;
+                            padding: 2px 4px;
                             color: %s;
                         }
-                    """ % self.current_color.name())
+                    """ % self.text_color.name())
                     # 设置光标宽度，让它更明显
                     self._text_editor.setCursorPosition(0)
                     # 设置位置

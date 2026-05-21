@@ -9,9 +9,9 @@ TOOLBAR_ICONS = {
   <circle cx="8.5" cy="8.5" r="1.5"/>
 </svg>""",
 
-    "arrow": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <polyline points="6 15 12 9 18 15"/>
-  <polyline points="12 9 12 21"/>
+    "arrow": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="5" y1="19" x2="19" y2="5"/>
+  <polyline points="10 5 19 5 19 14"/>
 </svg>""",
 
     "pen": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
