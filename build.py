@@ -19,6 +19,7 @@ import zipfile
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
+import platform
 
 # 项目根目录
 PROJECT_DIR = Path(__file__).parent
@@ -214,9 +215,12 @@ def run_pyinstaller(use_spec=True, force_rebuild=False, onedir=False):
         if spec_file.exists() and DIST_DIR.exists():
             if not check_source_changed():
                 print("  [跳过] 源文件未变化，使用已有的构建结果")
-                exe_path = DIST_DIR / f"{BUILD_NAME}.exe"
+                is_windows = platform.system() == "Windows"
+                exe_path = DIST_DIR / (f"{BUILD_NAME}.exe" if is_windows else f"{BUILD_NAME}.app")
                 if exe_path.exists():
-                    size_mb = exe_path.stat().st_size / (1024 * 1024)
+                    size_mb = sum(
+                        f.stat().st_size for f in exe_path.rglob("*") if f.is_file()
+                    ) / (1024 * 1024) if not is_windows else exe_path.stat().st_size / (1024 * 1024)
                     print(f"  文件: {exe_path}")
                     print(f"  大小: {size_mb:.1f} MB")
                     return True
@@ -224,13 +228,21 @@ def run_pyinstaller(use_spec=True, force_rebuild=False, onedir=False):
     if use_spec:
         spec_file = PROJECT_DIR / f"{BUILD_NAME}.spec"
         if spec_file.exists():
-            print(f"使用 spec 文件: {spec_file}")
-            cmd = [sys.executable, '-m', 'PyInstaller']
-            if not force_rebuild:
-                print("  [优化] 保留构建缓存（增量构建）")
+            spec_content = spec_file.read_text()
+            is_windows_spec = ":\\" in spec_content or ".dll" in spec_content or ".exe" in spec_content
+            is_current_windows = platform.system() == "Windows"
+
+            if is_windows_spec and not is_current_windows:
+                print("  [警告] spec 文件包含 Windows 路径，正在重新生成...")
+                use_spec = False
             else:
-                cmd.append('--clean')
-            cmd.extend(['--noconfirm', str(spec_file)])
+                print(f"使用 spec 文件: {spec_file}")
+                cmd = [sys.executable, '-m', 'PyInstaller']
+                if not force_rebuild:
+                    print("  [优化] 保留构建缓存（增量构建）")
+                else:
+                    cmd.append('--clean')
+                cmd.extend(['--noconfirm', str(spec_file)])
         else:
             print("  [警告] spec 文件不存在，使用命令行模式")
             use_spec = False
@@ -261,10 +273,13 @@ def run_pyinstaller(use_spec=True, force_rebuild=False, onedir=False):
             sys.executable, '-m', 'PyInstaller',
             mode_arg,
             '--windowed',
-            '--icon', 'icon.ico',  # 添加图标参数
             '--name', BUILD_NAME,
             '--noconfirm',
         ]
+
+        icon_file = PROJECT_DIR / "icon.icns" if not is_windows else PROJECT_DIR / "icon.ico"
+        if icon_file.exists():
+            cmd.extend(['--icon', str(icon_file)])
         if not force_rebuild:
             print("  [优化] 保留构建缓存（增量构建）")
         else:
@@ -280,12 +295,25 @@ def run_pyinstaller(use_spec=True, force_rebuild=False, onedir=False):
     result = subprocess.run(cmd, cwd=str(PROJECT_DIR))
 
     if result.returncode == 0:
-        exe_path = DIST_DIR / f"{BUILD_NAME}.exe"
+        is_windows = platform.system() == "Windows"
+        if is_windows:
+            exe_path = DIST_DIR / f"{BUILD_NAME}.exe"
+        else:
+            exe_path = DIST_DIR / f"{BUILD_NAME}.app"
+
         if exe_path.exists():
-            size_mb = exe_path.stat().st_size / (1024 * 1024)
-            print_step(f"打包成功！")
-            print(f"  文件: {exe_path}")
-            print(f"  大小: {size_mb:.1f} MB")
+            if is_windows:
+                size_mb = exe_path.stat().st_size / (1024 * 1024)
+                print_step(f"打包成功！")
+                print(f"  文件: {exe_path}")
+                print(f"  大小: {size_mb:.1f} MB")
+            else:
+                size_mb = sum(
+                    f.stat().st_size for f in exe_path.rglob("*") if f.is_file()
+                ) / (1024 * 1024)
+                print_step(f"打包成功！")
+                print(f"  文件: {exe_path}")
+                print(f"  大小: {size_mb:.1f} MB")
             return True
 
     print_step("打包失败")
@@ -316,16 +344,22 @@ def main():
         print("  ✓ 跳过未修改的源文件")
     print()
 
-    if not args.skip_download:
-        if not setup_tesseract_bundle():
-            print("\n构建中止: 需要先准备 Tesseract 文件")
-            print("运行 'python build.py --skip-download' 可跳过此步骤")
-            sys.exit(1)
+    is_windows = platform.system() == "Windows"
+
+    if is_windows:
+        if not args.skip_download:
+            if not setup_tesseract_bundle():
+                print("\n构建中止: 需要先准备 Tesseract 文件")
+                print("运行 'python build.py --skip-download' 可跳过此步骤")
+                sys.exit(1)
+        else:
+            print("\n[跳过下载] 使用已有的 tesseract_bundle 目录")
+            if not (BUNDLE_DIR / "tesseract.exe").exists():
+                print("警告: tesseract_bundle/tesseract.exe 不存在")
+                print("打包后的 exe 将不包含 OCR 功能")
     else:
-        print("\n[跳过下载] 使用已有的 tesseract_bundle 目录")
-        if not (BUNDLE_DIR / "tesseract.exe").exists():
-            print("警告: tesseract_bundle/tesseract.exe 不存在")
-            print("打包后的 exe 将不包含 OCR 功能")
+        print("\n[macOS] 跳过 Windows Tesseract 设置")
+        print("如需 OCR 功能，请通过 Homebrew 安装: brew install tesseract")
 
     if not run_pyinstaller(
         use_spec=not args.no_spec,
