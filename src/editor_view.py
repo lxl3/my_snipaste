@@ -138,9 +138,6 @@ class AnnotationView(QGraphicsView):
             self.drawing_item = None
             self.annotation_added.emit(item)
 
-        elif self.current_tool == "text":
-            pass
-
         elif self.current_tool == "mosaic" and self.drawing_item:
             pos = self.mapToScene(event.pos())
             mosaic_rect = QRectF(self.start_point, pos).normalized()

@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QVBoxLayout, QToolButton, QMenu, QWidget,
-    QLabel, QPushButton, QSpinBox, QWidgetAction, QGraphicsDropShadowEffect,
+    QLabel, QPushButton, QSpinBox, QWidgetAction,
 )
 from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QColor
 from PySide6.QtCore import Qt, QSize
@@ -152,7 +152,7 @@ class EditorToolbar:
         layout.addWidget(btn)
 
     def _make_widget_action(self, widget):
-        action = QWidgetAction(QMenu())
+        action = QWidgetAction(None)
         action.setDefaultWidget(widget)
         return action
 

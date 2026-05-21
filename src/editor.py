@@ -61,6 +61,9 @@ class EditorWindow(QWidget):
         self.undo_stack = []
         self.redo_stack = []
         self._window_dragging = False
+        self._press_pos = None
+        self._drag_start_global = None
+        self._drag_start_window = None
 
         self.undo_btn = None
         self.redo_btn = None
