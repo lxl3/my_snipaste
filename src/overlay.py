@@ -574,19 +574,31 @@ class CaptureOverlay(QWidget):
 
         add_sep()
 
-        undo_btn = QToolButton()
-        undo_btn.setIcon(self._load_icon("undo"))
-        undo_btn.setIconSize(QSize(16, 16))
-        undo_btn.setToolTip("撤销")
-        undo_btn.clicked.connect(self._undo)
-        toolbar_layout.addWidget(undo_btn)
+        self._undo_btn = QToolButton()
+        self._undo_btn.setIcon(self._load_icon("undo"))
+        self._undo_btn.setIconSize(QSize(16, 16))
+        self._undo_btn.setToolTip("撤销")
+        self._undo_btn.clicked.connect(self._undo)
+        self._undo_btn.setEnabled(False)  # 初始时禁用
+        # 设置明显的禁用样式
+        self._undo_btn.setStyleSheet("""
+            QToolButton:enabled { opacity: 1.0; }
+            QToolButton:disabled { opacity: 0.3; }
+        """)
+        toolbar_layout.addWidget(self._undo_btn)
 
-        redo_btn = QToolButton()
-        redo_btn.setIcon(self._load_icon("redo"))
-        redo_btn.setIconSize(QSize(16, 16))
-        redo_btn.setToolTip("重做")
-        redo_btn.clicked.connect(self._redo)
-        toolbar_layout.addWidget(redo_btn)
+        self._redo_btn = QToolButton()
+        self._redo_btn.setIcon(self._load_icon("redo"))
+        self._redo_btn.setIconSize(QSize(16, 16))
+        self._redo_btn.setToolTip("重做")
+        self._redo_btn.clicked.connect(self._redo)
+        self._redo_btn.setEnabled(False)  # 初始时禁用
+        # 设置明显的禁用样式
+        self._redo_btn.setStyleSheet("""
+            QToolButton:enabled { opacity: 1.0; }
+            QToolButton:disabled { opacity: 0.3; }
+        """)
+        toolbar_layout.addWidget(self._redo_btn)
 
         add_sep()
 
@@ -803,12 +815,20 @@ class CaptureOverlay(QWidget):
         if color.isValid():
             self._set_text_color(color.name())
 
+    def _update_undo_redo_state(self):
+        """更新undo和redo按钮的启用状态"""
+        # undo按钮：有annotation时启用
+        self._undo_btn.setEnabled(len(self.annotations) > 0)
+        # redo按钮：有redo记录时启用
+        self._redo_btn.setEnabled(len(self._redo_stack) > 0)
+
     def _undo(self):
         """撤销最后一个操作"""
         if self.annotations:
             # 将最后一个annotation移到redo栈
             last_annotation = self.annotations.pop()
             self._redo_stack.append(last_annotation)
+            self._update_undo_redo_state()
             self.update()
 
     def _redo(self):
@@ -817,6 +837,7 @@ class CaptureOverlay(QWidget):
             # 从redo栈中取出并恢复到annotations
             annotation = self._redo_stack.pop()
             self.annotations.append(annotation)
+            self._update_undo_redo_state()
             self.update()
 
     def _adjust_text_editor_size(self):
@@ -863,6 +884,7 @@ class CaptureOverlay(QWidget):
                 "italic": self.text_italic,
             })
             self._redo_stack.clear()  # 添加新操作后清空redo栈
+            self._update_undo_redo_state()
             self.update()
 
         # 清理编辑器（先断开信号避免重复触发）
@@ -1360,6 +1382,7 @@ class CaptureOverlay(QWidget):
                         "width": self.current_width,
                     })
                     self._redo_stack.clear()  # 添加新操作后清空redo栈
+                    self._update_undo_redo_state()
                 elif len(self._draw_points) > 2:
                     # 继续画，更新当前annotation
                     if self.annotations and self.annotations[-1]["type"] == "freehand":
@@ -1444,12 +1467,14 @@ class CaptureOverlay(QWidget):
                         if ann["rect"].width() > 3 and ann["rect"].height() > 3:
                             self.annotations.append(ann)
                             self._redo_stack.clear()  # 添加新操作后清空redo栈
+                            self._update_undo_redo_state()
                     elif ann["type"] in ("arrow", "line"):
                         dx = ann["end"].x() - ann["start"].x()
                         dy = ann["end"].y() - ann["start"].y()
                         if abs(dx) > 3 or abs(dy) > 3:
                             self.annotations.append(ann)
                             self._redo_stack.clear()  # 添加新操作后清空redo栈
+                            self._update_undo_redo_state()
                 elif self.current_tool == "freehand":
                     if self.annotations and self.annotations[-1]["type"] == "freehand":
                         pts = self.annotations[-1]["points"]
