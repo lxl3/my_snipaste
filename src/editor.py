@@ -750,9 +750,50 @@ class EditorWindow(QWidget):
         return pixmap
 
     def _do_ocr(self):
+        from PySide6.QtWidgets import QMessageBox
+        from PySide6.QtCore import Qt
+        from .ocr_engine import OcrWorker
+        from .utils import qpixmap_to_pil
+
+        # 显示可取消的进度提示
+        self._ocr_progress = QMessageBox(self)
+        self._ocr_progress.setWindowTitle("OCR 识别中")
+        self._ocr_progress.setText("正在识别文字，请稍候...")
+        self._ocr_progress.setStandardButtons(QMessageBox.Cancel)
+        self._ocr_progress.setWindowModality(Qt.NonModal)  # 非模态，不阻塞主窗口
+        self._ocr_progress.rejected.connect(self._cancel_ocr)
+        self._ocr_progress.show()
+
+        # 异步执行 OCR
+        pil_image = qpixmap_to_pil(self.captured_pixmap)
+        self._ocr_worker = OcrWorker(pil_image)
+        self._ocr_worker.finished.connect(self._on_ocr_finished)
+        self._ocr_worker.error.connect(self._on_ocr_error)
+        self._ocr_worker.start()
+
+    def _cancel_ocr(self):
+        """取消OCR操作"""
+        if hasattr(self, '_ocr_worker') and self._ocr_worker.isRunning():
+            self._ocr_worker.terminate()  # 强制终止线程
+            self._ocr_worker.wait(1000)  # 等待最多1秒
+        if hasattr(self, '_ocr_progress'):
+            self._ocr_progress.close()
+
+    def _on_ocr_finished(self, text):
         from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout
 
-        self.ocr_text = extract_text(self.captured_pixmap)
+        # 清理进度对话框
+        if hasattr(self, '_ocr_progress'):
+            self._ocr_progress.close()
+            self._ocr_progress.deleteLater()
+            delattr(self, '_ocr_progress')
+
+        # 清理worker
+        if hasattr(self, '_ocr_worker'):
+            self._ocr_worker.deleteLater()
+            delattr(self, '_ocr_worker')
+
+        self.ocr_text = text
 
         dialog = QDialog(self)
         dialog.setWindowTitle("OCR 结果")
@@ -774,6 +815,25 @@ class EditorWindow(QWidget):
 
         dlg_layout.addLayout(btn_layout)
         dialog.exec()
+
+    def _on_ocr_error(self, error_msg):
+        from PySide6.QtWidgets import QMessageBox
+
+        # 清理进度对话框
+        if hasattr(self, '_ocr_progress'):
+            self._ocr_progress.close()
+            self._ocr_progress.deleteLater()
+            delattr(self, '_ocr_progress')
+
+        # 清理worker
+        if hasattr(self, '_ocr_worker'):
+            self._ocr_worker.deleteLater()
+            delattr(self, '_ocr_worker')
+
+        QMessageBox.critical(
+            self, "OCR 错误",
+            f"文字识别失败：\n{error_msg}"
+        )
 
     def _pin(self):
         self.toolbar.hide()

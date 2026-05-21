@@ -36,7 +36,7 @@ class CaptureOverlay(QWidget):
         self.current_mouse_pos = QPoint()
 
         self._drag_mode = None
-        self._drag_start_global = QPoint()
+        self._drag_start_pos = QPointF()
         self._drag_start_rect = QRect()
 
         self.current_tool = "select"
@@ -302,8 +302,8 @@ class CaptureOverlay(QWidget):
         dpr = self.full_screenshot.devicePixelRatio()
         logical_rect = self.selection_rect
         physical_rect = QRect(
-            int(logical_rect.x() * dpr), int(logical_rect.y() * dpr),
-            int(logical_rect.width() * dpr), int(logical_rect.height() * dpr)
+            round(logical_rect.x() * dpr), round(logical_rect.y() * dpr),
+            round(logical_rect.width() * dpr), round(logical_rect.height() * dpr)
         )
         pm = self.full_screenshot.copy(physical_rect)
         pm.setDevicePixelRatio(dpr)
@@ -362,10 +362,10 @@ class CaptureOverlay(QWidget):
                 r = QRectF(ann["rect"]).translated(offset).toRect()
                 sel = self.selection_rect
                 src_rect = QRect(
-                    int((sel.x() + r.x()) * dpr),
-                    int((sel.y() + r.y()) * dpr),
-                    int(r.width() * dpr),
-                    int(r.height() * dpr)
+                    round((sel.x() + r.x()) * dpr),
+                    round((sel.y() + r.y()) * dpr),
+                    round(r.width() * dpr),
+                    round(r.height() * dpr)
                 )
                 if src_rect.width() > 0 and src_rect.height() > 0:
                     src = self.full_screenshot.copy(src_rect)
@@ -419,8 +419,8 @@ class CaptureOverlay(QWidget):
                 r = QRectF(ann["rect"]).translated(offset).toRect()
                 sel = self.selection_rect
                 src_rect = QRect(
-                    int((sel.x() + r.x()) * dpr), int((sel.y() + r.y()) * dpr),
-                    int(r.width() * dpr), int(r.height() * dpr)
+                    round((sel.x() + r.x()) * dpr), round((sel.y() + r.y()) * dpr),
+                    round(r.width() * dpr), round(r.height() * dpr)
                 )
                 if src_rect.width() > 0 and src_rect.height() > 0:
                     src = self.full_screenshot.copy(src_rect)
@@ -432,10 +432,78 @@ class CaptureOverlay(QWidget):
         if self.selection_rect.isNull():
             return
         captured = self._render_annotated_pixmap()
-        from .ocr_engine import extract_text
-        text = extract_text(captured)
+
+        # 使用后台线程进行 OCR，避免阻塞 UI
+        from .ocr_engine import OcrWorker
+        from .utils import qpixmap_to_pil
+
+        pil_image = qpixmap_to_pil(captured)
+        self._ocr_worker = OcrWorker(pil_image)
+        self._ocr_worker.finished.connect(self._on_ocr_finished)
+        self._ocr_worker.error.connect(self._on_ocr_error)
+        self._ocr_worker.start()
+
+        # 显示可取消的处理提示
+        from PySide6.QtWidgets import QMessageBox
+        self._ocr_progress = QMessageBox(self)
+        self._ocr_progress.setWindowTitle("OCR 识别中")
+        self._ocr_progress.setText("正在识别文字，请稍候...")
+        self._ocr_progress.setStandardButtons(QMessageBox.Cancel)
+        self._ocr_progress.setWindowModality(Qt.NonModal)  # 非模态，不阻塞主窗口
+        self._ocr_progress.rejected.connect(self._cancel_ocr)
+        self._ocr_progress.show()
+
+    def _cancel_ocr(self):
+        """取消OCR操作"""
+        if hasattr(self, '_ocr_worker') and self._ocr_worker.isRunning():
+            self._ocr_worker.terminate()  # 强制终止线程
+            self._ocr_worker.wait(1000)  # 等待最多1秒
+        if hasattr(self, '_ocr_progress'):
+            self._ocr_progress.close()
+
+    def _on_ocr_finished(self, text):
+        # 清理进度对话框
+        if hasattr(self, '_ocr_progress'):
+            self._ocr_progress.close()
+            self._ocr_progress.deleteLater()
+            delattr(self, '_ocr_progress')
+
+        # 清理worker
+        if hasattr(self, '_ocr_worker'):
+            self._ocr_worker.deleteLater()
+            delattr(self, '_ocr_worker')
+
         if text:
             QApplication.clipboard().setText(text)
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self, "OCR 完成",
+                f"已识别文字并复制到剪贴板\n\n{text[:200]}"
+            )
+        else:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self, "OCR 结果",
+                "未识别到文字"
+            )
+
+    def _on_ocr_error(self, error_msg):
+        # 清理进度对话框
+        if hasattr(self, '_ocr_progress'):
+            self._ocr_progress.close()
+            self._ocr_progress.deleteLater()
+            delattr(self, '_ocr_progress')
+
+        # 清理worker
+        if hasattr(self, '_ocr_worker'):
+            self._ocr_worker.deleteLater()
+            delattr(self, '_ocr_worker')
+
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.critical(
+            self, "OCR 错误",
+            f"文字识别失败：\n{error_msg}"
+        )
 
     def _on_pin(self):
         if self.selection_rect.isNull():
@@ -479,7 +547,8 @@ class CaptureOverlay(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        # 禁用抗锯齿以提高性能
+        # painter.setRenderHint(QPainter.Antialiasing)
 
         painter.drawPixmap(0, 0, self.full_screenshot)
 
@@ -583,8 +652,8 @@ class CaptureOverlay(QWidget):
     def _capture_region(self, logical_rect: QRect) -> QPixmap:
         dpr = self.full_screenshot.devicePixelRatio()
         physical_rect = QRect(
-            int(logical_rect.x() * dpr), int(logical_rect.y() * dpr),
-            int(logical_rect.width() * dpr), int(logical_rect.height() * dpr)
+            round(logical_rect.x() * dpr), round(logical_rect.y() * dpr),
+            round(logical_rect.width() * dpr), round(logical_rect.height() * dpr)
         )
         captured = self.full_screenshot.copy(physical_rect)
         captured.setDevicePixelRatio(dpr)
@@ -633,12 +702,12 @@ class CaptureOverlay(QWidget):
                 handle = self._handle_at_pos(pos)
                 if handle:
                     self._drag_mode = ("resize", handle)
-                    self._drag_start_global = event.globalPosition().toPoint()
+                    self._drag_start_pos = event.position()
                     self._drag_start_rect = QRect(self.selection_rect)
                     return
                 if self.selection_rect.contains(pos):
                     self._drag_mode = ("move",)
-                    self._drag_start_global = event.globalPosition().toPoint()
+                    self._drag_start_pos = event.position()
                     self._drag_start_rect = QRect(self.selection_rect)
                     return
             self.is_selecting = True
@@ -698,23 +767,31 @@ class CaptureOverlay(QWidget):
                 self.update()
             return
         if self._drag_mode:
-            delta = event.globalPosition().toPoint() - self._drag_start_global
+            current_pos = event.position()
+            delta = current_pos - self._drag_start_pos
+
             mode = self._drag_mode[0]
             if mode == "move":
-                self.selection_rect = self._drag_start_rect.translated(delta)
+                # 使用浮点计算，只在最后转换为整数
+                new_x = self._drag_start_rect.x() + delta.x()
+                new_y = self._drag_start_rect.y() + delta.y()
+                self.selection_rect = QRect(
+                    int(new_x), int(new_y),
+                    self._drag_start_rect.width(), self._drag_start_rect.height()
+                )
                 self._position_toolbar()
                 self.update()
             elif mode == "resize":
                 handle = self._drag_mode[1]
                 r = QRect(self._drag_start_rect)
                 if "left" in handle:
-                    r.setLeft(self._drag_start_rect.left() + delta.x())
+                    r.setLeft(int(self._drag_start_rect.left() + delta.x()))
                 if "right" in handle:
-                    r.setRight(self._drag_start_rect.right() + delta.x())
+                    r.setRight(int(self._drag_start_rect.right() + delta.x()))
                 if "top" in handle:
-                    r.setTop(self._drag_start_rect.top() + delta.y())
+                    r.setTop(int(self._drag_start_rect.top() + delta.y()))
                 if "bottom" in handle:
-                    r.setBottom(self._drag_start_rect.bottom() + delta.y())
+                    r.setBottom(int(self._drag_start_rect.bottom() + delta.y()))
                 self.selection_rect = r.normalized()
                 self._position_toolbar()
                 self.update()
