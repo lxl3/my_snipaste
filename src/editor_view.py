@@ -1,7 +1,7 @@
 import math
 
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem, QGraphicsTextItem, QGraphicsItem
-from PySide6.QtGui import QPainter, QPen, QBrush, QFont, QPainterPath, QPolygonF
+from PySide6.QtGui import QPainter, QPen, QBrush, QFont, QPainterPath
 from PySide6.QtCore import Qt, QRectF, QPointF, QLineF, Signal
 
 from .editor_items import ArrowItem, MosaicItem

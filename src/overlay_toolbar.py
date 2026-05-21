@@ -1,13 +1,11 @@
-import math
-
 from PySide6.QtWidgets import (
     QWidget, QApplication, QToolButton, QFrame, QHBoxLayout, QMenu,
-    QWidgetAction, QLabel, QPushButton, QSpinBox, QVBoxLayout, QLineEdit,
+    QWidgetAction, QPushButton, QSpinBox, QVBoxLayout,
     QComboBox, QColorDialog,
 )
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtGui import QPainter, QPixmap, QColor, QPen, QFont, QIcon, QPainterPath, QAction
-from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QSize, QEvent, QTimer
+from PySide6.QtGui import QPainter, QPixmap, QColor, QIcon
+from PySide6.QtCore import Qt, QPoint, QSize, QTimer
 
 from .resources.icons.toolbar_icons import TOOLBAR_ICONS
 from .logger import setup_logger

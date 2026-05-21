@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QFileDialog, QApplication, QGraphicsScene,
+    QWidget, QFileDialog, QApplication, QGraphicsScene,
     QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsItem, QMessageBox,
     QGraphicsDropShadowEffect,
 )
-from PySide6.QtGui import QPixmap, QPainter, QColor, QPen, QFont, QClipboard
-from PySide6.QtCore import Qt, QRectF, QPointF, QEvent, QTimer
+from PySide6.QtGui import QPixmap, QPainter, QColor, QPen
+from PySide6.QtCore import Qt, QRectF, QEvent, QTimer
 
-from .ocr_engine import extract_text
 from .editor_view import AnnotationView
 from .editor_toolbar import EditorToolbar
 from .logger import setup_logger
@@ -40,7 +39,6 @@ class EditorWindow(QWidget):
 
         self.scene = QGraphicsScene()
         self.pixmap_item = QGraphicsPixmapItem(pixmap)
-        self.pixmap_item.setFlags(QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemIsMovable)
         self.pixmap_item.setFlags(QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemIsMovable)
         self.scene.addItem(self.pixmap_item)
 

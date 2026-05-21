@@ -1,7 +1,7 @@
 import math
 
 from PySide6.QtWidgets import QWidget, QApplication, QLineEdit, QMessageBox
-from PySide6.QtGui import QPainter, QPixmap, QColor, QPen, QFont, QPainterPath, QFontMetrics
+from PySide6.QtGui import QPainter, QPixmap, QColor, QPen, QFont, QPainterPath
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent
 
 from .utils import capture_all_screens

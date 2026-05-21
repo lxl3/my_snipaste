@@ -1,8 +1,7 @@
 import platform
 
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QMessageBox
+from PySide6.QtWidgets import QSystemTrayIcon, QMenu
 
 from .utils import create_app_icon
 from .logger import setup_logger

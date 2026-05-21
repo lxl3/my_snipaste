@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QVBoxLayout, QToolButton, QMenu, QWidget,
     QLabel, QPushButton, QSpinBox, QWidgetAction, QGraphicsDropShadowEffect,
 )
-from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QColor, QPen
+from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QColor
 from PySide6.QtCore import Qt, QSize
 
 from PySide6.QtSvg import QSvgRenderer

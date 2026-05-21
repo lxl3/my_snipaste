@@ -1,8 +1,8 @@
 import math
 
 from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsItem
-from PySide6.QtGui import QPainter, QPen, QPolygonF, QPixmap, QColor
-from PySide6.QtCore import Qt, QRectF, QRect, QLineF
+from PySide6.QtGui import QPen, QPolygonF, QColor
+from PySide6.QtCore import Qt, QRectF, QRect
 
 
 class ArrowItem(QGraphicsItem):
