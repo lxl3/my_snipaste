@@ -103,7 +103,17 @@ dist/MySnipaste.exe
 my_snipaste/
 ├── main.py              # 入口文件
 ├── build.py             # 构建脚本（自动下载 Tesseract 并打包）
+├── icon.ico             # 应用图标（多尺寸）
 ├── requirements.txt     # Python 依赖
+├── assets/
+│   └── icons/           # 图标资源
+│       ├── icon-16.png
+│       ├── icon-32.png
+│       ├── icon-48.png
+│       ├── icon-128.png
+│       └── icon-256.png
+├── scripts/
+│   └── generate_icon.py # 图标生成脚本
 ├── src/
 │   ├── __init__.py      # 包初始化，版本定义
 │   ├── app.py           # 主应用：托盘、快捷键、贴图窗口
@@ -130,6 +140,27 @@ my_snipaste/
 - **pynput** - 全局快捷键监听
 - **mss** - 跨平台屏幕截图
 - **PyInstaller** - 打包为独立 exe
+
+## 应用图标
+
+MySnipaste 使用自定义设计的应用图标：
+
+**设计元素：**
+- 🔲 圆角矩形框 - 象征截图选区
+- 🅰️ 字母 'A' - 代表 OCR 文字识别
+- 🎨 深灰色系 - 专业工具定位
+
+**技术特性：**
+- 支持多尺寸（16x16 到 256x256）
+- 扁平化设计，清晰易辨识
+- 使用 Python/Pillow 生成
+
+**重新生成图标：**
+```bash
+python scripts/generate_icon.py
+```
+
+详细设计规格见 [图标设计文档](docs/superpowers/specs/2026-05-21-icon-design.md)。
 
 ## 许可证
 
