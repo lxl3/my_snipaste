@@ -237,8 +237,11 @@ class SnipasteApp(QApplication):
         if hasattr(self, 'hotkey_listener'):
             self.hotkey_listener.stop()
         
-        # 清理系统托盘图标（防止退出后图标残留）
+        # 彻底清理系统托盘图标
         if hasattr(self, 'tray_icon'):
+            self.tray_icon.setToolTip("")
+            self.tray_icon.setIcon(QIcon())
+            self.tray_icon.setContextMenu(None)
             self.tray_icon.hide()
             self.tray_icon.deleteLater()
             del self.tray_icon
@@ -247,7 +250,7 @@ class SnipasteApp(QApplication):
         logger.info("用户请求退出应用")
         self.cleanup()
         # 延迟退出，确保托盘图标已清理
-        QTimer.singleShot(100, super().quit)
+        QTimer.singleShot(300, super().quit)
 
     def __del__(self):
         self.cleanup()
