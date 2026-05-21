@@ -17,6 +17,8 @@ import urllib.request
 import tempfile
 import zipfile
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+import hashlib
 
 # 项目根目录
 PROJECT_DIR = Path(__file__).parent
@@ -48,6 +50,11 @@ def print_step(msg):
 
 def download_file(url, dest, desc="文件"):
     """下载文件并显示进度"""
+    # 检查文件是否已存在且有效
+    if Path(dest).exists() and Path(dest).stat().st_size > 1000:
+        print(f"  [跳过] {desc} 已存在")
+        return True
+
     print(f"正在下载 {desc}...")
     print(f"URL: {url}")
 
@@ -59,8 +66,29 @@ def download_file(url, dest, desc="文件"):
             bar = '█' * filled + '░' * (bar_len - filled)
             print(f"\r  [{bar}] {percent:.1f}%", end='', flush=True)
 
-    urllib.request.urlretrieve(url, dest, progress_hook)
-    print()  # 换行
+    try:
+        urllib.request.urlretrieve(url, dest, progress_hook)
+        print()  # 换行
+        return True
+    except Exception as e:
+        print(f"\n  [错误] 下载失败: {e}")
+        return False
+
+
+def download_lang_files_parallel():
+    """并行下载语言文件"""
+    tessdata_dir = BUNDLE_DIR / "tessdata"
+    tessdata_dir.mkdir(exist_ok=True)
+
+    def download_one(item):
+        filename, url = item
+        dest = tessdata_dir / filename
+        return download_file(url, str(dest), filename)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(download_one, LANG_DATA_URLS.items()))
+
+    return all(results)
 
 
 def setup_tesseract_bundle():
@@ -69,17 +97,10 @@ def setup_tesseract_bundle():
 
     BUNDLE_DIR.mkdir(exist_ok=True)
 
-    # 1. 下载语言数据
-    tessdata_dir = BUNDLE_DIR / "tessdata"
-    tessdata_dir.mkdir(exist_ok=True)
-
-    for filename, url in LANG_DATA_URLS.items():
-        dest = tessdata_dir / filename
-        if dest.exists() and dest.stat().st_size > 1000:
-            print(f"  [OK] {filename} 已存在")
-        else:
-            download_file(url, str(dest), filename)
-            print(f"  [OK] {filename} 下载完成")
+    # 1. 并行下载语言数据
+    print("正在检查/下载语言数据...")
+    if not download_lang_files_parallel():
+        print("  [警告] 部分语言文件下载失败")
 
     # 2. 检查 tesseract.exe 是否存在
     tesseract_exe = BUNDLE_DIR / "tesseract.exe"
@@ -152,35 +173,105 @@ def copy_tesseract_files(src_dir, dest_dir):
         print(f"  复制: tessdata/")
 
 
-def run_pyinstaller():
-    """运行 PyInstaller 打包"""
+def check_source_changed():
+    """检查源文件是否有变化（简单的增量构建检测）"""
+    cache_file = PROJECT_DIR / "build" / ".build_cache"
+    src_files = list(PROJECT_DIR.glob("src/**/*.py")) + [PROJECT_DIR / "main.py"]
+
+    if not src_files:
+        return True  # 如果找不到源文件，强制重新构建
+
+    # 计算所有源文件的最新修改时间
+    latest_mtime = max(f.stat().st_mtime for f in src_files if f.exists())
+
+    if cache_file.exists():
+        try:
+            cached_mtime = float(cache_file.read_text().strip())
+            if latest_mtime <= cached_mtime:
+                return False  # 没有变化
+        except:
+            pass
+
+    # 保存当前时间戳
+    cache_file.parent.mkdir(exist_ok=True)
+    cache_file.write_text(str(latest_mtime))
+    return True
+
+
+def run_pyinstaller(use_spec=True, force_rebuild=False, onedir=False):
+    """运行 PyInstaller 打包
+
+    Args:
+        use_spec: 使用 .spec 文件（更快）
+        force_rebuild: 强制重新构建（清除缓存）
+        onedir: 使用 --onedir 模式（更快，但生成文件夹）
+    """
     print_step("运行 PyInstaller 打包")
 
-    # 构建 --add-binary 和 --add-data 参数
-    add_data_args = []
+    # 增量构建检测
+    if not force_rebuild and use_spec:
+        spec_file = PROJECT_DIR / f"{BUILD_NAME}.spec"
+        if spec_file.exists() and DIST_DIR.exists():
+            if not check_source_changed():
+                print("  [跳过] 源文件未变化，使用已有的构建结果")
+                exe_path = DIST_DIR / f"{BUILD_NAME}.exe"
+                if exe_path.exists():
+                    size_mb = exe_path.stat().st_size / (1024 * 1024)
+                    print(f"  文件: {exe_path}")
+                    print(f"  大小: {size_mb:.1f} MB")
+                    return True
 
-    if BUNDLE_DIR.exists():
-        # 添加 tesseract 可执行文件和 DLL
-        for f in BUNDLE_DIR.iterdir():
-            if f.is_file() and f.suffix in ['.exe', '.dll']:
-                add_data_args.extend(['--add-binary', f'{f};tesseract'])
+    if use_spec:
+        spec_file = PROJECT_DIR / f"{BUILD_NAME}.spec"
+        if spec_file.exists():
+            print(f"使用 spec 文件: {spec_file}")
+            cmd = [sys.executable, '-m', 'PyInstaller']
+            if not force_rebuild:
+                print("  [优化] 保留构建缓存（增量构建）")
+            else:
+                cmd.append('--clean')
+            cmd.extend(['--noconfirm', str(spec_file)])
+        else:
+            print("  [警告] spec 文件不存在，使用命令行模式")
+            use_spec = False
 
-        # 添加 tessdata 目录
-        tessdata_dir = BUNDLE_DIR / "tessdata"
-        if tessdata_dir.exists():
-            add_data_args.extend(['--add-data', f'{tessdata_dir};tesseract/tessdata'])
+    if not use_spec:
+        # 构建 --add-binary 和 --add-data 参数
+        add_data_args = []
 
-    # 构建 PyInstaller 命令
-    cmd = [
-        sys.executable, '-m', 'PyInstaller',
-        '--onefile',
-        '--windowed',
-        '--name', BUILD_NAME,
-        '--clean',
-        '--noconfirm',
-    ]
-    cmd.extend(add_data_args)
-    cmd.append(str(PROJECT_DIR / 'main.py'))
+        if BUNDLE_DIR.exists():
+            # 添加 tesseract 可执行文件和 DLL
+            for f in BUNDLE_DIR.iterdir():
+                if f.is_file() and f.suffix in ['.exe', '.dll']:
+                    add_data_args.extend(['--add-binary', f'{f};tesseract'])
+
+            # 添加 tessdata 目录
+            tessdata_dir = BUNDLE_DIR / "tessdata"
+            if tessdata_dir.exists():
+                add_data_args.extend(['--add-data', f'{tessdata_dir};tesseract/tessdata'])
+
+        # 添加图标资源
+        assets_icons = PROJECT_DIR / "assets" / "icons"
+        if assets_icons.exists():
+            add_data_args.extend(['--add-data', f'{assets_icons};assets/icons'])
+
+        # 构建 PyInstaller 命令
+        mode_arg = '--onedir' if onedir else '--onefile'
+        cmd = [
+            sys.executable, '-m', 'PyInstaller',
+            mode_arg,
+            '--windowed',
+            '--icon', 'icon.ico',  # 添加图标参数
+            '--name', BUILD_NAME,
+            '--noconfirm',
+        ]
+        if not force_rebuild:
+            print("  [优化] 保留构建缓存（增量构建）")
+        else:
+            cmd.append('--clean')
+
+        cmd.extend(add_data_args)
+        cmd.append(str(PROJECT_DIR / 'main.py'))
 
     print("执行命令:")
     print(' '.join(cmd))
@@ -202,13 +293,30 @@ def run_pyinstaller():
 
 
 def main():
-    print("="*60)
-    print("  MySnipaste 构建工具")
-    print("="*60)
+    import argparse
+    parser = argparse.ArgumentParser(description="MySnipaste 构建工具（优化版）")
+    parser.add_argument('--skip-download', action='store_true',
+                        help='跳过 Tesseract 下载，使用已有文件')
+    parser.add_argument('--force-rebuild', action='store_true',
+                        help='强制重新构建（清除缓存）')
+    parser.add_argument('--no-spec', action='store_true',
+                        help='不使用 spec 文件，直接用命令行参数')
+    parser.add_argument('--onedir', action='store_true',
+                        help='使用 --onedir 模式（更快，生成文件夹）')
+    args = parser.parse_args()
 
-    skip_download = '--skip-download' in sys.argv
+    print("="*60)
+    print("  MySnipaste 构建工具（优化版）")
+    print("="*60)
+    print("\n优化特性:")
+    print("  ✓ 并行下载语言文件")
+    print("  ✓ 智能缓存检测（增量构建）")
+    print("  ✓ 保留 PyInstaller 缓存")
+    if not args.force_rebuild:
+        print("  ✓ 跳过未修改的源文件")
+    print()
 
-    if not skip_download:
+    if not args.skip_download:
         if not setup_tesseract_bundle():
             print("\n构建中止: 需要先准备 Tesseract 文件")
             print("运行 'python build.py --skip-download' 可跳过此步骤")
@@ -219,7 +327,11 @@ def main():
             print("警告: tesseract_bundle/tesseract.exe 不存在")
             print("打包后的 exe 将不包含 OCR 功能")
 
-    if not run_pyinstaller():
+    if not run_pyinstaller(
+        use_spec=not args.no_spec,
+        force_rebuild=args.force_rebuild,
+        onedir=args.onedir
+    ):
         sys.exit(1)
 
 
