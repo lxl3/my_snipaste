@@ -780,8 +780,6 @@ class EditorWindow(QWidget):
             self._ocr_progress.close()
 
     def _on_ocr_finished(self, text):
-        from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout
-
         # 清理进度对话框
         if hasattr(self, '_ocr_progress'):
             self._ocr_progress.close()
@@ -795,25 +793,8 @@ class EditorWindow(QWidget):
 
         self.ocr_text = text
 
-        dialog = QDialog(self)
-        dialog.setWindowTitle("OCR 结果")
-        dialog.setMinimumSize(500, 300)
-
-        dlg_layout = QVBoxLayout(dialog)
-        text_edit = QTextEdit()
-        text_edit.setPlainText(self.ocr_text if self.ocr_text else "(未检测到文字)")
-        text_edit.setReadOnly(False)
-        dlg_layout.addWidget(text_edit)
-
-        btn_layout = QHBoxLayout()
-        copy_btn = QPushButton("复制到剪贴板")
-        copy_btn.clicked.connect(lambda: self._copy_text(text_edit.toPlainText()))
-        btn_layout.addWidget(copy_btn)
-
-        close_btn = QPushButton("关闭")
-        close_btn.clicked.connect(dialog.accept)
-
-        dlg_layout.addLayout(btn_layout)
+        from .utils import OcrResultDialog
+        dialog = OcrResultDialog(text if text else "(未检测到文字)", self)
         dialog.exec()
 
     def _on_ocr_error(self, error_msg):

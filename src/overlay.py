@@ -1085,12 +1085,9 @@ class CaptureOverlay(QWidget):
             delattr(self, '_ocr_worker')
 
         if text:
-            QApplication.clipboard().setText(text)
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.information(
-                self, "OCR 完成",
-                f"已识别文字并复制到剪贴板\n\n{text[:200]}"
-            )
+            from .utils import OcrResultDialog
+            dialog = OcrResultDialog(text, self)
+            dialog.exec()
         else:
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.warning(
