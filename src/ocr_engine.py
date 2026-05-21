@@ -1,3 +1,4 @@
+import os
 import sys
 import pytesseract
 from PIL import Image
@@ -5,6 +6,107 @@ from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import QThread, Signal
 
 from .utils import qpixmap_to_pil, qimage_to_pil
+
+
+def setup_bundled_tesseract():
+    """
+    当程序通过 PyInstaller 打包运行时，自动配置打包的 Tesseract 路径。
+    PyInstaller onefile 模式会将文件解压到 sys._MEIPASS 临时目录。
+    """
+    if getattr(sys, 'frozen', False):
+        # 运行在 PyInstaller 打包的 exe 中
+        base_dir = sys._MEIPASS
+        tesseract_dir = os.path.join(base_dir, 'tesseract')
+        tesseract_exe = os.path.join(tesseract_dir, 'tesseract.exe')
+
+        if os.path.exists(tesseract_exe):
+            # 设置 pytesseract 使用打包的 tesseract
+            pytesseract.pytesseract.tesseract_cmd = tesseract_exe
+
+            # 设置 TESSDATA_PREFIX 环境变量
+            tessdata_dir = os.path.join(tesseract_dir, 'tessdata')
+            if os.path.exists(tessdata_dir):
+                os.environ['TESSDATA_PREFIX'] = tessdata_dir
+
+            return True
+        else:
+            # 打包的 tesseract 不存在，尝试从网络下载
+            return _download_tesseract_runtime(tesseract_dir)
+    return False
+
+
+def _download_tesseract_runtime(target_dir):
+    """
+    运行时下载 Tesseract（当打包版本不存在时）。
+    下载到一个持久化目录，避免每次启动都下载。
+    """
+    import urllib.request
+    import tempfile
+    import subprocess
+
+    # 使用用户本地 AppData 目录作为持久化存储
+    local_appdata = os.environ.get('LOCALAPPDATA', os.path.expanduser('~/.local'))
+    runtime_dir = os.path.join(local_appdata, 'MySnipaste', 'tesseract_runtime')
+    tesseract_exe = os.path.join(runtime_dir, 'tesseract.exe')
+
+    if os.path.exists(tesseract_exe):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_exe
+        tessdata_dir = os.path.join(runtime_dir, 'tessdata')
+        if os.path.exists(tessdata_dir):
+            os.environ['TESSDATA_PREFIX'] = tessdata_dir
+        return True
+
+    # 检查系统是否已安装 Tesseract
+    system_paths = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    ]
+    for path in system_paths:
+        if os.path.exists(path):
+            pytesseract.pytesseract.tesseract_cmd = path
+            tessdata_dir = os.path.join(os.path.dirname(path), 'tessdata')
+            if os.path.exists(tessdata_dir):
+                os.environ['TESSDATA_PREFIX'] = tessdata_dir
+            return True
+
+    # 系统未安装，尝试下载
+    try:
+        os.makedirs(runtime_dir, exist_ok=True)
+
+        download_url = (
+            "https://github.com/tesseract-ocr/tesseract/releases/"
+            "download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe"
+        )
+
+        temp_installer = os.path.join(tempfile.gettempdir(), 'tesseract_install.exe')
+        urllib.request.urlretrieve(download_url, temp_installer)
+
+        # 运行静默安装
+        result = subprocess.run(
+            [temp_installer, '/VERYSILENT', '/SUPPRESSMSGBOXES',
+             f'/DIR={runtime_dir}', '/NORESTART', '/NOICONS'],
+            capture_output=True, timeout=120
+        )
+
+        # 清理安装文件
+        if os.path.exists(temp_installer):
+            os.remove(temp_installer)
+
+        if os.path.exists(tesseract_exe):
+            pytesseract.pytesseract.tesseract_cmd = tesseract_exe
+            tessdata_dir = os.path.join(runtime_dir, 'tessdata')
+            if os.path.exists(tessdata_dir):
+                os.environ['TESSDATA_PREFIX'] = tessdata_dir
+            return True
+
+    except Exception:
+        pass
+
+    return False
+
+
+# 模块加载时自动配置打包的 tesseract
+setup_bundled_tesseract()
 
 
 def check_tesseract_langs():
