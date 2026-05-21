@@ -48,6 +48,10 @@ class CaptureOverlay(QWidget):
         self._draw_points = []
         self._preview_annotation = None
 
+        # 保存画笔菜单控件的引用，用于更新状态
+        self._color_buttons = []
+        self._width_spinbox = None
+
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
         self.grabKeyboard()
@@ -149,12 +153,18 @@ class CaptureOverlay(QWidget):
         grid_layout.setContentsMargins(0, 0, 0, 0)
         grid_layout.setSpacing(2)
         colors = ["#ff3232", "#ff8c00", "#ffd700", "#32cd32", "#1e90ff", "#8a2be2", "#ffffff", "#000000"]
+        self._color_buttons = []
         for c in colors:
             cb = QPushButton()
             cb.setFixedSize(16, 16)
-            cb.setStyleSheet(f"background: {c}; border: 1px solid #ccc; border-radius: 2px;")
-            cb.clicked.connect(lambda checked, col=c: self._set_pen_color(col))
+            cb.setProperty("color", c)  # 保存颜色值
+            # 检查是否是当前颜色
+            is_current = (c.lower() == self.current_color.name().lower())
+            border = "2px solid #0078d4" if is_current else "1px solid #ccc"
+            cb.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+            cb.clicked.connect(lambda checked, col=c, btn=cb: self._set_pen_color(col, btn))
             grid_layout.addWidget(cb)
+            self._color_buttons.append(cb)
         color_layout.addWidget(color_grid)
         color_action.setDefaultWidget(color_widget)
         pen_menu.addAction(color_action)
@@ -168,12 +178,12 @@ class CaptureOverlay(QWidget):
         width_label = QLabel("粗细")
         width_label.setStyleSheet("font-weight: bold; font-size: 11px; color: #666;")
         width_layout.addWidget(width_label)
-        ws = QSpinBox()
-        ws.setRange(1, 20)
-        ws.setValue(self.current_width)
-        ws.setButtonSymbols(QSpinBox.NoButtons)
-        ws.valueChanged.connect(lambda v: self._set_width(v))
-        width_layout.addWidget(ws)
+        self._width_spinbox = QSpinBox()
+        self._width_spinbox.setRange(1, 20)
+        self._width_spinbox.setValue(self.current_width)
+        self._width_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)  # 显示上下箭头
+        self._width_spinbox.valueChanged.connect(lambda v: self._set_width(v))
+        width_layout.addWidget(self._width_spinbox)
         width_action.setDefaultWidget(width_widget)
         pen_menu.addAction(width_action)
 
@@ -284,8 +294,15 @@ class CaptureOverlay(QWidget):
         else:
             self.setCursor(Qt.CrossCursor)
 
-    def _set_pen_color(self, color_hex):
+    def _set_pen_color(self, color_hex, clicked_btn=None):
         self.current_color = QColor(color_hex)
+        # 更新所有颜色按钮的边框，突出显示当前选中的颜色
+        for btn in self._color_buttons:
+            c = btn.property("color")
+            if c:
+                is_current = (c.lower() == color_hex.lower())
+                border = "2px solid #0078d4" if is_current else "1px solid #ccc"
+                btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
 
     def _set_width(self, w):
         self.current_width = w
@@ -727,15 +744,19 @@ class CaptureOverlay(QWidget):
             local = self._sel_to_local(QPointF(self.current_mouse_pos))
             if self.current_tool == "freehand":
                 self._draw_points.append(local)
-                if self.annotations and self.annotations[-1]["type"] == "freehand":
-                    self.annotations[-1]["points"] = list(self._draw_points)
-                else:
+                # 第一次移动时创建新annotation，后续移动时更新它
+                if len(self._draw_points) == 2:
+                    # 刚开始画（第二个点），创建新annotation
                     self.annotations.append({
                         "type": "freehand",
                         "points": list(self._draw_points),
                         "color": QColor(self.current_color),
                         "width": self.current_width,
                     })
+                elif len(self._draw_points) > 2:
+                    # 继续画，更新当前annotation
+                    if self.annotations and self.annotations[-1]["type"] == "freehand":
+                        self.annotations[-1]["points"] = list(self._draw_points)
                 self.update()
             else:
                 dx = local.x() - self._draw_start.x()
