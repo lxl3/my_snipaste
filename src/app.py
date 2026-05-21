@@ -114,6 +114,11 @@ class SnipasteApp(QApplication):
         self.setOrganizationName("MySnipaste")
         self.setQuitOnLastWindowClosed(False)
 
+        # 设置应用图标（用于窗口标题栏等）
+        app_icon = create_app_icon()
+        if not app_icon.isNull():
+            self.setWindowIcon(app_icon)
+
         self.overlay = None
         self.pin_windows = []
 

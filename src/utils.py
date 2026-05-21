@@ -68,6 +68,30 @@ def pil_to_qpixmap(pil_image: Image.Image) -> QPixmap:
 
 
 def create_app_icon() -> QIcon:
+    """加载应用图标（优先使用自定义图标，回退到程序生成）
+
+    Returns:
+        QIcon: 应用图标对象
+    """
+    # 尝试加载自定义 PNG 图标（系统托盘推荐）
+    icon_sizes = [256, 128, 48, 32, 16]
+    icon = QIcon()
+
+    for size in icon_sizes:
+        icon_path = resource_path(f"assets/icons/icon-{size}.png")
+        if os.path.exists(icon_path):
+            icon.addFile(icon_path)
+
+    # 如果自定义图标加载成功，返回
+    if not icon.isNull():
+        return icon
+
+    # 如果 PNG 都不存在，尝试 ICO
+    ico_path = resource_path("icon.ico")
+    if os.path.exists(ico_path):
+        return QIcon(ico_path)
+
+    # 回退：生成默认图标
     pixmap = QPixmap(64, 64)
     pixmap.fill(Qt.transparent)
     painter = QPainter(pixmap)
