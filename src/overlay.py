@@ -246,7 +246,7 @@ class CaptureOverlay(QWidget):
     def _cleanup_ocr(self):
         for attr in ('_ocr_progress', '_ocr_worker'):
             if hasattr(self, attr):
-                obj = getattr(self)
+                obj = getattr(self, attr)
                 obj.close() if attr == '_ocr_progress' else obj.deleteLater()
                 delattr(self, attr)
 

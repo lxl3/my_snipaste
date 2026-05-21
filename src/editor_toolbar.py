@@ -189,7 +189,7 @@ class EditorToolbar:
         self.editor.redo_btn = QToolButton()
         self.editor.redo_btn.setIcon(self._load_icon("redo"))
         self.editor.redo_btn.setIconSize(QSize(16, 16))
-        self.editor.redo_btn.setToolTip("反向撤销")
+        self.editor.redo_btn.setToolTip("重做")
         self.editor.redo_btn.setEnabled(False)
         self.editor.redo_btn.clicked.connect(self.editor._redo)
         layout.addWidget(self.editor.redo_btn)
