@@ -149,6 +149,14 @@ class SnipasteApp(QApplication):
         self.tray_icon.activated.connect(self._on_tray_activated)
         self.tray_icon.show()
 
+        # 启动成功通知
+        self.tray_icon.showMessage(
+            "MySnipaste 已启动",
+            "按 F12 开始截图，双击托盘图标也可启动",
+            QSystemTrayIcon.Information,
+            3000,  # 显示 3 秒
+        )
+
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
             self.start_capture()
