@@ -10,6 +10,19 @@ from .logger import setup_logger
 
 logger = setup_logger("ocr")
 
+# Tesseract 初始化状态
+_tesseract_initialized = False
+
+
+def ensure_tesseract_ready():
+    """延迟初始化 Tesseract，只在首次使用时执行"""
+    global _tesseract_initialized
+    if _tesseract_initialized:
+        return True
+    
+    _tesseract_initialized = True
+    return setup_bundled_tesseract()
+
 
 def setup_bundled_tesseract():
     """
@@ -111,12 +124,9 @@ def _download_tesseract_runtime(target_dir):
     return False
 
 
-# 模块加载时自动配置打包的 tesseract
-setup_bundled_tesseract()
-
-
 def check_tesseract_langs():
     """检查 Tesseract 可用的语言"""
+    ensure_tesseract_ready()
     try:
         langs = pytesseract.get_languages()
         logger.debug(f"可用语言: {langs}")
