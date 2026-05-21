@@ -144,200 +144,124 @@ class OcrResultDialog(QDialog):
 
     def __init__(self, text: str, parent=None):
         super().__init__(parent)
+        self._setup_window()
+        self._build_ui(text)
+        self._drag_pos = None
+        self._last_selected_text = ""
+
+    def _setup_window(self) -> None:
         self.setWindowTitle("OCR 识别结果")
         self.setMinimumSize(450, 250)
         self.setMaximumSize(900, 700)
         self.setFocusPolicy(Qt.StrongFocus)
-        
-        # 设置窗口属性：圆角、阴影、无边框，不在任务栏显示
         self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        
-        # 主容器
+
+    def _build_ui(self, text: str) -> None:
         main_widget = QWidget(self)
         main_widget.setObjectName("mainCard")
-        main_widget.setStyleSheet("""
-            #mainCard {
-                background: #FFFFFF;
-                border-radius: 16px;
-                border: 1px solid #E5E7EB;
-            }
-        """)
-        
+        main_widget.setStyleSheet("#mainCard { background: #FFFFFF; border-radius: 16px; border: 1px solid #E5E7EB; }")
+
         layout = QVBoxLayout(main_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
-        # 1. Header 区域
+
+        layout.addWidget(self._build_header(text))
+        layout.addWidget(self._build_content(text))
+        layout.addWidget(self._build_footer())
+
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(10, 10, 10, 10)
+        root_layout.addWidget(main_widget)
+
+        self.text_edit.textChanged.connect(self._on_text_changed)
+        self.text_edit.selectionChanged.connect(self._on_selection_changed)
+        self._on_text_changed()
+
+    def _build_header(self, text: str) -> QWidget:
         header = QWidget()
         header.setObjectName("header")
         header.setStyleSheet("""
-            #header {
-                background: #F9FAFB;
-                border-bottom: 1px solid #E5E7EB;
-                border-top-left-radius: 16px;
-                border-top-right-radius: 16px;
-                padding: 16px 24px;
-            }
+            #header { background: #F9FAFB; border-bottom: 1px solid #E5E7EB;
+                      border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 16px 24px; }
         """)
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(24, 12, 24, 12)
-        
-        title_label = QLabel("✨ 识别完成")
-        title_label.setStyleSheet("""
-            font-size: 16px;
-            font-weight: 600;
-            color: #111827;
-            font-family: 'Segoe UI', 'PingFang SC', sans-serif;
-        """)
-        
+
+        title_label = QLabel("识别完成")
+        title_label.setStyleSheet("font-size: 16px; font-weight: 600; color: #111827; font-family: 'Segoe UI', 'PingFang SC', sans-serif;")
+
         self.char_count_label = QLabel()
         self.char_count_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.char_count_label.setStyleSheet("""
-            font-size: 12px;
-            color: #6B7280;
-            font-family: 'Consolas', 'Monaco', monospace;
-        """)
+        self.char_count_label.setStyleSheet("font-size: 12px; color: #6B7280; font-family: 'Consolas', 'Monaco', monospace;")
         self._update_char_count(text)
-        
-        # 关闭按钮（X）
+
         close_btn = QPushButton("✕")
         close_btn.setFixedSize(28, 28)
         close_btn.setCursor(Qt.PointingHandCursor)
         close_btn.setObjectName("closeBtn")
         close_btn.setStyleSheet("""
-            QPushButton#closeBtn {
-                background: transparent;
-                color: #9CA3AF;
-                border: none;
-                border-radius: 14px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton#closeBtn:hover {
-                background: #E5E7EB;
-                color: #374151;
-            }
-            QPushButton#closeBtn:pressed {
-                background: #D1D5DB;
-            }
+            QPushButton#closeBtn { background: transparent; color: #9CA3AF; border: none; border-radius: 14px; font-size: 14px; font-weight: bold; }
+            QPushButton#closeBtn:hover { background: #E5E7EB; color: #374151; }
+            QPushButton#closeBtn:pressed { background: #D1D5DB; }
         """)
         close_btn.clicked.connect(self.close_dialog_only)
-        
+
         header_layout.addWidget(title_label)
         header_layout.addWidget(self.char_count_label)
         header_layout.addWidget(close_btn)
-        layout.addWidget(header)
-        
-        # 2. Content 区域
+        return header
+
+    def _build_content(self, text: str) -> QWidget:
         content_widget = QWidget()
         content_widget.setObjectName("content")
-        content_widget.setStyleSheet("""
-            #content {
-                background: #FFFFFF;
-                padding: 20px 24px;
-            }
-        """)
+        content_widget.setStyleSheet("#content { background: #FFFFFF; padding: 20px 24px; }")
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         hint_label = QLabel("您可以直接编辑或选择下方文本：")
-        hint_label.setStyleSheet("""
-            color: #9CA3AF;
-            font-size: 12px;
-            margin-bottom: 8px;
-        """)
+        hint_label.setStyleSheet("color: #9CA3AF; font-size: 12px; margin-bottom: 8px;")
         content_layout.addWidget(hint_label)
-        
+
         self.text_edit = QTextEdit()
         self.text_edit.setPlainText(text if text else "(未检测到文字)")
         self.text_edit.setReadOnly(False)
         self.text_edit.setTextInteractionFlags(Qt.TextEditorInteraction)
         self.text_edit.setFocusPolicy(Qt.StrongFocus)
         self.text_edit.setStyleSheet("""
-            QTextEdit {
-                background: #F3F4F6;
-                border: 1px solid #E5E7EB;
-                border-radius: 8px;
-                padding: 12px;
-                font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
-                font-size: 13px;
-                color: #374151;
-                line-height: 1.6;
-                selection-background-color: #3B82F6;
-                selection-color: #FFFFFF;
-            }
-            QTextEdit:focus {
-                border-color: #3B82F6;
-                background: #FFFFFF;
-            }
-            QTextEdit:disabled {
-                background: #F9FAFB;
-                color: #9CA3AF;
-            }
+            QTextEdit { background: #F3F4F6; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px;
+                        font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace; font-size: 13px; color: #374151;
+                        line-height: 1.6; selection-background-color: #3B82F6; selection-color: #FFFFFF; }
+            QTextEdit:focus { border-color: #3B82F6; background: #FFFFFF; }
+            QTextEdit:disabled { background: #F9FAFB; color: #9CA3AF; }
         """)
         self._adjust_text_edit_size(text)
         content_layout.addWidget(self.text_edit)
-        layout.addWidget(content_widget)
-        
-        # 3. Footer 区域
+        return content_widget
+
+    def _build_footer(self) -> QWidget:
         footer = QWidget()
         footer.setObjectName("footer")
         footer.setStyleSheet("""
-            #footer {
-                background: #F9FAFB;
-                border-top: 1px solid #E5E7EB;
-                border-bottom-left-radius: 16px;
-                border-bottom-right-radius: 16px;
-                padding: 16px 24px;
-            }
+            #footer { background: #F9FAFB; border-top: 1px solid #E5E7EB;
+                      border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; padding: 16px 24px; }
         """)
         footer_layout = QHBoxLayout(footer)
         footer_layout.setContentsMargins(24, 16, 24, 16)
         footer_layout.setSpacing(12)
-        
         footer_layout.addStretch()
-        
+
         self.copy_btn = QPushButton("复制")
         self.copy_btn.clicked.connect(self._copy_and_close_editor)
         self.copy_btn.setCursor(Qt.PointingHandCursor)
         self.copy_btn.setStyleSheet("""
-            QPushButton {
-                background: #111827;
-                color: #FFFFFF;
-                border: 1px solid #111827;
-                border-radius: 8px;
-                padding: 10px 32px;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: #374151;
-                border-color: #374151;
-            }
-            QPushButton:pressed {
-                background: #030712;
-            }
+            QPushButton { background: #111827; color: #FFFFFF; border: 1px solid #111827; border-radius: 8px;
+                          padding: 10px 32px; font-size: 13px; font-weight: 600; }
+            QPushButton:hover { background: #374151; border-color: #374151; }
+            QPushButton:pressed { background: #030712; }
         """)
-        
         footer_layout.addWidget(self.copy_btn)
-        layout.addWidget(footer)
-        
-        # 设置主布局
-        root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(10, 10, 10, 10)
-        root_layout.addWidget(main_widget)
-        
-        # 监听文本变化
-        self.text_edit.textChanged.connect(self._on_text_changed)
-        self._on_text_changed()
-        
-        # 保存最后的选中文本（防止点击按钮时失去焦点导致选区丢失）
-        self._last_selected_text = ""
-        self.text_edit.selectionChanged.connect(self._on_selection_changed)
-        
-        # 窗口拖拽支持 (因为去掉了标题栏)
-        self._drag_pos = None
+        return footer
 
     def showEvent(self, event):
         """对话框显示时自动聚焦到文本编辑区"""
