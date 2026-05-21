@@ -1,5 +1,5 @@
 import math
-from PySide6.QtWidgets import QWidget, QApplication, QToolButton, QFrame, QHBoxLayout, QMenu, QWidgetAction, QLabel, QPushButton, QSpinBox, QVBoxLayout
+from PySide6.QtWidgets import QWidget, QApplication, QToolButton, QFrame, QHBoxLayout, QMenu, QWidgetAction, QLabel, QPushButton, QSpinBox, QVBoxLayout, QLineEdit
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import QPainter, QPixmap, QColor, QPen, QFont, QCursor, QIcon, QPainterPath, QAction
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QSize, QEvent
@@ -51,6 +51,10 @@ class CaptureOverlay(QWidget):
         # 保存画笔菜单控件的引用，用于更新状态
         self._color_buttons = []
         self._width_spinbox = None
+
+        # 文本输入控件
+        self._text_editor = None
+        self._text_editor_pos = None
 
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
@@ -315,6 +319,59 @@ class CaptureOverlay(QWidget):
     def _redo(self):
         pass
 
+    def _adjust_text_editor_size(self):
+        """根据文本内容调整编辑器大小，保持左边位置不变"""
+        if not self._text_editor:
+            return
+
+        text = self._text_editor.text()
+        fm = self._text_editor.fontMetrics()
+        # 计算文本宽度，加上左右padding(4px * 2)和边框(1px * 2)
+        if text:
+            text_width = fm.horizontalAdvance(text)
+            width = text_width + 14  # padding(8) + border(2) + 光标空间(4)
+        else:
+            width = 10  # 空文本时的初始宽度
+        height = fm.height() + 6  # 文字高度 + padding
+
+        # 先记住当前位置
+        current_pos = self._text_editor_window_pos if hasattr(self, '_text_editor_window_pos') else self._text_editor.pos()
+        # 调整大小
+        self._text_editor.setFixedSize(max(width, 10), height)
+        # 重新设置位置，确保左边不动
+        self._text_editor.move(current_pos)
+
+    def _finish_text_input(self):
+        """完成文本输入"""
+        if not self._text_editor:
+            return
+
+        # 避免重复调用
+        if self._text_editor_pos is None:
+            return
+
+        text = self._text_editor.text().strip()
+        if text:
+            self.annotations.append({
+                "type": "text",
+                "pos": self._text_editor_pos,
+                "text": text,
+                "color": QColor(self.current_color),
+                "font_size": 20,
+            })
+            self.update()
+
+        # 清理编辑器（先断开信号避免重复触发）
+        self._text_editor.textChanged.disconnect()
+        self._text_editor.returnPressed.disconnect()
+        self._text_editor.editingFinished.disconnect()
+        self._text_editor.hide()
+        self._text_editor.deleteLater()
+        self._text_editor = None
+        self._text_editor_pos = None
+        # 重新捕获键盘
+        self.grabKeyboard()
+
     def _render_annotated_pixmap(self) -> QPixmap:
         dpr = self.full_screenshot.devicePixelRatio()
         logical_rect = self.selection_rect
@@ -396,7 +453,11 @@ class CaptureOverlay(QWidget):
                 painter.setPen(p)
                 font = QFont("Segoe UI", ann["font_size"])
                 painter.setFont(font)
-                painter.drawText(pos.toPoint(), ann["text"])
+                # 使用boundingRect来获取文本高度，确保与编辑器位置一致
+                fm = painter.fontMetrics()
+                # 向下偏移字体上升高度，让文本顶部对齐编辑器顶部
+                text_pos = pos.toPoint() + QPoint(4, fm.ascent() + 2)
+                painter.drawText(text_pos, ann["text"])
 
         if self._preview_annotation:
             ann = self._preview_annotation
@@ -685,6 +746,10 @@ class CaptureOverlay(QWidget):
         return QPointF(pos - self.selection_rect.topLeft())
 
     def mousePressEvent(self, event):
+        # 如果有活动的文本编辑器，先完成输入
+        if self._text_editor and not self._text_editor.geometry().contains(event.position().toPoint()):
+            self._finish_text_input()
+
         if event.button() == Qt.RightButton:
             if self._drag_mode or not self.selection_rect.isNull():
                 self.selection_rect = QRect()
@@ -704,17 +769,44 @@ class CaptureOverlay(QWidget):
                 self._draw_start = local
                 self._draw_points = [local]
                 if self.current_tool == "text":
-                    from PySide6.QtWidgets import QInputDialog
-                    text, ok = QInputDialog.getText(None, "输入文字", "请输入文字:")
-                    if ok and text:
-                        self.annotations.append({
-                            "type": "text",
-                            "pos": local,
-                            "text": text,
-                            "color": QColor(self.current_color),
-                            "font_size": 20,
-                        })
-                        self.update()
+                    # 如果已有编辑器在，先完成之前的输入
+                    if self._text_editor:
+                        self._finish_text_input()
+
+                    # 创建内嵌的文本编辑器
+                    self._text_editor_pos = local
+                    self._text_editor = QLineEdit(self)
+                    self._text_editor.setFont(QFont("Segoe UI", 20))
+                    # 保存编辑器位置，用于调整大小时保持左边不动
+                    self._text_editor_window_pos = self.selection_rect.topLeft() + local.toPoint()
+                    # 设置样式，包括光标颜色
+                    cursor_color = self.current_color.name() if self.current_color.lightnessF() > 0.5 else "white"
+                    self._text_editor.setStyleSheet("""
+                        QLineEdit {
+                            background: transparent;
+                            border: 1px solid white;
+                            padding: 1px 2px;
+                            color: %s;
+                        }
+                    """ % self.current_color.name())
+                    # 设置光标宽度，让它更明显
+                    self._text_editor.setCursorPosition(0)
+                    # 设置位置
+                    self._text_editor.move(self._text_editor_window_pos)
+                    # 初始宽度设置为较小的大小
+                    self._text_editor.setMinimumWidth(10)
+                    self._text_editor.setAttribute(Qt.WA_DeleteOnClose)
+                    # 连接文本变化信号，自动调整大小
+                    self._text_editor.textChanged.connect(self._adjust_text_editor_size)
+                    # 初始调整大小
+                    self._adjust_text_editor_size()
+                    # 释放键盘捕获，让编辑器接收输入
+                    self.releaseKeyboard()
+                    self._text_editor.show()
+                    self._text_editor.setFocus()
+                    # 连接完成信号
+                    self._text_editor.returnPressed.connect(self._finish_text_input)
+                    self._text_editor.editingFinished.connect(self._finish_text_input)
                     self._drawing = False
                 return
             if not self.selection_rect.isNull():
@@ -864,6 +956,14 @@ class CaptureOverlay(QWidget):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
+            # 如果正在编辑文本，取消输入
+            if self._text_editor:
+                self._text_editor.hide()
+                self._text_editor.deleteLater()
+                self._text_editor = None
+                self._text_editor_pos = None
+                self.grabKeyboard()
+                return
             if self._drawing:
                 self._drawing = False
                 return
