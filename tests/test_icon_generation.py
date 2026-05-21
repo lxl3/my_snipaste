@@ -90,6 +90,29 @@ def test_icon_files_exist():
         print(f"  [WARN] icon.ico 不存在（运行 generate_icon.py 生成）")
 
 
+def test_icon_in_build():
+    """测试图标是否正确集成到构建中"""
+    print("\n测试构建集成...")
+
+    # 检查 spec 文件
+    spec_path = PROJECT_DIR / "MySnipaste.spec"
+    if spec_path.exists():
+        content = spec_path.read_text(encoding='utf-8')
+        assert "icon='icon.ico'" in content or 'icon="icon.ico"' in content, \
+            "spec 文件中未找到 icon 参数"
+        print("  [OK] MySnipaste.spec 包含 icon 参数")
+
+    # 检查 build.py
+    build_path = PROJECT_DIR / "build.py"
+    if build_path.exists():
+        content = build_path.read_text(encoding='utf-8')
+        assert "--icon" in content or "'--icon'" in content, \
+            "build.py 中未找到 --icon 参数"
+        print("  [OK] build.py 包含 --icon 参数")
+
+    print("  [OK] 构建配置正确")
+
+
 def main():
     """运行所有测试"""
     print("=" * 60)
@@ -101,6 +124,7 @@ def main():
         test_draw_icon()
         test_get_font()
         test_icon_files_exist()
+        test_icon_in_build()  # 添加集成测试
 
         print("\n" + "=" * 60)
         print("  [OK] 所有测试通过")
