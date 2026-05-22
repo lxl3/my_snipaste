@@ -1,16 +1,23 @@
-import math
+"""截图覆盖层：多功能选择、标注和事件处理。
 
-from PySide6.QtWidgets import QWidget, QApplication, QLineEdit, QMessageBox
-from PySide6.QtGui import QPainter, QPixmap, QColor, QPen, QFont, QPainterPath
+由 CaptureOverlay（主类）+ 三个 Mixin 组成：
+- OcrMixin         — OCR 进度/取消逻辑
+- OverlayRenderingMixin — 绘图渲染
+- OverlayActionsMixin    — 动作/文本编辑
+"""
+
+from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
+from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent
 
 from .utils import capture_all_screens
 from .overlay_toolbar import OverlayToolbar
+from .overlay_rendering import OverlayRenderingMixin
+from .overlay_actions import OverlayActionsMixin
 from .ocr_mixin import OcrMixin
 from .constants import (
     DEFAULT_ANNOTATION_COLOR, SELECTION_BORDER_COLOR, DIM_OVERLAY_COLOR,
-    HANDLE_SIZE, MIN_SELECTION_SIZE, MIN_DRAW_THRESHOLD, TOOLBAR_MARGIN,
-    ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR,
+    HANDLE_SIZE, MIN_SELECTION_SIZE, MIN_DRAW_THRESHOLD,
     DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, DEFAULT_LINE_WIDTH,
 )
 from .logger import setup_logger
@@ -18,7 +25,9 @@ from .logger import setup_logger
 logger = setup_logger("overlay")
 
 
-class CaptureOverlay(QWidget, OcrMixin):
+class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMixin):
+    """截图覆盖层：全屏半透明遮罩，支持选区、标注、OCR 等功能。"""
+
     pin_requested = Signal(object, object)
     copy_requested = Signal(object)
     save_requested = Signal(object)
@@ -117,241 +126,6 @@ class CaptureOverlay(QWidget, OcrMixin):
         }
         return mapping.get(handle_name, Qt.ArrowCursor)
 
-    # ─── Rendering ───
-
-    def _render_annotated_pixmap(self) -> QPixmap:
-        dpr = self.full_screenshot.devicePixelRatio()
-        logical_rect = self.selection_rect
-        physical_rect = QRect(
-            round(logical_rect.x() * dpr), round(logical_rect.y() * dpr),
-            round(logical_rect.width() * dpr), round(logical_rect.height() * dpr)
-        )
-        pm = self.full_screenshot.copy(physical_rect)
-        pm.setDevicePixelRatio(dpr)
-        painter = QPainter(pm)
-        painter.setRenderHint(QPainter.Antialiasing)
-        self._draw_annotations(painter, logical_rect.size(), QPointF(0, 0))
-        painter.end()
-        return pm
-
-    def _draw_annotations(self, painter, view_size, offset):
-        for ann in self.annotations:
-            self._draw_annotation(painter, ann, offset)
-        if self._preview_annotation:
-            self._draw_annotation(painter, self._preview_annotation, offset)
-
-    def _draw_annotation(self, painter, ann, offset):
-        t = ann["type"]
-        if t in ("rect", "ellipse"):
-            r = QRectF(ann["rect"]).translated(offset)
-            p = QPen(ann["color"], ann["width"])
-            painter.setPen(p)
-            painter.setBrush(Qt.NoBrush)
-            if t == "rect":
-                painter.drawRect(r)
-            else:
-                painter.drawEllipse(r)
-        elif t in ("arrow", "line"):
-            start = ann["start"] + offset
-            end = ann["end"] + offset
-            painter.setPen(QPen(ann["color"], ann["width"]))
-            painter.drawLine(start, end)
-            if t == "arrow":
-                self._draw_arrowhead(painter, start, end, ann["width"])
-        elif t == "freehand":
-            pts = [p + offset for p in ann["points"]]
-            if len(pts) >= 2:
-                painter.setPen(QPen(ann["color"], ann["width"]))
-                path = QPainterPath()
-                path.moveTo(pts[0])
-                for pt in pts[1:]:
-                    path.lineTo(pt)
-                painter.drawPath(path)
-        elif t == "mosaic":
-            self._draw_mosaic(painter, ann, offset)
-        elif t == "text":
-            self._draw_text(painter, ann, offset)
-
-    def _draw_arrowhead(self, painter, start, end, width):
-        arrow_size = ARROW_SIZE_BASE + width
-        angle = math.atan2(end.y() - start.y(), end.x() - start.x())
-        p1 = end - QPointF(arrow_size * math.cos(angle + ARROW_SPREAD_ANGLE), arrow_size * math.sin(angle + ARROW_SPREAD_ANGLE))
-        p2 = end - QPointF(arrow_size * math.cos(angle - ARROW_SPREAD_ANGLE), arrow_size * math.sin(angle - ARROW_SPREAD_ANGLE))
-        painter.drawLine(end, p1)
-        painter.drawLine(end, p2)
-
-    def _draw_mosaic(self, painter, ann, offset):
-        dpr = self.full_screenshot.devicePixelRatio()
-        r = QRectF(ann["rect"]).translated(offset).toRect()
-        sel = self.selection_rect
-        src_rect = QRect(
-            round((sel.x() + ann["rect"].x()) * dpr),
-            round((sel.y() + ann["rect"].y()) * dpr),
-            round(ann["rect"].width() * dpr),
-            round(ann["rect"].height() * dpr)
-        )
-        if src_rect.width() > 0 and src_rect.height() > 0:
-            src = self.full_screenshot.copy(src_rect)
-            small = src.scaled(max(src.width() // MOSAIC_SCALE_FACTOR, 1), max(src.height() // MOSAIC_SCALE_FACTOR, 1), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-            blurred = small.scaled(src.width(), src.height(), Qt.IgnoreAspectRatio, Qt.FastTransformation)
-            painter.drawPixmap(r, blurred, blurred.rect())
-
-    def _draw_text(self, painter, ann, offset):
-        pos = ann["pos"] + offset
-        painter.setPen(QPen(ann["color"]))
-        font = QFont(ann.get("font_family", "Segoe UI"), ann.get("font_size", 20))
-        font.setBold(ann.get("bold", False))
-        font.setItalic(ann.get("italic", False))
-        painter.setFont(font)
-        fm = painter.fontMetrics()
-        text_pos = pos.toPoint() + QPoint(4, fm.ascent() + 2)
-        painter.drawText(text_pos, ann["text"])
-
-    # ─── Actions ───
-
-    def _on_ocr(self):
-        if self.selection_rect.isNull():
-            return
-        captured = self._render_annotated_pixmap()
-        from .ocr_engine import OcrWorker
-        from .utils import qpixmap_to_pil
-        pil_image = qpixmap_to_pil(captured)
-        self._ocr_worker = OcrWorker(pil_image)
-        self._ocr_worker.finished.connect(self._on_ocr_finished)
-        self._ocr_worker.error.connect(self._on_ocr_error)
-        self._ocr_worker.start()
-        self._show_ocr_progress(self._cancel_ocr)
-
-    def _on_ocr_finished(self, text):
-        self._cleanup_ocr()
-        if text:
-            from .utils import OcrResultDialog
-            OcrResultDialog(text, self).exec()
-        else:
-            QMessageBox.warning(self, "OCR 结果", "未识别到文字")
-
-    def _on_ocr_error(self, error_msg):
-        self._cleanup_ocr()
-        QMessageBox.critical(self, "OCR 错误", f"文字识别失败：\n{error_msg}")
-
-    def on_pin(self):
-        if self.selection_rect.isNull():
-            return
-        self.pin_requested.emit(self._render_annotated_pixmap(), self._capture_pos())
-        self.close()
-
-    def on_copy(self):
-        if self.selection_rect.isNull():
-            return
-        self.copy_requested.emit(self._render_annotated_pixmap())
-        self.close()
-
-    def on_save(self):
-        if self.selection_rect.isNull():
-            return
-        self.save_requested.emit(self._render_annotated_pixmap())
-
-    # ─── Undo / Redo ───
-
-    def _undo(self):
-        if self.annotations:
-            self._redo_stack.append(self.annotations.pop())
-            self.toolbar.update_undo_redo_state()
-            self.update()
-
-    def _redo(self):
-        if self._redo_stack:
-            self.annotations.append(self._redo_stack.pop())
-            self.toolbar.update_undo_redo_state()
-            self.update()
-
-    def _try_erase_annotation(self, pos):
-        local = self._sel_to_local(QPointF(pos))
-        for i in range(len(self.annotations) - 1, -1, -1):
-            ann = self.annotations[i]
-            t = ann["type"]
-            if t in ("rect", "ellipse", "mosaic"):
-                if QRectF(ann["rect"]).contains(local):
-                    self._redo_stack.append(self.annotations.pop(i))
-                    self.toolbar.update_undo_redo_state()
-                    self.update()
-                    return
-            elif t in ("arrow", "line"):
-                if self._point_to_segment_distance(local, ann["start"], ann["end"]) < 10:
-                    self._redo_stack.append(self.annotations.pop(i))
-                    self.toolbar.update_undo_redo_state()
-                    self.update()
-                    return
-            elif t == "freehand":
-                pts = ann["points"]
-                for j in range(len(pts) - 1):
-                    if self._point_to_segment_distance(local, pts[j], pts[j + 1]) < 10:
-                        self._redo_stack.append(self.annotations.pop(i))
-                        self.toolbar.update_undo_redo_state()
-                        self.update()
-                        return
-            elif t == "text":
-                font = QFont(ann.get("font_family", "Segoe UI"), ann.get("font_size", 20))
-                font.setBold(ann.get("bold", False))
-                font.setItalic(ann.get("italic", False))
-                fm = self.fontMetrics()
-                text_w = fm.horizontalAdvance(ann["text"]) + 8
-                text_h = fm.height() + 4
-                text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), text_w, text_h)
-                if text_rect.contains(local):
-                    self._redo_stack.append(self.annotations.pop(i))
-                    self.toolbar.update_undo_redo_state()
-                    self.update()
-                    return
-
-    def _point_to_segment_distance(self, point, p1, p2):
-        dx = p2.x() - p1.x()
-        dy = p2.y() - p1.y()
-        length_sq = dx * dx + dy * dy
-        if length_sq == 0:
-            return math.hypot(point.x() - p1.x(), point.y() - p1.y())
-        t = max(0, min(1, ((point.x() - p1.x()) * dx + (point.y() - p1.y()) * dy) / length_sq))
-        proj_x = p1.x() + t * dx
-        proj_y = p1.y() + t * dy
-        return math.hypot(point.x() - proj_x, point.y() - proj_y)
-
-    # ─── Text editing ───
-
-    def _adjust_text_editor_size(self):
-        if not self._text_editor:
-            return
-        text = self._text_editor.text()
-        fm = self._text_editor.fontMetrics()
-        width = fm.horizontalAdvance(text) + 14 if text else 10
-        height = fm.height() + 6
-        current_pos = getattr(self, '_text_editor_window_pos', self._text_editor.pos())
-        self._text_editor.setFixedSize(max(width, 10), height)
-        self._text_editor.move(current_pos)
-
-    def _finish_text_input(self):
-        if not self._text_editor or self._text_editor_pos is None:
-            return
-        text = self._text_editor.text().strip()
-        if text:
-            self.annotations.append({
-                "type": "text", "pos": self._text_editor_pos, "text": text,
-                "color": QColor(self.text_color), "font_family": self.text_font_family,
-                "font_size": self.text_font_size, "bold": self.text_bold,
-                "italic": self.text_italic,
-            })
-            self._redo_stack.clear()
-            self.toolbar.update_undo_redo_state()
-            self.update()
-
-        self._text_editor.textChanged.disconnect()
-        self._text_editor.returnPressed.disconnect()
-        self._text_editor.editingFinished.disconnect()
-        self._text_editor.hide()
-        self._text_editor.deleteLater()
-        self._text_editor = None
-        self._text_editor_pos = None
-        self.grabKeyboard()
-
     # ─── Toolbar positioning ───
 
     def _position_toolbar(self):
@@ -387,7 +161,7 @@ class CaptureOverlay(QWidget, OcrMixin):
             dpr = self.full_screenshot.devicePixelRatio()
             physical_rect = QRect(
                 int(rect.x() * dpr), int(rect.y() * dpr),
-                int(rect.width() * dpr), int(rect.height() * dpr)
+                int(rect.width() * dpr), int(rect.height() * dpr),
             )
             painter.drawPixmap(rect, self.full_screenshot, physical_rect)
             self._draw_annotations(painter, rect.size(), rect.topLeft())
@@ -405,33 +179,6 @@ class CaptureOverlay(QWidget, OcrMixin):
 
         if not (self.toolbar.toolbar.isVisible() and self.toolbar.toolbar.geometry().contains(self.current_mouse_pos)):
             self._draw_coord_tooltip(painter)
-
-    def _draw_size_info(self, painter, rect):
-        info_text = f"{rect.width()} x {rect.height()}"
-        painter.setPen(Qt.white)
-        painter.setFont(QFont("Segoe UI", 12))
-        text_width = painter.fontMetrics().horizontalAdvance(info_text) + 20
-        text_height = 28
-        text_x = rect.x()
-        text_y = rect.bottom() + 8
-        if text_y + text_height > self.height() - 10:
-            text_y = rect.top() - text_height - 8
-        painter.fillRect(QRect(text_x, text_y, text_width, text_height), QColor(0, 0, 0, 180))
-        painter.drawText(QRect(text_x, text_y, text_width, text_height), Qt.AlignCenter, info_text)
-
-    def _draw_coord_tooltip(self, painter):
-        coord_text = f"{self.current_mouse_pos.x()}, {self.current_mouse_pos.y()}"
-        painter.setPen(Qt.white)
-        painter.setFont(QFont("Segoe UI", 11))
-        cx, cy = self.current_mouse_pos.x(), self.current_mouse_pos.y()
-        coord_w, coord_h = 130, 24
-        coord_rect = QRect(cx + 15, cy + 15, coord_w, coord_h)
-        if coord_rect.right() > self.width() - 10:
-            coord_rect.moveLeft(cx - coord_w - 15)
-        if coord_rect.bottom() > self.height() - 10:
-            coord_rect.moveTop(cy - coord_h - 15)
-        painter.fillRect(coord_rect, QColor(0, 0, 0, 160))
-        painter.drawText(coord_rect, Qt.AlignCenter, coord_text)
 
     # ─── Event handling ───
 
@@ -580,7 +327,7 @@ class CaptureOverlay(QWidget, OcrMixin):
         if mode == "move":
             self.selection_rect = QRect(
                 int(self._drag_start_rect.x() + delta.x()), int(self._drag_start_rect.y() + delta.y()),
-                self._drag_start_rect.width(), self._drag_start_rect.height()
+                self._drag_start_rect.width(), self._drag_start_rect.height(),
             )
         elif mode == "resize":
             handle = self._drag_mode[1]
