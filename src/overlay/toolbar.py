@@ -56,7 +56,7 @@ class OverlayToolbar(QObject):
         self._redo_btn = None
 
     def setup(self):
-        self.toolbar = QFrame()
+        self.toolbar = QFrame(self.overlay)
         self.toolbar.setObjectName("overlayToolbar")
         self.toolbar.setFixedHeight(54)
         self.toolbar.setStyleSheet("""
@@ -66,8 +66,6 @@ class OverlayToolbar(QObject):
                 border-radius: 8px;
             }
         """)
-        self.toolbar.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint)
-        self.toolbar.setAttribute(Qt.WA_TranslucentBackground)
         self.toolbar.setAttribute(Qt.WA_ShowWithoutActivating)
         self.toolbar.setFocusPolicy(Qt.NoFocus)
         self.toolbar.hide()
@@ -121,7 +119,9 @@ class OverlayToolbar(QObject):
 
         layout.addWidget(self._make_separator())
 
-        self.overlay.installEventFilter(self)
+        self.toolbar.installEventFilter(self.overlay)
+        for child in self.toolbar.findChildren(QWidget):
+            child.installEventFilter(self.overlay)
 
     def _make_tool_btn(self, tool_id, color=None, size=ICON_SIZE_BTN) -> QToolButton:
         btn = QToolButton()
@@ -178,7 +178,7 @@ class OverlayToolbar(QObject):
             menu.exec(button.mapToGlobal(QPoint(0, button.height())))
 
     def _add_submenu_btn(self, layout, tool_id, label, build_menu_fn):
-        menu = QMenu()
+        menu = QMenu(self.overlay)
         menu.setStyleSheet("""
             QMenu {
                 background: white; border: 1px solid #ccc; border-radius: 4px;
@@ -478,8 +478,4 @@ class OverlayToolbar(QObject):
             action.setDefaultWidget(w)
             menu.addAction(action)
 
-    def eventFilter(self, obj, event):
-        from PySide6.QtCore import QEvent
-        if event.type() == QEvent.WindowActivate:
-            self.overlay._position_toolbar()
-        return super().eventFilter(obj, event)
+
