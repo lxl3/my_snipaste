@@ -217,6 +217,20 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.setCursor(Qt.ArrowCursor if not self.selection_rect.isNull() else Qt.CrossCursor)
         return super().eventFilter(obj, event)
 
+    def closeEvent(self, event):
+        # 确保文本编辑器被清理
+        if self._text_editor:
+            self._text_editor.hide()
+            self._text_editor.deleteLater()
+            self._text_editor = None
+        try:
+            self.releaseKeyboard()
+        except RuntimeError:
+            pass
+        self.toolbar.toolbar.hide()
+        self.deleteLater()
+        super().closeEvent(event)
+
     def _begin_drag(self, mode, event):
         self._drag_mode = mode
         self._drag_start_pos = event.position()
@@ -241,16 +255,21 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
+            # 点橡皮：点击即擦除当前位置的标注
             if not self.selection_rect.isNull() and self.current_tool == "eraser_dot":
                 logger.debug(f"点擦除: {pos=}, annotations={len(self.annotations)}, eraser_size={self.eraser_size}")
                 try:
+                    self._erasing = True  # 开始拖动擦除
                     self._try_erase_annotation(pos)
                 except Exception as e:
                     logger.exception(f"点擦除异常: {e}")
                 finally:
                     return
+            # 填充橡皮：开始框选，松开鼠标后擦除框内所有标注
             if not self.selection_rect.isNull() and self.current_tool == "eraser_fill":
-                self._erase_all_in_selection()
+                self._erase_fill_rect_start = pos
+                self._erase_fill_rect_current = pos
+                self.update()
                 return
             if not self.selection_rect.isNull() and self.current_tool != "select":
                 self._start_drawing(pos)
@@ -282,10 +301,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._text_editor_window_pos = self.selection_rect.topLeft() + local.toPoint()
             self._text_editor.setStyleSheet(f"""
                 QLineEdit {{
-                    background: transparent; border: 1px solid white; padding: 2px 4px;
+                    background: transparent; border: none; padding: 0px;
                     color: {self.text_color.name()};
                 }}
             """)
+            self._text_editor.setTextMargins(0, 0, 0, 0)
             self._text_editor.move(self._text_editor_window_pos)
             self._text_editor.setMinimumWidth(10)
             self._text_editor.setAttribute(Qt.WA_DeleteOnClose)
@@ -547,47 +567,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             y = pos.y() - th - 5
         painter.fillRect(x, y, tw, th, QColor(0, 0, 0, 100))
         painter.drawText(x + margin, y + margin + fm.ascent(), text)
-
-    # ─── Arrow_noline / line_noline variants ───
-
-    def _update_drawing(self):
-        local = self._sel_to_local(QPointF(self.current_mouse_pos))
-        if self.current_tool == "freehand":
-            self._draw_points.append(local)
-            if len(self._draw_points) == 2:
-                self.annotations.append({
-                    "type": "freehand", "points": list(self._draw_points),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                })
-                self._redo_stack.clear()
-                self.toolbar.update_undo_redo_state()
-            elif len(self._draw_points) > 2 and self.annotations and self.annotations[-1]["type"] == "freehand":
-                self.annotations[-1]["points"] = list(self._draw_points)
-        else:
-            dx = local.x() - self._draw_start.x()
-            dy = local.y() - self._draw_start.y()
-            if self.current_tool in ("rect", "ellipse"):
-                self._preview_annotation = {
-                    "type": self.current_tool, "rect": QRectF(self._draw_start, local).normalized(),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                }
-            elif self.current_tool in ("arrow", "arrow_noline") and (abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD):
-                self._preview_annotation = {
-                    "type": "arrow" if self.current_tool == "arrow" else "line",
-                    "start": QPointF(self._draw_start), "end": QPointF(local),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                }
-            elif self.current_tool in ("line", "line_noline") and (abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD):
-                self._preview_annotation = {
-                    "type": "arrow" if self.current_tool == "line" else "line",
-                    "start": QPointF(self._draw_start), "end": QPointF(local),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                }
-            elif self.current_tool == "mosaic":
-                r = QRectF(self._draw_start, local).normalized()
-                if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                    self._preview_annotation = {"type": "mosaic", "rect": r}
-        self.update()
 
     def _execute_erase_fill(self):
         """执行填充擦除：框选区域内全部删除。"""
