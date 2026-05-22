@@ -125,7 +125,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def _cursor_for_handle(self, handle_name):
         if not handle_name:
-            return Qt.ArrowCursor if self.selection_rect.contains(self.current_mouse_pos) else Qt.CrossCursor
+            inside = self.selection_rect.contains(self.current_mouse_pos)
+            if self.current_tool == "select" and inside:
+                return Qt.SizeAllCursor
+            return Qt.ArrowCursor if inside else Qt.CrossCursor
         mapping = {
             "top-left": Qt.SizeFDiagCursor, "bottom-right": Qt.SizeFDiagCursor,
             "top-right": Qt.SizeBDiagCursor, "bottom-left": Qt.SizeBDiagCursor,
