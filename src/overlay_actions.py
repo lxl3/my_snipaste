@@ -4,7 +4,7 @@ import math
 
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor, QFont
-from PySide6.QtCore import QRectF, QPointF
+from PySide6.QtCore import QRectF, QPointF, QRect
 
 
 class OverlayActionsMixin:
@@ -101,13 +101,15 @@ class OverlayActionsMixin:
             ann = self.annotations[i]
             t = ann["type"]
             if t in ("rect", "ellipse", "mosaic"):
-                if QRectF(ann["rect"]).contains(local):
+                r = QRectF(ann["rect"])
+                margin = self.eraser_size // 2
+                if r.adjusted(-margin, -margin, margin, margin).contains(local):
                     self._redo_stack.append(self.annotations.pop(i))
                     self.toolbar.update_undo_redo_state()
                     self.update()
                     return
             elif t in ("arrow", "line"):
-                if self._point_to_segment_distance(local, ann["start"], ann["end"]) < 10:
+                if self._point_to_segment_distance(local, ann["start"], ann["end"]) < self.eraser_size:
                     self._redo_stack.append(self.annotations.pop(i))
                     self.toolbar.update_undo_redo_state()
                     self.update()
@@ -115,7 +117,7 @@ class OverlayActionsMixin:
             elif t == "freehand":
                 pts = ann["points"]
                 for j in range(len(pts) - 1):
-                    if self._point_to_segment_distance(local, pts[j], pts[j + 1]) < 10:
+                    if self._point_to_segment_distance(local, pts[j], pts[j + 1]) < self.eraser_size:
                         self._redo_stack.append(self.annotations.pop(i))
                         self.toolbar.update_undo_redo_state()
                         self.update()
@@ -125,9 +127,13 @@ class OverlayActionsMixin:
                 font.setBold(ann.get("bold", False))
                 font.setItalic(ann.get("italic", False))
                 fm = self.fontMetrics()
-                text_w = fm.horizontalAdvance(ann["text"]) + 8
-                text_h = fm.height() + 4
-                text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), text_w, text_h)
+                text_w = fm.horizontalAdvance(ann["text"]) + 12
+                text_h = fm.height() + 8
+                margin = self.eraser_size // 2
+                text_rect = QRectF(
+                    ann["pos"].x() - margin, ann["pos"].y() - margin,
+                    text_w + margin * 2, text_h + margin * 2,
+                )
                 if text_rect.contains(local):
                     self._redo_stack.append(self.annotations.pop(i))
                     self.toolbar.update_undo_redo_state()
@@ -145,6 +151,45 @@ class OverlayActionsMixin:
         proj_x = p1.x() + t * dx
         proj_y = p1.y() + t * dy
         return math.hypot(point.x() - proj_x, point.y() - proj_y)
+
+    def _erase_all_in_selection(self):
+        """填充擦除：删除当前选区内的所有标注。"""
+        if self.selection_rect.isNull():
+            return
+        sel_rect = QRectF(self.selection_rect)
+        remaining = []
+        for ann in self.annotations:
+            t = ann["type"]
+            keep = False
+            if t in ("rect", "ellipse", "mosaic"):
+                keep = not sel_rect.intersects(QRectF(ann["rect"]).toRect())
+            elif t in ("arrow", "line"):
+                # 保留线段两个端点都不在选区内的
+                start_in = sel_rect.contains(ann["start"] + QPointF(self.selection_rect.topLeft()))
+                end_in = sel_rect.contains(ann["end"] + QPointF(self.selection_rect.topLeft()))
+                keep = not (start_in or end_in)
+            elif t == "freehand":
+                pts = ann["points"]
+                any_in = any(
+                    sel_rect.contains(p + QPointF(self.selection_rect.topLeft()))
+                    for p in pts
+                )
+                keep = not any_in
+            elif t == "text":
+                text_pos = QPointF(self.selection_rect.topLeft()) + ann["pos"]
+                keep = not sel_rect.contains(text_pos)
+            else:
+                keep = True
+            if keep:
+                remaining.append(ann)
+        removed = len(self.annotations) - len(remaining)
+        if removed > 0:
+            self._redo_stack.extend(
+                a for a in self.annotations if a not in remaining
+            )
+            self.annotations = remaining
+            self.toolbar.update_undo_redo_state()
+            self.update()
 
     # ─── Text editing ───
 

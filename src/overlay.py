@@ -8,7 +8,7 @@
 
 from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
-from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent
+from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, QTimer
 
 from .utils import capture_all_screens
 from .overlay_toolbar import OverlayToolbar
@@ -68,6 +68,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._draw_start = QPointF()
         self._draw_points = []
         self._preview_annotation = None
+
+        self.eraser_size = 20  # 橡皮擦点擦除半径
+        self._eraser_target_size = 20
+        self._eraser_size_animating = False
 
         self._text_editor = None
         self._text_editor_pos = None
@@ -177,6 +181,14 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
             self._draw_size_info(painter, rect)
 
+        if self.current_tool == "eraser_dot" and not self.selection_rect.isNull():
+            painter.setPen(QPen(QColor(255, 255, 255, 180), 2))
+            painter.setBrush(QColor(255, 255, 255, 40))
+            painter.drawEllipse(self.current_mouse_pos, self.eraser_size, self.eraser_size)
+            painter.setPen(QPen(QColor(0, 0, 0, 120), 1))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawEllipse(self.current_mouse_pos, self.eraser_size, self.eraser_size)
+
         if not (self.toolbar.toolbar.isVisible() and self.toolbar.toolbar.geometry().contains(self.current_mouse_pos)):
             self._draw_coord_tooltip(painter)
 
@@ -207,8 +219,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
-            if not self.selection_rect.isNull() and self.current_tool == "eraser":
+            if not self.selection_rect.isNull() and self.current_tool == "eraser_dot":
                 self._try_erase_annotation(pos)
+                return
+            if not self.selection_rect.isNull() and self.current_tool == "eraser_fill":
+                self._erase_all_in_selection()
                 return
             if not self.selection_rect.isNull() and self.current_tool != "select":
                 self._start_drawing(pos)
@@ -394,7 +409,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             if self._drawing:
                 self._drawing = False
                 return
-            if self.current_tool == "eraser":
+            if self.current_tool in ("eraser_dot", "eraser_fill"):
                 self.toolbar._select_tool("select")
                 return
             if not self.selection_rect.isNull():
@@ -410,6 +425,29 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             if not self.selection_rect.isNull():
                 self.copy_requested.emit(self._render_annotated_pixmap())
                 self.close()
+
+    def wheelEvent(self, event):
+        if self.current_tool == "eraser_dot" and event.modifiers() == Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            step = 5 if delta > 0 else -5
+            self._eraser_target_size = max(5, min(100, self._eraser_target_size + step))
+            if not self._eraser_size_animating:
+                self._eraser_size_animating = True
+                self._animate_eraser_size()
+            event.accept()
+            return
+        super().wheelEvent(event)
+
+    def _animate_eraser_size(self):
+        diff = self._eraser_target_size - self.eraser_size
+        if abs(diff) <= 1:
+            self.eraser_size = self._eraser_target_size
+            self._eraser_size_animating = False
+            self.update()
+            return
+        self.eraser_size += (1 if diff > 0 else -1)
+        self.update()
+        QTimer.singleShot(16, self._animate_eraser_size)
 
     def closeEvent(self, event):
         logger.debug("关闭截图覆盖层")

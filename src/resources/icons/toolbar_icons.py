@@ -51,6 +51,24 @@ TOOLBAR_ICONS = {
   <path d="M6 11l8 8"/>
 </svg>""",
 
+    "eraser_dot": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="5" fill="#000000"/>
+  <circle cx="12" cy="12" r="9" stroke-dasharray="3,2"/>
+</svg>""",
+
+    "eraser_fill": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="3" width="18" height="18" rx="2"/>
+  <circle cx="6.5" cy="6.5" r="1.5" fill="#000000" stroke="none"/>
+  <circle cx="11" cy="6.5" r="1.5" fill="#000000" stroke="none"/>
+  <circle cx="15.5" cy="6.5" r="1.5" fill="#000000" stroke="none"/>
+  <circle cx="6.5" cy="11" r="1.5" fill="#000000" stroke="none"/>
+  <circle cx="11" cy="11" r="1.5" fill="#000000" stroke="none"/>
+  <circle cx="15.5" cy="11" r="1.5" fill="#000000" stroke="none"/>
+  <circle cx="6.5" cy="15.5" r="1.5" fill="#000000" stroke="none"/>
+  <circle cx="11" cy="15.5" r="1.5" fill="#000000" stroke="none"/>
+  <circle cx="15.5" cy="15.5" r="1.5" fill="#000000" stroke="none"/>
+</svg>""",
+
     "undo": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
   <path d="M3 7v6h6"/>
   <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
