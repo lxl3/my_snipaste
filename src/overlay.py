@@ -265,6 +265,56 @@ class CaptureOverlay(QWidget, OcrMixin):
             self.toolbar.update_undo_redo_state()
             self.update()
 
+    def _try_erase_annotation(self, pos):
+        local = self._sel_to_local(QPointF(pos))
+        for i in range(len(self.annotations) - 1, -1, -1):
+            ann = self.annotations[i]
+            t = ann["type"]
+            if t in ("rect", "ellipse", "mosaic"):
+                if QRectF(ann["rect"]).contains(local):
+                    self._redo_stack.append(self.annotations.pop(i))
+                    self.toolbar.update_undo_redo_state()
+                    self.update()
+                    return
+            elif t in ("arrow", "line"):
+                if self._point_to_segment_distance(local, ann["start"], ann["end"]) < 10:
+                    self._redo_stack.append(self.annotations.pop(i))
+                    self.toolbar.update_undo_redo_state()
+                    self.update()
+                    return
+            elif t == "freehand":
+                pts = ann["points"]
+                for j in range(len(pts) - 1):
+                    if self._point_to_segment_distance(local, pts[j], pts[j + 1]) < 10:
+                        self._redo_stack.append(self.annotations.pop(i))
+                        self.toolbar.update_undo_redo_state()
+                        self.update()
+                        return
+            elif t == "text":
+                font = QFont(ann.get("font_family", "Segoe UI"), ann.get("font_size", 20))
+                font.setBold(ann.get("bold", False))
+                font.setItalic(ann.get("italic", False))
+                fm = self.fontMetrics()
+                text_w = fm.horizontalAdvance(ann["text"]) + 8
+                text_h = fm.height() + 4
+                text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), text_w, text_h)
+                if text_rect.contains(local):
+                    self._redo_stack.append(self.annotations.pop(i))
+                    self.toolbar.update_undo_redo_state()
+                    self.update()
+                    return
+
+    def _point_to_segment_distance(self, point, p1, p2):
+        dx = p2.x() - p1.x()
+        dy = p2.y() - p1.y()
+        length_sq = dx * dx + dy * dy
+        if length_sq == 0:
+            return math.hypot(point.x() - p1.x(), point.y() - p1.y())
+        t = max(0, min(1, ((point.x() - p1.x()) * dx + (point.y() - p1.y()) * dy) / length_sq))
+        proj_x = p1.x() + t * dx
+        proj_y = p1.y() + t * dy
+        return math.hypot(point.x() - proj_x, point.y() - proj_y)
+
     # ─── Text editing ───
 
     def _adjust_text_editor_size(self):
@@ -410,6 +460,9 @@ class CaptureOverlay(QWidget, OcrMixin):
 
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
+            if not self.selection_rect.isNull() and self.current_tool == "eraser":
+                self._try_erase_annotation(pos)
+                return
             if not self.selection_rect.isNull() and self.current_tool != "select":
                 self._start_drawing(pos)
                 return
@@ -593,6 +646,9 @@ class CaptureOverlay(QWidget, OcrMixin):
                 return
             if self._drawing:
                 self._drawing = False
+                return
+            if self.current_tool == "eraser":
+                self.toolbar._select_tool("select")
                 return
             if not self.selection_rect.isNull():
                 self.selection_rect = QRect()

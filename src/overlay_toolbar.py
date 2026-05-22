@@ -77,6 +77,7 @@ class OverlayToolbar:
         self._build_pen_menu(toolbar_layout)
         self._build_mosaic_btn(toolbar_layout)
         self._build_text_menu(toolbar_layout)
+        self._build_eraser_btn(toolbar_layout)
         self._build_ocr_btn(toolbar_layout)
         add_sep()
         self._build_undo_btn(toolbar_layout)
@@ -97,10 +98,8 @@ class OverlayToolbar:
         btn.setIcon(self._load_icon(btn_icon))
         btn.setIconSize(QSize(16, 16))
         btn.setToolTip(btn_tooltip)
-        btn.setPopupMode(QToolButton.InstantPopup)
         btn.setCheckable(True)
         btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        btn.setStyleSheet("QToolButton::menu-indicator { image: none; }")
         menu = QMenu(self.overlay)
         menu.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         btn.clicked.connect(lambda: self._toggle_menu(menu, btn))
@@ -167,7 +166,6 @@ class OverlayToolbar:
 
         shape_action.setDefaultWidget(shape_container)
         shape_menu.addAction(shape_action)
-        shape_btn.clicked.connect(lambda: self._toggle_menu(shape_menu, shape_btn))
 
         def _setup():
             if self.overlay.current_tool not in ["rect", "ellipse"]:
@@ -193,7 +191,6 @@ class OverlayToolbar:
 
         arrow_action.setDefaultWidget(arrow_container)
         arrow_menu.addAction(arrow_action)
-        arrow_btn.clicked.connect(lambda: self._toggle_menu(arrow_menu, arrow_btn))
 
         def _setup():
             if self.overlay.current_tool not in ["arrow", "line"]:
@@ -225,7 +222,6 @@ class OverlayToolbar:
 
         pen_action.setDefaultWidget(pen_container)
         pen_menu.addAction(pen_action)
-        pen_btn.clicked.connect(lambda: self._toggle_menu(pen_menu, pen_btn))
 
         def _setup():
             if not self._check_and_cancel_tool(["freehand"], pen_menu):
@@ -317,7 +313,6 @@ class OverlayToolbar:
         text_main_layout.addWidget(color_container)
         text_action.setDefaultWidget(text_container)
         text_menu.addAction(text_action)
-        text_btn.clicked.connect(lambda: self._toggle_menu(text_menu, text_btn))
 
         def _setup():
             if not self._check_and_cancel_tool(["text"], text_menu):
@@ -325,6 +320,16 @@ class OverlayToolbar:
         text_menu.aboutToShow.connect(_setup)
 
         self._tool_btns["text"] = text_btn
+
+    def _build_eraser_btn(self, toolbar_layout):
+        eraser_btn = QToolButton()
+        eraser_btn.setIcon(self._load_icon("eraser"))
+        eraser_btn.setIconSize(QSize(16, 16))
+        eraser_btn.setToolTip("橡皮擦")
+        eraser_btn.setCheckable(True)
+        eraser_btn.clicked.connect(lambda: self._toggle_tool("eraser"))
+        toolbar_layout.addWidget(eraser_btn)
+        self._tool_btns["eraser"] = eraser_btn
 
     def _build_ocr_btn(self, toolbar_layout):
         ocr_btn = QToolButton()
