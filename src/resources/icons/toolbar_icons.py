@@ -102,7 +102,18 @@ TOOLBAR_ICONS = {
             <path d="M21 17v4h-4"/>
             <!-- 中间的 T 字母 -->
             <path d="M12 8v8M8 8h8"/>
-</svg>"""
+</svg>""",
+            "icon": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0    
+     24 24" fill="#fff" stroke="#000000" stroke-width="1">   
+       <!-- 左上矩形 -->                                     
+       <rect x="5" y="4" width="6" height="7" rx="1"/>       
+       <!-- 右上矩形 -->                                     
+       <rect x="13" y="4" width="6" height="7" rx="1"/>      
+       <!-- 左下旗帜 -->                                     
+       <path d="M5 13h6v8l-3-3L5 26z"/>                      
+       <!-- 右下旗帜 -->                                     
+       <path d="M19 13h-6v8l3-3L19 26z"/>                 
+     </svg>"""
 }
 
 # ... existing code ...
