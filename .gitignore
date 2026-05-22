@@ -22,6 +22,12 @@ Thumbs.db
 screenshots/
 *.png
 *.jpg
+logs/
+src/logs/
 
 # Brainstorming session files
 .superpowers/
+
+# Claude Code
+.claude/
+.omo/

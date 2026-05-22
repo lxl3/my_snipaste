@@ -75,7 +75,7 @@ python main.py
 ### 完整构建（包含 Tesseract）
 
 ```bash
-python build.py
+python scripts/build_windows.py
 ```
 
 构建脚本会自动：
@@ -85,7 +85,7 @@ python build.py
 ### 跳过下载（使用已有 bundle）
 
 ```bash
-python build.py --skip-download
+python scripts/build_windows.py --skip-download
 ```
 
 使用 `tesseract_bundle/` 目录中已有的文件进行打包。
@@ -102,7 +102,7 @@ dist/MySnipaste.exe
 ```
 my_snipaste/
 ├── main.py              # 入口文件
-├── build.py             # 构建脚本（自动下载 Tesseract 并打包）
+├── scripts/build_windows.py  # Windows 构建脚本（自动下载 Tesseract 并打包）
 ├── icon.ico             # 应用图标（多尺寸）
 ├── requirements.txt     # Python 依赖
 ├── assets/

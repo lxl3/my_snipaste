@@ -49,7 +49,7 @@ def capture_all_screens() -> QPixmap:
         total_rect = total_rect.united(screen.geometry())
         max_dpr = max(max_dpr, screen.devicePixelRatio())
 
-    combined = QPixmap(total_rect.size())
+    combined = QPixmap(QSize(total_rect.width() * max_dpr, total_rect.height() * max_dpr))
     combined.setDevicePixelRatio(max_dpr)
     combined.fill(Qt.transparent)
     painter = QPainter(combined)

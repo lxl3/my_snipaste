@@ -89,8 +89,12 @@ class SnipasteApp(QApplication):
 
     def start_capture(self):
         if self.overlay is not None:
-            logger.debug("截图覆盖层已存在，跳过")
-            return
+            if self.overlay.isVisible():
+                logger.debug("截图覆盖层已存在，跳过")
+                return
+            # 覆盖层已关闭但还未销毁，清理以重新创建
+            self.overlay.deleteLater()
+            self.overlay = None
 
         logger.info("启动截图")
         self.overlay = CaptureOverlay()

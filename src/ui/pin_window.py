@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QPoint
+from PySide6.QtCore import Qt, QPoint, QRect
 from PySide6.QtGui import QPixmap, QPainter, QColor, QPen
 from PySide6.QtWidgets import QWidget
 
@@ -10,7 +10,7 @@ logger = setup_logger("pin_window")
 class PinWindow(QWidget):
     """贴图悬浮窗口，带居中投影阴影效果。"""
 
-    SHADOW_SIZE = 16  # 阴影宽度（像素）
+    SHADOW_SIZE = 6  # 阴影宽度（像素）
 
     def __init__(self, pixmap: QPixmap, pos):
         super().__init__()
@@ -38,8 +38,8 @@ class PinWindow(QWidget):
         content_rect = self.rect().adjusted(padding, padding, -padding, -padding)
         shadow_color = QColor(40, 120, 255)
 
-        for i in range(16):
-            alpha = max(0, 80 - i * 5)
+        for i in range(padding):
+            alpha = max(0, 80 - i * 10)
             if alpha <= 0:
                 break
             offset = padding - margin - i
