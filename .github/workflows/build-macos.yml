@@ -1,0 +1,127 @@
+name: Build Cross-Platform Apps
+
+on:
+  push:
+    tags:
+      - 'v*'  # 推送 v1.0.0 标签时触发
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      version:
+        description: '版本号（如 1.0.0）'
+        required: false
+        default: 'dev'
+
+jobs:
+  build-windows:
+    name: Build Windows App
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build Windows app
+      run: python build.py
+
+    - name: Create archive
+      run: |
+        cd dist
+        Compress-Archive -Path MySnipaste.exe -DestinationPath MySnipaste-Windows.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: MySnipaste-Windows
+        path: dist/MySnipaste-Windows.zip
+        retention-days: 30
+
+  build-macos:
+    name: Build macOS App
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install system dependencies
+      run: |
+        brew install tesseract
+        brew install tesseract-lang
+
+    - name: Install Python dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build macOS app
+      run: python scripts/build_macos.py
+
+    - name: Create DMG
+      run: |
+        brew install create-dmg
+        create-dmg \
+          --volname "MySnipaste" \
+          --window-pos 200 120 \
+          --window-size 600 400 \
+          --icon-size 100 \
+          --icon "MySnipaste.app" 175 120 \
+          --hide-extension "MySnipaste.app" \
+          --app-drop-link 425 120 \
+          "dist/MySnipaste-macOS.dmg" \
+          "dist/MySnipaste.app" || true
+
+    - name: Create ZIP fallback
+      if: always()
+      run: |
+        cd dist
+        zip -r MySnipaste-macOS.zip MySnipaste.app
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: MySnipaste-macOS
+        path: |
+          dist/MySnipaste-macOS.dmg
+          dist/MySnipaste-macOS.zip
+        retention-days: 30
+
+  create-release:
+    name: Create Release
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/MySnipaste-Windows/*.zip
+          artifacts/MySnipaste-macOS/*.dmg
+          artifacts/MySnipaste-macOS/*.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
