@@ -215,6 +215,12 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.setCursor(Qt.ArrowCursor if not self.selection_rect.isNull() else Qt.CrossCursor)
         return super().eventFilter(obj, event)
 
+    def _begin_drag(self, mode, event):
+        self._drag_mode = mode
+        self._drag_start_pos = event.position()
+        self._drag_start_rect = QRect(self.selection_rect)
+        self.toolbar.toolbar.hide()
+
     def mousePressEvent(self, event):
         if self._text_editor and not self._text_editor.geometry().contains(event.position().toPoint()):
             self._finish_text_input()
@@ -234,15 +240,15 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
             if not self.selection_rect.isNull() and self.current_tool == "eraser_dot":
-                # 开始橡皮拖动模式
-                self._erasing = True
-                self._try_erase_annotation(pos)
-                return
+                logger.debug(f"点擦除: {pos=}, annotations={len(self.annotations)}, eraser_size={self.eraser_size}")
+                try:
+                    self._try_erase_annotation(pos)
+                except Exception as e:
+                    logger.exception(f"点擦除异常: {e}")
+                finally:
+                    return
             if not self.selection_rect.isNull() and self.current_tool == "eraser_fill":
-                # 开始框选模式
-                self._erase_fill_rect_start = pos
-                self._erase_fill_rect_current = pos
-                self.update()
+                self._erase_all_in_selection()
                 return
             if not self.selection_rect.isNull() and self.current_tool != "select":
                 self._start_drawing(pos)
@@ -250,14 +256,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             if not self.selection_rect.isNull():
                 handle = self._handle_at_pos(pos)
                 if handle:
-                    self._drag_mode = ("resize", handle)
-                    self._drag_start_pos = event.position()
-                    self._drag_start_rect = QRect(self.selection_rect)
+                    self._begin_drag(("resize", handle), event)
                     return
                 if self.selection_rect.contains(pos):
-                    self._drag_mode = ("move",)
-                    self._drag_start_pos = event.position()
-                    self._drag_start_rect = QRect(self.selection_rect)
+                    self._begin_drag(("move",), event)
                     return
             self._start_selection(pos)
 
@@ -374,22 +376,21 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         mode = self._drag_mode[0]
         if mode == "move":
             self.selection_rect = QRect(
-                int(self._drag_start_rect.x() + delta.x()), int(self._drag_start_rect.y() + delta.y()),
+                round(self._drag_start_rect.x() + delta.x()), round(self._drag_start_rect.y() + delta.y()),
                 self._drag_start_rect.width(), self._drag_start_rect.height(),
             )
         elif mode == "resize":
             handle = self._drag_mode[1]
             r = QRect(self._drag_start_rect)
             if "left" in handle:
-                r.setLeft(int(self._drag_start_rect.left() + delta.x()))
+                r.setLeft(round(self._drag_start_rect.left() + delta.x()))
             if "right" in handle:
-                r.setRight(int(self._drag_start_rect.right() + delta.x()))
+                r.setRight(round(self._drag_start_rect.right() + delta.x()))
             if "top" in handle:
-                r.setTop(int(self._drag_start_rect.top() + delta.y()))
+                r.setTop(round(self._drag_start_rect.top() + delta.y()))
             if "bottom" in handle:
-                r.setBottom(int(self._drag_start_rect.bottom() + delta.y()))
+                r.setBottom(round(self._drag_start_rect.bottom() + delta.y()))
             self.selection_rect = r.normalized()
-        self._position_toolbar()
         self.update()
 
     def mouseReleaseEvent(self, event):
@@ -412,6 +413,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if self._drag_mode:
             self._drag_mode = None
             self._position_toolbar()
+            self.toolbar.toolbar.show()
             return
         if self.is_selecting:
             self.is_selecting = False
