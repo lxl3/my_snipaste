@@ -209,6 +209,9 @@ def run_pyinstaller(use_spec=True, force_rebuild=False, onedir=False):
     """
     print_step("运行 PyInstaller 打包")
 
+    # 判断操作系统（在函数开始就定义，避免后续使用时未定义）
+    is_windows = platform.system() == "Windows"
+
     # 增量构建检测
     if not force_rebuild and use_spec:
         spec_file = PROJECT_DIR / f"{BUILD_NAME}.spec"
