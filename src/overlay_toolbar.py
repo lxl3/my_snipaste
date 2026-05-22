@@ -339,13 +339,11 @@ class OverlayToolbar:
         eraser_menu.addAction(eraser_action)
 
         def _setup():
-            if self.overlay.current_tool not in ["eraser_dot", "eraser_fill"]:
-                self._select_tool("eraser_dot", eraser_btn, "eraser")
-            self._update_submenu_state(eraser_menu, ["eraser_dot", "eraser_fill"])
+            if self.overlay.current_tool in ["eraser_dot", "eraser_fill"]:
+                self._update_submenu_check_state(eraser_menu, self.overlay.current_tool)
         eraser_menu.aboutToShow.connect(_setup)
 
         self._tool_btns["eraser_dot"] = eraser_btn
-        self._tool_btns["eraser_fill"] = eraser_btn
 
     def _build_ocr_btn(self, toolbar_layout):
         ocr_btn = QToolButton()
