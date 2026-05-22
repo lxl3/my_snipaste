@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QComboBox, QColorDialog,
 )
 from PySide6.QtGui import QColor, QIcon
-from PySide6.QtCore import Qt, QPoint, QSize, QTimer
+from PySide6.QtCore import Qt, QPoint, QSize
 
 from .resources.icons.toolbar_icons import TOOLBAR_ICONS
 from .utils import load_icon_from_svg
@@ -93,7 +93,7 @@ class OverlayToolbar:
     def _load_icon(self, name, color="#333333"):
         return load_icon_from_svg(TOOLBAR_ICONS.get(name, ""), color)
 
-    def _make_submenu_btn(self, btn_icon, btn_tooltip, parent_layout):
+    def _make_submenu_btn(self, btn_icon, btn_tooltip, parent_layout, tool_ids=None):
         btn = QToolButton()
         btn.setIcon(self._load_icon(btn_icon))
         btn.setIconSize(QSize(16, 16))
@@ -102,7 +102,10 @@ class OverlayToolbar:
         btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
         menu = QMenu(self.overlay)
         menu.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        btn.clicked.connect(lambda: self._toggle_menu(menu, btn))
+        if tool_ids:
+            btn.clicked.connect(lambda: self._toggle_or_open_menu(menu, btn, tool_ids))
+        else:
+            btn.clicked.connect(lambda: self._toggle_menu(menu, btn))
         parent_layout.addWidget(btn)
         return btn, menu
 
@@ -152,7 +155,7 @@ class OverlayToolbar:
         layout.addWidget(btn)
 
     def _build_shape_menu(self, toolbar_layout):
-        shape_btn, shape_menu = self._make_submenu_btn("rectangle", "形状（矩形/圆形）", toolbar_layout)
+        shape_btn, shape_menu = self._make_submenu_btn("rectangle", "形状（矩形/圆形）", toolbar_layout, ["rect", "ellipse"])
         shape_action = QWidgetAction(shape_menu)
         shape_container = QWidget()
         shape_layout = QHBoxLayout(shape_container)
@@ -177,7 +180,7 @@ class OverlayToolbar:
         self._tool_btns["ellipse"] = shape_btn
 
     def _build_arrow_menu(self, toolbar_layout):
-        arrow_btn, arrow_menu = self._make_submenu_btn("arrow", "箭头（有箭头/无箭头）", toolbar_layout)
+        arrow_btn, arrow_menu = self._make_submenu_btn("arrow", "箭头（有箭头/无箭头）", toolbar_layout, ["arrow", "line"])
         arrow_action = QWidgetAction(arrow_menu)
         arrow_container = QWidget()
         arrow_layout = QHBoxLayout(arrow_container)
@@ -202,7 +205,7 @@ class OverlayToolbar:
         self._tool_btns["line"] = arrow_btn
 
     def _build_pen_menu(self, toolbar_layout):
-        pen_btn, pen_menu = self._make_submenu_btn("pen", "画笔", toolbar_layout)
+        pen_btn, pen_menu = self._make_submenu_btn("pen", "画笔", toolbar_layout, ["freehand"])
         pen_action = QWidgetAction(pen_menu)
         pen_container = QWidget()
         container_layout = QHBoxLayout(pen_container)
@@ -224,8 +227,7 @@ class OverlayToolbar:
         pen_menu.addAction(pen_action)
 
         def _setup():
-            if not self._check_and_cancel_tool(["freehand"], pen_menu):
-                self._select_tool("freehand")
+            self._select_tool("freehand")
         pen_menu.aboutToShow.connect(_setup)
 
         self._tool_btns["freehand"] = pen_btn
@@ -241,7 +243,7 @@ class OverlayToolbar:
         self._tool_btns["mosaic"] = mosaic_btn
 
     def _build_text_menu(self, toolbar_layout):
-        text_btn, text_menu = self._make_submenu_btn("text", "文字", toolbar_layout)
+        text_btn, text_menu = self._make_submenu_btn("text", "文字", toolbar_layout, ["text"])
         text_action = QWidgetAction(text_menu)
         text_container = QWidget()
         text_main_layout = QHBoxLayout(text_container)
@@ -315,14 +317,13 @@ class OverlayToolbar:
         text_menu.addAction(text_action)
 
         def _setup():
-            if not self._check_and_cancel_tool(["text"], text_menu):
-                self._select_tool("text")
+            self._select_tool("text")
         text_menu.aboutToShow.connect(_setup)
 
         self._tool_btns["text"] = text_btn
 
     def _build_eraser_menu(self, toolbar_layout):
-        eraser_btn, eraser_menu = self._make_submenu_btn("eraser", "橡皮擦（点擦除/填充擦除）", toolbar_layout)
+        eraser_btn, eraser_menu = self._make_submenu_btn("eraser", "橡皮擦（点擦除/填充擦除）", toolbar_layout, ["eraser_dot", "eraser_fill"])
         eraser_action = QWidgetAction(eraser_menu)
         eraser_container = QWidget()
         eraser_layout = QHBoxLayout(eraser_container)
@@ -427,13 +428,6 @@ class OverlayToolbar:
             if menu_obj:
                 self._update_submenu_check_state(menu_obj, tool_id)
 
-    def _check_and_cancel_tool(self, tool_ids, menu_obj):
-        if self.overlay.current_tool in tool_ids:
-            QTimer.singleShot(0, menu_obj.close)
-            self._select_tool("select")
-            return True
-        return False
-
     def _toggle_tool(self, tool_id):
         if self.overlay.current_tool == tool_id:
             self._select_tool("select")
@@ -446,6 +440,17 @@ class OverlayToolbar:
             self._current_menu = None
         for tid, b in self._tool_btns.items():
             b.setChecked(False)
+
+    def _toggle_or_open_menu(self, menu, button, tool_ids):
+        """子菜单主按钮单击逻辑：工具激活时切换到选择（拖动），否则打开菜单。"""
+        if self.overlay.current_tool in tool_ids:
+            self._select_tool("select")
+            if menu.isVisible():
+                menu.hide()
+            button.setChecked(False)
+            self._current_menu = None
+        else:
+            self._toggle_menu(menu, button)
 
     def _toggle_menu(self, menu, button):
         if self._current_menu and self._current_menu != menu and self._current_menu.isVisible():
