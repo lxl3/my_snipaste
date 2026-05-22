@@ -329,21 +329,40 @@ class OverlayToolbar:
         eraser_layout.setContentsMargins(6, 4, 6, 4)
         eraser_layout.setSpacing(6)
 
-        self._add_tool_buttons_to_submenu(
-            eraser_layout,
-            [("eraser_dot", "eraser_dot"), ("eraser_fill", "eraser_fill")],
-            eraser_btn, eraser_menu,
-        )
+        for icon_key, tool_id, tooltip in [
+            ("eraser_dot", "eraser_dot", "点擦除"),
+            ("eraser_fill", "eraser_fill", "填充擦除"),
+        ]:
+            tool_btn = QToolButton()
+            tool_btn.setIcon(self._load_icon(icon_key))
+            tool_btn.setIconSize(QSize(20, 20))
+            tool_btn.setFixedSize(28, 28)
+            tool_btn.setToolTip(tooltip)
+            tool_btn.setCheckable(True)
+            tool_btn.setProperty("tool_type", tool_id)
+            tool_btn.setStyleSheet(SUBMENU_STYLE)
+            # 始终激活工具，不切换回 select
+            tool_btn.clicked.connect(
+                lambda checked, t=tool_id, b=eraser_btn, ic=icon_key, m=eraser_menu:
+                self._select_eraser_subtool(t, b, ic, m)
+            )
+            eraser_layout.addWidget(tool_btn)
 
         eraser_action.setDefaultWidget(eraser_container)
         eraser_menu.addAction(eraser_action)
 
         def _setup():
-            if self.overlay.current_tool in ["eraser_dot", "eraser_fill"]:
-                self._update_submenu_check_state(eraser_menu, self.overlay.current_tool)
+            if self.overlay.current_tool not in ["eraser_dot", "eraser_fill"]:
+                self._select_tool("eraser_dot", eraser_btn, "eraser")
+            self._update_submenu_state(eraser_menu, ["eraser_dot", "eraser_fill"])
         eraser_menu.aboutToShow.connect(_setup)
 
         self._tool_btns["eraser_dot"] = eraser_btn
+
+    def _select_eraser_subtool(self, tool_id, btn, icon_name, menu_obj):
+        """始终设置橡皮擦子工具，不切换回 select。"""
+        self._select_tool(tool_id, btn, icon_name)
+        self._update_submenu_check_state(menu_obj, tool_id)
 
     def _build_ocr_btn(self, toolbar_layout):
         ocr_btn = QToolButton()
