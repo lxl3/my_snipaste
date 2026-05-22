@@ -20,22 +20,22 @@ logger = setup_logger("overlay_toolbar")
 SUBMENU_STYLE = """
     QToolButton {
         border: 1px solid #ccc;
-        border-radius: 2px;
         padding: 2px;
         background: white;
     }
     QToolButton:hover { background: #e8e8e8; }
     QToolButton:checked {
-        background: #d0e4ff;
-        border: 2px solid #0078d4;
+        background: #207ff0;
+        color: white;
+        border: 2px solid #1a6acc;
     }
 """
 
 TOOLBAR_STYLE = """
-    #overlayToolbar { background: white; border: 1px solid #ccc; border-radius: 4px; }
-    QToolButton { color: #333; background: transparent; border: none; border-radius: 3px; padding: 2px 4px; margin: 0px; min-width: 18px; min-height: 18px; }
+    #overlayToolbar { background: white; border: 1px solid #ccc; }
+    QToolButton { color: #333; background: transparent; border: none; padding: 2px 4px; margin: 0px; min-width: 18px; min-height: 18px; }
     QToolButton:hover { background: #e8e8e8; }
-    QToolButton:checked { background: #d0e4ff; }
+    QToolButton:checked { background: #207ff0; color: white; }
 """
 
 
@@ -62,8 +62,8 @@ class OverlayToolbar:
         self.toolbar.setObjectName("overlayToolbar")
         self.toolbar.setStyleSheet(TOOLBAR_STYLE)
         toolbar_layout = QHBoxLayout(self.toolbar)
-        toolbar_layout.setContentsMargins(3, 2, 3, 2)
-        toolbar_layout.setSpacing(1)
+        toolbar_layout.setContentsMargins(0, 0, 0, 0)
+        toolbar_layout.setSpacing(0)
 
         def add_sep():
             sep = QFrame()
@@ -129,7 +129,7 @@ class OverlayToolbar:
             cb.setProperty("color", c)
             is_current = (c.lower() == self.overlay.current_color.name().lower())
             border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-            cb.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+            cb.setStyleSheet(f"background: {c}; border: {border}; ")
             cb.clicked.connect(lambda checked, col=c: set_color_fn(col))
             layout.addWidget(cb)
             target_list.append(cb)
@@ -145,7 +145,7 @@ class OverlayToolbar:
         btn = QPushButton("🎨")
         btn.setFixedSize(20, 20)
         btn.setStyleSheet(
-            "QPushButton { border: 1px solid #ccc; border-radius: 2px; background: white; font-size: 12px; }"
+            "QPushButton { border: 1px solid #ccc;  background: white; font-size: 12px; }"
             "QPushButton:hover { background: #e8e8e8; }"
         )
         btn.clicked.connect(lambda: open_fn())
@@ -268,9 +268,9 @@ class OverlayToolbar:
         self._bold_btn.setFixedSize(20, 20)
         self._bold_btn.setCheckable(True)
         self._bold_btn.setStyleSheet(
-            "QPushButton { font-weight: bold; border: 1px solid #ccc; border-radius: 2px; background: white; }"
+            "QPushButton { font-weight: bold; border: 1px solid #ccc;  background: white; }"
             "QPushButton:hover { background: #e8e8e8; }"
-            "QPushButton:checked { background: #d0e4ff; border: 2px solid #0078d4; }"
+            "QPushButton:checked { background: #207ff0; color: white; border: 2px solid #1a6acc; }"
         )
         self._bold_btn.clicked.connect(self._toggle_bold)
         text_main_layout.addWidget(self._bold_btn)
@@ -279,9 +279,9 @@ class OverlayToolbar:
         self._italic_btn.setFixedSize(20, 20)
         self._italic_btn.setCheckable(True)
         self._italic_btn.setStyleSheet(
-            "QPushButton { font-style: italic; border: 1px solid #ccc; border-radius: 2px; background: white; }"
+            "QPushButton { font-style: italic; border: 1px solid #ccc;  background: white; }"
             "QPushButton:hover { background: #e8e8e8; }"
-            "QPushButton:checked { background: #d0e4ff; border: 2px solid #0078d4; }"
+            "QPushButton:checked { background: #207ff0; color: white; border: 2px solid #1a6acc; }"
         )
         self._italic_btn.clicked.connect(self._toggle_italic)
         text_main_layout.addWidget(self._italic_btn)
@@ -304,7 +304,7 @@ class OverlayToolbar:
                 cb.setProperty("color", c)
                 is_current = (c.lower() == self.overlay.text_color.name().lower())
                 border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-                cb.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+                cb.setStyleSheet(f"background: {c}; border: {border}; ")
                 cb.clicked.connect(lambda checked, col=c: self._set_text_color(col))
                 row_layout.addWidget(cb)
                 self._text_color_buttons.append(cb)
@@ -483,7 +483,7 @@ class OverlayToolbar:
                     if c:
                         is_current = (c.lower() == self.overlay.current_color.name().lower())
                         border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-                        child.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+                        child.setStyleSheet(f"background: {c}; border: {border}; ")
 
     def _set_pen_color(self, color_hex):
         self._set_shape_color(color_hex)
@@ -498,7 +498,7 @@ class OverlayToolbar:
             if c:
                 is_current = (c.lower() == color_hex.lower())
                 border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-                btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+                btn.setStyleSheet(f"background: {c}; border: {border}; ")
 
     def _open_shape_color_picker(self):
         color = QColorDialog.getColor(self.overlay.current_color, self.overlay, "选择颜色")
@@ -524,7 +524,7 @@ class OverlayToolbar:
             if c:
                 is_current = (c.lower() == color_hex.lower())
                 border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-                btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 2px;")
+                btn.setStyleSheet(f"background: {c}; border: {border}; ")
 
     def _open_color_picker(self):
         color = QColorDialog.getColor(self.overlay.text_color, self.overlay, "选择文字颜色")

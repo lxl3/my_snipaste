@@ -72,6 +72,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.eraser_size = 20  # 橡皮擦点擦除半径
         self._eraser_target_size = 20
         self._eraser_size_animating = False
+        self._erasing = False  # 橡皮拖动状态
+
+        self._erase_fill_rect_start = None  # 填充擦除框选起始点
+        self._erase_fill_rect_current = None  # 填充擦除框选当前点
 
         self._text_editor = None
         self._text_editor_pos = None
@@ -189,6 +193,13 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             painter.setBrush(Qt.NoBrush)
             painter.drawEllipse(self.current_mouse_pos, self.eraser_size, self.eraser_size)
 
+        # 绘制填充擦除的框选预览（蓝色）
+        if self._erase_fill_rect_start is not None and self._erase_fill_rect_current is not None:
+            erase_rect = QRect(self._erase_fill_rect_start, self._erase_fill_rect_current).normalized()
+            painter.setPen(QPen(QColor(52, 152, 219, 200), 2, Qt.DashLine))  # 蓝色边框
+            painter.setBrush(QColor(52, 152, 219, 30))  # 半透明蓝色填充
+            painter.drawRect(erase_rect)
+
         if not (self.toolbar.toolbar.isVisible() and self.toolbar.toolbar.geometry().contains(self.current_mouse_pos)):
             self._draw_coord_tooltip(painter)
 
@@ -220,10 +231,15 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
             if not self.selection_rect.isNull() and self.current_tool == "eraser_dot":
+                # 开始橡皮拖动模式
+                self._erasing = True
                 self._try_erase_annotation(pos)
                 return
             if not self.selection_rect.isNull() and self.current_tool == "eraser_fill":
-                self._erase_all_in_selection()
+                # 开始框选模式
+                self._erase_fill_rect_start = pos
+                self._erase_fill_rect_current = pos
+                self.update()
                 return
             if not self.selection_rect.isNull() and self.current_tool != "select":
                 self._start_drawing(pos)
@@ -276,6 +292,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._drawing = False
 
     def _start_selection(self, pos):
+        # 安全防护：如果橡皮擦工具激活且有标注，不清理
+        if self.current_tool in ("eraser_dot", "eraser_fill") and self.annotations:
+            logger.warning(f"_start_selection 在橡皮擦模式下被调用(annotations={len(self.annotations)})，忽略")
+            return
         self.is_selecting = True
         self.toolbar.toolbar.hide()
         self.annotations.clear()
@@ -289,6 +309,16 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def mouseMoveEvent(self, event):
         self.current_mouse_pos = event.position().toPoint()
+        # 橡皮拖动擦除
+        if self._erasing:
+            self._try_erase_annotation(self.current_mouse_pos)
+            self.update()
+            return
+        # 填充擦除框选预览
+        if self._erase_fill_rect_start is not None:
+            self._erase_fill_rect_current = self.current_mouse_pos
+            self.update()
+            return
         if self._drawing:
             self._update_drawing()
             return
@@ -362,6 +392,17 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
     def mouseReleaseEvent(self, event):
         if event.button() != Qt.LeftButton:
             return
+        # 结束橡皮拖动
+        if self._erasing:
+            self._erasing = False
+            return
+        # 确认填充擦除框选
+        if self._erase_fill_rect_start is not None:
+            self._execute_erase_fill()
+            self._erase_fill_rect_start = None
+            self._erase_fill_rect_current = None
+            self.update()
+            return
         if self._drawing:
             self._finish_drawing()
             return
@@ -406,6 +447,17 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self._text_editor_pos = None
                 self.grabKeyboard()
                 return
+            # 取消橡皮拖动
+            if self._erasing:
+                self._erasing = False
+                self.update()
+                return
+            # 取消填充擦除框选
+            if self._erase_fill_rect_start is not None:
+                self._erase_fill_rect_start = None
+                self._erase_fill_rect_current = None
+                self.update()
+                return
             if self._drawing:
                 self._drawing = False
                 return
@@ -448,6 +500,15 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.eraser_size += (1 if diff > 0 else -1)
         self.update()
         QTimer.singleShot(16, self._animate_eraser_size)
+
+    def _execute_erase_fill(self):
+        """执行填充擦除的框选删除操作"""
+        if self._erase_fill_rect_start is None or self._erase_fill_rect_current is None:
+            return
+        # 构造擦除矩形
+        erase_rect = QRect(self._erase_fill_rect_start, self._erase_fill_rect_current).normalized()
+        # 执行删除
+        self._erase_in_rect(erase_rect)
 
     def closeEvent(self, event):
         logger.debug("关闭截图覆盖层")

@@ -5,6 +5,9 @@ import math
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtCore import QRectF, QPointF, QRect
+from .logger import setup_logger
+
+logger = setup_logger("overlay_actions")
 
 
 class OverlayActionsMixin:
@@ -98,18 +101,25 @@ class OverlayActionsMixin:
     def _try_erase_annotation(self, pos):
         local = self._sel_to_local(QPointF(pos))
         r = self.eraser_size
+        logger.debug(f"擦除检测: local=({local.x():.0f},{local.y():.0f}), r={r}, annotations={len(self.annotations)}")
         for i in range(len(self.annotations) - 1, -1, -1):
             ann = self.annotations[i]
             t = ann["type"]
             if t in ("rect", "ellipse", "mosaic"):
                 ann_rect = QRectF(ann["rect"])
-                if self._point_to_rect_distance(local, ann_rect) < r:
+                d = self._point_to_rect_distance(local, ann_rect)
+                logger.debug(f"  [{i}] type={t}, rect={ann_rect}, dist={d:.1f}")
+                if d < r:
+                    logger.debug(f"  → 擦除 annotation {i} (type={t})")
                     self._redo_stack.append(self.annotations.pop(i))
                     self.toolbar.update_undo_redo_state()
                     self.update()
                     return
             elif t in ("arrow", "line"):
-                if self._point_to_segment_distance(local, ann["start"], ann["end"]) < r:
+                d = self._point_to_segment_distance(local, ann["start"], ann["end"])
+                logger.debug(f"  [{i}] type={t}, start={ann['start']}, end={ann['end']}, dist={d:.1f}")
+                if d < r:
+                    logger.debug(f"  → 擦除 annotation {i} (type={t})")
                     self._redo_stack.append(self.annotations.pop(i))
                     self.toolbar.update_undo_redo_state()
                     self.update()
@@ -117,17 +127,23 @@ class OverlayActionsMixin:
             elif t == "freehand":
                 pts = ann["points"]
                 for j in range(len(pts) - 1):
-                    if self._point_to_segment_distance(local, pts[j], pts[j + 1]) < r:
+                    d = self._point_to_segment_distance(local, pts[j], pts[j + 1])
+                    if d < r:
+                        logger.debug(f"  → 擦除 freehand[{i}] segment {j}, dist={d:.1f}")
                         self._redo_stack.append(self.annotations.pop(i))
                         self.toolbar.update_undo_redo_state()
                         self.update()
                         return
             elif t == "text":
-                if math.hypot(local.x() - ann["pos"].x(), local.y() - ann["pos"].y()) < r:
+                d = math.hypot(local.x() - ann["pos"].x(), local.y() - ann["pos"].y())
+                logger.debug(f"  [{i}] type=text, pos={ann['pos']}, dist={d:.1f}")
+                if d < r:
+                    logger.debug(f"  → 擦除 text annotation {i}")
                     self._redo_stack.append(self.annotations.pop(i))
                     self.toolbar.update_undo_redo_state()
                     self.update()
                     return
+        logger.debug("  → 未命中任何标注")
 
     @staticmethod
     def _point_to_rect_distance(point, rect):
@@ -178,6 +194,57 @@ class OverlayActionsMixin:
                 keep = True
             if keep:
                 remaining.append(ann)
+        removed = len(self.annotations) - len(remaining)
+        if removed > 0:
+            self._redo_stack.extend(
+                a for a in self.annotations if a not in remaining
+            )
+            self.annotations = remaining
+            self.toolbar.update_undo_redo_state()
+            self.update()
+
+    def _erase_in_rect(self, erase_rect):
+        """删除指定矩形区域内的所有标注（全局坐标）。
+
+        Args:
+            erase_rect: QRect，全局坐标系下的矩形区域
+        """
+        if self.selection_rect.isNull() or erase_rect.isNull():
+            return
+
+        # 转换为相对于选区的局部矩形
+        local_erase = QRectF(
+            erase_rect.x() - self.selection_rect.x(),
+            erase_rect.y() - self.selection_rect.y(),
+            erase_rect.width(),
+            erase_rect.height()
+        )
+
+        remaining = []
+        for ann in self.annotations:
+            t = ann["type"]
+            keep = False
+            if t in ("rect", "ellipse", "mosaic"):
+                # 检查标注矩形是否与擦除区域相交
+                keep = not local_erase.intersects(ann["rect"])
+            elif t in ("arrow", "line"):
+                # 检查线段两个端点是否在擦除区域内
+                start_in = local_erase.contains(ann["start"])
+                end_in = local_erase.contains(ann["end"])
+                keep = not (start_in or end_in)
+            elif t == "freehand":
+                # 检查是否有任何点在擦除区域内
+                pts = ann["points"]
+                any_in = any(local_erase.contains(p) for p in pts)
+                keep = not any_in
+            elif t == "text":
+                # 检查文字位置是否在擦除区域内
+                keep = not local_erase.contains(ann["pos"])
+            else:
+                keep = True
+            if keep:
+                remaining.append(ann)
+
         removed = len(self.annotations) - len(remaining)
         if removed > 0:
             self._redo_stack.extend(
