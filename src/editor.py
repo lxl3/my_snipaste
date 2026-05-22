@@ -202,6 +202,7 @@ class EditorWindow(QWidget, OcrMixin):
 
     def copy_to_clipboard(self):
         QApplication.clipboard().setPixmap(self._get_image_with_annotations())
+        self.close()
 
     def save_to_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -210,6 +211,7 @@ class EditorWindow(QWidget, OcrMixin):
         )
         if file_path:
             self._get_image_with_annotations().save(file_path)
+            self.close()
 
     def fit_in_view(self):
         scene_rect = self.scene.sceneRect()
