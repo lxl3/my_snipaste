@@ -28,31 +28,39 @@ class OverlayRenderingMixin:
     def _render_annotated_pixmap(self) -> QPixmap:
         """从截图中抠出选区，再画上标注。
 
-        关键：
-        1. selection_rect 是逻辑坐标（屏幕坐标）
-        2. full_screenshot 是带 DPR 的 QPixmap（物理像素）
-        3. annotations 存储的是相对于 selection_rect 左上角的逻辑坐标
-        4. Qt 的 copy() 会自动处理 DPR 转换
+        重要：高 DPI 显示器需要手动转换坐标
+        - selection_rect 是逻辑坐标（屏幕坐标）
+        - full_screenshot 的物理尺寸 = 逻辑尺寸 × devicePixelRatio
+        - 必须用物理坐标从 full_screenshot 中 copy，否则会复制错误的区域
         """
-        sel = self.selection_rect
-        if sel.isNull():
+        logical_rect = self.selection_rect
+        if logical_rect.isNull():
             return QPixmap()
 
-        # 获取 DPR 以便调试和验证
+        # 获取设备像素比（高 DPI 显示器 > 1.0）
         dpr = self.full_screenshot.devicePixelRatio()
 
-        # 方案：直接使用 Qt 的 copy，它会正确处理 DPR
-        # copy() 接受逻辑坐标，返回的 pixmap 保留原 pixmap 的 DPR
-        result = self.full_screenshot.copy(sel)
+        # 将逻辑坐标转换为物理坐标
+        physical_rect = QRect(
+            int(logical_rect.x() * dpr),
+            int(logical_rect.y() * dpr),
+            int(logical_rect.width() * dpr),
+            int(logical_rect.height() * dpr)
+        )
 
-        # 在结果上绘制标注
-        p = QPainter(result)
-        p.setRenderHint(QPainter.Antialiasing)
+        # 使用物理坐标复制
+        result = self.full_screenshot.copy(physical_rect)
 
-        # 标注已经是相对坐标，offset 为 (0, 0)
-        # QPainter 在带 DPR 的 pixmap 上绘制时，会自动将逻辑坐标转换为物理像素
-        self._draw_annotations(p, sel.size(), QPoint(0, 0))
-        p.end()
+        # 设置结果的 DPR，确保显示时正确缩放
+        result.setDevicePixelRatio(dpr)
+
+        # 在结果上绘制标注（使用逻辑坐标）
+        painter = QPainter(result)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # 标注是相对于选区左上角的逻辑坐标，offset 为 (0, 0)
+        self._draw_annotations(painter, logical_rect.size(), QPoint(0, 0))
+        painter.end()
 
         return result
 
