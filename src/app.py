@@ -52,10 +52,13 @@ class SnipasteApp(QApplication):
         self.f12_shortcut.activated.connect(self.start_capture)
 
     def _show_startup_notification(self):
+        from .core.hotkeys import get_default_hotkey
+        hotkey_display = get_default_hotkey().upper().replace('+', ' + ')
+
         msg = QMessageBox()
         msg.setWindowTitle("MySnipaste")
         msg.setText("✨ MySnipaste 已启动")
-        msg.setInformativeText("按 F12 开始截图\n点击托盘图标也可启动")
+        msg.setInformativeText(f"按 {hotkey_display} 开始截图\n点击托盘图标也可启动")
         msg.setIcon(QMessageBox.Information)
         msg.setStandardButtons(QMessageBox.Ok)
         msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
@@ -64,16 +67,20 @@ class SnipasteApp(QApplication):
         logger.info("启动提示框已关闭")
 
     def _show_no_hotkey_notification(self):
+        from .core.hotkeys import get_default_hotkey
+        hotkey_display = get_default_hotkey().upper().replace('+', ' + ')
+
         msg = QMessageBox()
         msg.setWindowTitle("MySnipaste")
         msg.setText("MySnipaste 已启动，但全局快捷键不可用")
         msg.setInformativeText(
-            "macOS 限制了全局 F12 热键，即使授权也可能无效。\n\n"
+            f"快捷键 {hotkey_display} 可能被系统拦截或权限不足。\n\n"
             "解决方案：\n"
-            "• 点击托盘图标截图\n"
-            "• 将应用切换到前台后按 F12\n"
-            "• 将应用打包为 .app 并签名以获得完整 F12 支持\n\n"
-            "详见之前的权限设置引导。"
+            "• 点击托盘图标截图（最可靠）\n"
+            "• macOS: 授予辅助功能权限\n"
+            "  系统偏好设置 -> 安全性与隐私 -> 辅助功能\n"
+            "• 将应用切换到前台后使用快捷键\n\n"
+            "注意：macOS 的某些快捷键可能被系统占用"
         )
         msg.setIcon(QMessageBox.Information)
         msg.setStandardButtons(QMessageBox.Ok)

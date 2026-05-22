@@ -19,10 +19,13 @@ class TrayManager:
         if not QSystemTrayIcon.isSystemTrayAvailable():
             return
 
+        from ..core.hotkeys import get_default_hotkey
+        hotkey_display = get_default_hotkey().upper().replace('+', ' + ')
+
         icon = create_app_icon()
         self.tray_icon = QSystemTrayIcon(icon)
         if have_hotkey:
-            self.tray_icon.setToolTip("MySnipaste - 按 F12 截屏")
+            self.tray_icon.setToolTip(f"MySnipaste - 按 {hotkey_display} 截屏")
         else:
             self.tray_icon.setToolTip("MySnipaste - 点击托盘图标截屏")
 
@@ -42,7 +45,7 @@ class TrayManager:
             logger.info("macOS 托盘已配置（单击触发截图 + 系统菜单栏）")
         else:
             menu = QMenu()
-            capture_action = QAction("截屏 (F12)", self.app)
+            capture_action = QAction(f"截屏 ({hotkey_display})", self.app)
             capture_action.triggered.connect(self.app.start_capture)
             menu.addAction(capture_action)
             menu.addAction(ocr_action)
