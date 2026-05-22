@@ -304,14 +304,24 @@ def build_app():
 
     # 隐藏导入和排除模块
     cmd.extend([
-        # 隐藏导入
         "--hidden-import", "PySide6.QtCore",
         "--hidden-import", "PySide6.QtGui",
         "--hidden-import", "PySide6.QtWidgets",
         "--hidden-import", "pytesseract",
         "--hidden-import", "PIL._tkinter_finder",
 
-        # 排除不需要的模块
+        # macOS 热键：Quartz/PyObjC 轮询
+        "--hidden-import", "Quartz",
+        "--collect-submodules", "Quartz",
+        "--hidden-import", "objc",
+        "--hidden-import", "CoreFoundation",
+        "--hidden-import", "HIServices",
+
+        # pynput（用于文字键码映射和跨平台）
+        "--hidden-import", "pynput",
+        "--hidden-import", "pynput._util.darwin",
+        "--hidden-import", "pynput.keyboard._darwin",
+
         "--exclude-module", "tkinter",
         "--exclude-module", "matplotlib",
 
