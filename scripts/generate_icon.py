@@ -3,52 +3,39 @@
 """
 MySnipaste 图标生成脚本
 
-根据设计规格生成多尺寸应用图标：
-- 圆角矩形框（截图功能）
-- 字母 'A'（OCR 功能）
-- 深灰色系配色
+根据 SVG 设计生成多尺寸应用图标：
+- 透明背景
+- 白色填充 + 黑色描边
 - 支持 16x16 到 256x256 多种尺寸
 """
 
 import sys
 from pathlib import Path
-from PIL import Image, ImageDraw
+from PIL import Image
+import io
 
 # 项目根目录
 PROJECT_DIR = Path(__file__).parent.parent
 ASSETS_DIR = PROJECT_DIR / "assets" / "icons"
 
-# 设计规格
-COLORS = {
-    'primary': '#FFFFFF',        # 白色线条
-    'background': '#3498DB'      # 浅蓝色背景
-}
-
 # 支持的尺寸
 SIZES = [16, 32, 48, 128, 256]
 
-
-def calculate_dimensions(size):
-    """计算给定尺寸的图标各元素尺寸
-
-    Args:
-        size: 图标尺寸（正方形边长）
-
-    Returns:
-        dict: 包含各元素尺寸的字典
-    """
-    return {
-        'padding': int(size * 0.15),           # 边距 15%
-        'line_width': max(2, size // 16),      # 线条宽度
-        'corner_radius': max(3, size // 12),   # 圆角半径
-        'rect_size': int(size * 0.5),          # 矩形框大小
-        'magnifier_radius': int(size * 0.2),   # 放大镜半径
-        'handle_length': int(size * 0.15),     # 放大镜手柄长度
-    }
+# SVG 图标设计
+SVG_CONTENT = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ffffff" stroke="#333333" stroke-width="0.3">
+  <!-- 左上矩形 -->
+  <rect x="5" y="4" width="6" height="7" rx="1"/>
+  <!-- 右上矩形 -->
+  <rect x="13" y="4" width="6" height="7" rx="1"/>
+  <!-- 左下旗帜（燕尾尖角） -->
+  <path d="M5 13h6v7l-3 3l-3-3z"/>
+  <!-- 右下旗帜（燕尾尖角） -->
+  <path d="M19 13h-6v7l3 3l3-3z"/>
+</svg>"""
 
 
 def draw_icon(size):
-    """绘制指定尺寸的图标（参考 doubao 风格：截图框+放大镜）
+    """使用 PySide6 QSvgRenderer 渲染 SVG 图标
 
     Args:
         size: 图标尺寸
@@ -56,70 +43,29 @@ def draw_icon(size):
     Returns:
         PIL.Image: 生成的图标图像
     """
-    # 创建透明画布
-    img = Image.new('RGBA', (size, size), COLORS['background'])
-    draw = ImageDraw.Draw(img)
+    from PySide6.QtGui import QImage, QPainter
+    from PySide6.QtCore import Qt, QByteArray
+    from PySide6.QtSvg import QSvgRenderer
 
-    # 计算尺寸
-    dims = calculate_dimensions(size)
-    padding = dims['padding']
-    line_width = dims['line_width']
-    corner_radius = dims['corner_radius']
+    # 创建透明 QImage
+    img = QImage(size, size, QImage.Format_ARGB32)
+    img.fill(Qt.transparent)
 
-    # 绘制截图矩形框（左上角，带虚线效果的选区）
-    rect_left = padding
-    rect_top = padding
-    rect_right = rect_left + dims['rect_size']
-    rect_bottom = rect_top + dims['rect_size']
+    # 渲染 SVG
+    renderer = QSvgRenderer(QByteArray(SVG_CONTENT.encode('utf-8')))
+    painter = QPainter(img)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setRenderHint(QPainter.SmoothPixmapTransform)
+    renderer.render(painter)
+    painter.end()
 
-    # 绘制主矩形框
-    draw.rounded_rectangle(
-        [rect_left, rect_top, rect_right, rect_bottom],
-        radius=corner_radius,
-        outline=COLORS['primary'],
-        width=line_width
-    )
-
-    # 绘制内部文本线条（表示内容）
-    line_spacing = dims['rect_size'] // 5
-    line_start_x = rect_left + line_width * 2
-    line_end_x = rect_right - line_width * 2
-
-    for i in range(3):
-        y = rect_top + line_spacing * (i + 1)
-        if y < rect_bottom - line_spacing:
-            draw.line(
-                [(line_start_x, y), (line_end_x, y)],
-                fill=COLORS['primary'],
-                width=max(1, line_width - 1)
-            )
-
-    # 绘制放大镜（右下角，象征 OCR/识别）
-    mag_center_x = size - padding - dims['magnifier_radius']
-    mag_center_y = size - padding - dims['magnifier_radius']
-    mag_radius = dims['magnifier_radius']
-
-    # 放大镜圆圈
-    draw.ellipse(
-        [mag_center_x - mag_radius, mag_center_y - mag_radius,
-         mag_center_x + mag_radius, mag_center_y + mag_radius],
-        outline=COLORS['primary'],
-        width=line_width
-    )
-
-    # 放大镜手柄
-    handle_start_x = mag_center_x + mag_radius * 0.7
-    handle_start_y = mag_center_y + mag_radius * 0.7
-    handle_end_x = handle_start_x + dims['handle_length']
-    handle_end_y = handle_start_y + dims['handle_length']
-
-    draw.line(
-        [(handle_start_x, handle_start_y), (handle_end_x, handle_end_y)],
-        fill=COLORS['primary'],
-        width=line_width + 1
-    )
-
-    return img
+    # 转换为 PIL Image
+    from PySide6.QtCore import QBuffer
+    buffer = QBuffer()
+    buffer.open(QBuffer.ReadWrite)
+    img.save(buffer, 'PNG')
+    buffer.seek(0)
+    return Image.open(io.BytesIO(buffer.data().data())).convert('RGBA')
 
 
 def generate_png_icons():
