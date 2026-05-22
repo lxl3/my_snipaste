@@ -10,17 +10,17 @@ from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, QTimer
 
-from .utils import capture_all_screens
-from .overlay_toolbar import OverlayToolbar
-from .overlay_rendering import OverlayRenderingMixin
-from .overlay_actions import OverlayActionsMixin
+from ..core.utils import capture_all_screens
+from .toolbar import OverlayToolbar
+from .rendering import OverlayRenderingMixin
+from .actions import OverlayActionsMixin
 from .ocr_mixin import OcrMixin
-from .constants import (
+from ..core.constants import (
     DEFAULT_ANNOTATION_COLOR, SELECTION_BORDER_COLOR, DIM_OVERLAY_COLOR,
     HANDLE_SIZE, MIN_SELECTION_SIZE, MIN_DRAW_THRESHOLD,
     DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, DEFAULT_LINE_WIDTH,
 )
-from .logger import setup_logger
+from ..core.logger import setup_logger
 
 logger = setup_logger("overlay")
 
@@ -312,7 +312,50 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.current_tool = "select"
         for btn in self.toolbar._tool_btns.values():
             btn.setChecked(False)
+        select_btn = self.toolbar._tool_btns.get("select")
+        if select_btn:
+            select_btn.setChecked(True)
         self.update()
+
+    def _on_tool_selected(self, tool_id):
+        logger.debug(f"工具已选择: {tool_id}")
+        self.current_tool = tool_id
+        for tid, btn in self.toolbar._tool_btns.items():
+            btn.setChecked(tid == tool_id)
+        self.update()
+        if tool_id in ("eraser_dot", "eraser_fill"):
+            self.setCursor(Qt.CrossCursor)
+        elif tool_id == "select":
+            self.setCursor(Qt.SizeAllCursor if not self.selection_rect.isNull() else Qt.CrossCursor)
+
+    def _on_color_changed(self, color):
+        self.current_color = color
+        self.toolbar._color_picker_btn.setStyleSheet(f"""
+            QToolButton {{
+                border: 2px solid #ccc; border-radius: 18px;
+                background: {color.name()}; padding: 0px; margin: 0px;
+            }}
+            QToolButton:hover {{ border-color: #207ff0; }}
+        """)
+        if self.current_tool == "mosaic":
+            QTimer.singleShot(50, self.update)
+
+    def _on_width_changed(self, width):
+        self.current_width = width
+        if self.current_tool == "mosaic":
+            QTimer.singleShot(50, self.update)
+
+    def _on_font_family_changed(self, family):
+        self.text_font_family = family
+
+    def _on_font_size_changed(self, size):
+        self.text_font_size = size
+
+    def _on_bold_toggled(self, bold):
+        self.text_bold = bold
+
+    def _on_italic_toggled(self, italic):
+        self.text_italic = italic
 
     def mouseMoveEvent(self, event):
         self.current_mouse_pos = event.position().toPoint()
@@ -454,71 +497,101 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self._text_editor_pos = None
                 self.grabKeyboard()
                 return
-            # 取消橡皮拖动
-            if self._erasing:
-                self._erasing = False
-                self.update()
-                return
-            # 取消填充擦除框选
-            if self._erase_fill_rect_start is not None:
-                self._erase_fill_rect_start = None
-                self._erase_fill_rect_current = None
-                self.update()
-                return
-            if self._drawing:
-                self._drawing = False
-                return
-            if self.current_tool in ("eraser_dot", "eraser_fill"):
-                self.toolbar._select_tool("select")
-                return
-            if not self.selection_rect.isNull():
-                self.selection_rect = QRect()
-                self._drag_mode = None
-                self.annotations.clear()
-                self.toolbar.toolbar.hide()
-                self.setCursor(Qt.CrossCursor)
-                self.update()
-            else:
-                self.close()
-        elif event.key() in (Qt.Key_Return, Qt.Key_Enter):
-            if not self.selection_rect.isNull():
-                self.copy_requested.emit(self._render_annotated_pixmap())
-                self.close()
+            self.close()
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Z:
+            self._undo()
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Y:
+            self._redo()
+        super().keyPressEvent(event)
 
-    def wheelEvent(self, event):
-        if self.current_tool == "eraser_dot" and event.modifiers() == Qt.ControlModifier:
-            delta = event.angleDelta().y()
-            step = 5 if delta > 0 else -5
-            self._eraser_target_size = max(5, min(100, self._eraser_target_size + step))
-            if not self._eraser_size_animating:
-                self._eraser_size_animating = True
-                self._animate_eraser_size()
-            event.accept()
-            return
-        super().wheelEvent(event)
+    # ─── Size info ───
 
-    def _animate_eraser_size(self):
-        diff = self._eraser_target_size - self.eraser_size
-        if abs(diff) <= 1:
-            self.eraser_size = self._eraser_target_size
-            self._eraser_size_animating = False
-            self.update()
-            return
-        self.eraser_size += (1 if diff > 0 else -1)
+    def _draw_size_info(self, painter, rect):
+        text = f"{rect.width()} × {rect.height()}"
+        painter.setPen(QPen(QColor(255, 255, 255, 200), 1))
+        font = QFont("Segoe UI", 12)
+        painter.setFont(font)
+
+        fm = painter.fontMetrics()
+        tw = fm.horizontalAdvance(text)
+        th = fm.height()
+        margin = 4
+        bx = rect.center().x() - tw // 2 - margin
+        by = rect.top() - th - margin * 2 - 2
+        if by < 0:
+            by = rect.bottom() + 2
+        bw = tw + margin * 2
+        bh = th + margin * 2
+
+        painter.fillRect(bx, by, bw, bh, QColor(0, 0, 0, 100))
+        painter.setPen(Qt.white)
+        painter.drawText(bx + margin, by + margin + fm.ascent(), text)
+
+    # ─── Coord tooltip ───
+
+    def _draw_coord_tooltip(self, painter):
+        pos = self.current_mouse_pos
+        text = f"X:{pos.x()} Y:{pos.y()}"
+        painter.setPen(Qt.white)
+        font = QFont("Segoe UI", 11)
+        painter.setFont(font)
+        margin = 6
+        fm = painter.fontMetrics()
+        tw = fm.horizontalAdvance(text) + margin * 2
+        th = fm.height() + margin * 2
+        x = pos.x() + 15
+        y = pos.y() + 15
+        if x + tw > self.width():
+            x = pos.x() - tw - 5
+        if y + th > self.height():
+            y = pos.y() - th - 5
+        painter.fillRect(x, y, tw, th, QColor(0, 0, 0, 100))
+        painter.drawText(x + margin, y + margin + fm.ascent(), text)
+
+    # ─── Arrow_noline / line_noline variants ───
+
+    def _update_drawing(self):
+        local = self._sel_to_local(QPointF(self.current_mouse_pos))
+        if self.current_tool == "freehand":
+            self._draw_points.append(local)
+            if len(self._draw_points) == 2:
+                self.annotations.append({
+                    "type": "freehand", "points": list(self._draw_points),
+                    "color": QColor(self.current_color), "width": self.current_width,
+                })
+                self._redo_stack.clear()
+                self.toolbar.update_undo_redo_state()
+            elif len(self._draw_points) > 2 and self.annotations and self.annotations[-1]["type"] == "freehand":
+                self.annotations[-1]["points"] = list(self._draw_points)
+        else:
+            dx = local.x() - self._draw_start.x()
+            dy = local.y() - self._draw_start.y()
+            if self.current_tool in ("rect", "ellipse"):
+                self._preview_annotation = {
+                    "type": self.current_tool, "rect": QRectF(self._draw_start, local).normalized(),
+                    "color": QColor(self.current_color), "width": self.current_width,
+                }
+            elif self.current_tool in ("arrow", "arrow_noline") and (abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD):
+                self._preview_annotation = {
+                    "type": "arrow" if self.current_tool == "arrow" else "line",
+                    "start": QPointF(self._draw_start), "end": QPointF(local),
+                    "color": QColor(self.current_color), "width": self.current_width,
+                }
+            elif self.current_tool in ("line", "line_noline") and (abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD):
+                self._preview_annotation = {
+                    "type": "arrow" if self.current_tool == "line" else "line",
+                    "start": QPointF(self._draw_start), "end": QPointF(local),
+                    "color": QColor(self.current_color), "width": self.current_width,
+                }
+            elif self.current_tool == "mosaic":
+                r = QRectF(self._draw_start, local).normalized()
+                if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
+                    self._preview_annotation = {"type": "mosaic", "rect": r}
         self.update()
-        QTimer.singleShot(16, self._animate_eraser_size)
 
     def _execute_erase_fill(self):
-        """执行填充擦除的框选删除操作"""
+        """执行填充擦除：框选区域内全部删除。"""
         if self._erase_fill_rect_start is None or self._erase_fill_rect_current is None:
             return
-        # 构造擦除矩形
         erase_rect = QRect(self._erase_fill_rect_start, self._erase_fill_rect_current).normalized()
-        # 执行删除
         self._erase_in_rect(erase_rect)
-
-    def closeEvent(self, event):
-        logger.debug("关闭截图覆盖层")
-        self.releaseKeyboard()
-        self.deleteLater()
-        super().closeEvent(event)

@@ -29,13 +29,14 @@ class OcrMixin:
             self._ocr_worker.wait(1000)
         if hasattr(self, '_ocr_progress'):
             self._ocr_progress.close()
+            self._ocr_progress = None
 
     def _cleanup_ocr(self) -> None:
-        for attr in ('_ocr_progress', '_ocr_worker'):
-            if hasattr(self, attr):
-                obj = getattr(self, attr)
-                if isinstance(obj, QMessageBox):
-                    obj.close()
-                else:
-                    obj.deleteLater()
-                delattr(self, attr)
+        if hasattr(self, '_ocr_progress') and self._ocr_progress:
+            self._ocr_progress.close()
+            self._ocr_progress = None
+        if hasattr(self, '_ocr_worker') and self._ocr_worker:
+            if self._ocr_worker.isRunning():
+                self._ocr_worker.quit()
+                self._ocr_worker.wait(1000)
+            self._ocr_worker = None

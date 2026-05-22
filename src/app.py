@@ -4,14 +4,14 @@ from PySide6.QtWidgets import (
     QApplication, QMessageBox, QFileDialog,
 )
 
-from .overlay import CaptureOverlay
-from .ocr_engine import extract_text
-from .utils import create_app_icon
-from .logger import setup_logger
-from .permissions import check_macos_accessibility
-from .hotkeys import HotkeyListener
-from .pin_window import PinWindow
-from .tray import TrayManager
+from .overlay.widget import CaptureOverlay
+from .ocr.engine import extract_text
+from .core.utils import create_app_icon
+from .core.logger import setup_logger
+from .core.permissions import check_macos_accessibility
+from .core.hotkeys import HotkeyListener
+from .ui.pin_window import PinWindow
+from .ui.tray import TrayManager
 
 logger = setup_logger("app")
 

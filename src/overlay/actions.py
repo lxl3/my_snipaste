@@ -5,7 +5,7 @@ import math
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtCore import QRectF, QPointF, QRect
-from .logger import setup_logger
+from ..core.logger import setup_logger
 
 logger = setup_logger("overlay_actions")
 
@@ -42,8 +42,8 @@ class OverlayActionsMixin:
         if self.selection_rect.isNull():
             return
         captured = self._render_annotated_pixmap()
-        from .ocr_engine import OcrWorker
-        from .utils import qpixmap_to_pil
+        from ..ocr.engine import OcrWorker
+        from ..core.utils import qpixmap_to_pil
         pil_image = qpixmap_to_pil(captured)
         self._ocr_worker = OcrWorker(pil_image)
         self._ocr_worker.finished.connect(self._on_ocr_finished)
@@ -54,7 +54,7 @@ class OverlayActionsMixin:
     def _on_ocr_finished(self, text):
         self._cleanup_ocr()
         if text:
-            from .utils import OcrResultDialog
+            from ..ui.ocr_dialog import OcrResultDialog
             OcrResultDialog(text, self).exec()
         else:
             QMessageBox.warning(self, "OCR 结果", "未识别到文字")

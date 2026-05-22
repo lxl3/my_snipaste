@@ -3,8 +3,8 @@ import platform
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu
 
-from .utils import create_app_icon
-from .logger import setup_logger
+from ..core.utils import create_app_icon
+from ..core.logger import setup_logger
 
 logger = setup_logger("tray")
 
@@ -48,22 +48,18 @@ class TrayManager:
             menu.addAction(ocr_action)
             menu.addSeparator()
             menu.addAction(quit_action)
+
             self.tray_icon.setContextMenu(menu)
             self.tray_icon.activated.connect(self._on_tray_activated)
-            logger.info("Windows 托盘已配置（双击触发截图）")
+            logger.info("托盘菜单已配置")
 
         self.tray_icon.show()
-        logger.info("系统托盘图标已显示")
 
     def _on_tray_activated(self, reason):
-        if reason == QSystemTrayIcon.DoubleClick:
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.app.start_capture()
 
     def cleanup(self):
         if self.tray_icon:
-            self.tray_icon.setToolTip("")
-            self.tray_icon.setIcon(QIcon())
-            self.tray_icon.setContextMenu(None)
             self.tray_icon.hide()
-            self.tray_icon.deleteLater()
             self.tray_icon = None

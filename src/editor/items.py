@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsItem
 from PySide6.QtGui import QPen, QPolygonF, QColor
 from PySide6.QtCore import Qt, QRectF, QRect, QPointF
 
-from .constants import ARROWHEAD_SIZE_BASE, ARROW_SPREAD_ANGLE, MIN_DRAW_THRESHOLD
+from ..core.constants import ARROWHEAD_SIZE_BASE, ARROW_SPREAD_ANGLE, MIN_DRAW_THRESHOLD
 
 
 class ArrowItem(QGraphicsItem):
@@ -28,37 +28,31 @@ class ArrowItem(QGraphicsItem):
         dx = self.end.x() - self.start.x()
         dy = self.end.y() - self.start.y()
         length = math.sqrt(dx * dx + dy * dy)
-        if length == 0:
+        if length < 1:
             return
-
-        angle = math.atan2(dy, dx)
-        arrow_size = ARROWHEAD_SIZE_BASE + self.arrow_width * 2
-        p1 = self.end - QPointF(arrow_size * math.cos(angle - ARROW_SPREAD_ANGLE), arrow_size * math.sin(angle - ARROW_SPREAD_ANGLE))
-        p2 = self.end - QPointF(arrow_size * math.cos(angle + ARROW_SPREAD_ANGLE), arrow_size * math.sin(angle + ARROW_SPREAD_ANGLE))
+        ux, uy = dx / length, dy / length
+        base = ARROWHEAD_SIZE_BASE + self.arrow_width * 2
+        angle = ARROW_SPREAD_ANGLE
+        p1 = QPointF(
+            self.end.x() - ux * base + uy * base * math.tan(angle),
+            self.end.y() - uy * base - ux * base * math.tan(angle)
+        )
+        p2 = QPointF(
+            self.end.x() - ux * base - uy * base * math.tan(angle),
+            self.end.y() - uy * base + ux * base * math.tan(angle)
+        )
         painter.setBrush(self.arrow_color)
         painter.setPen(Qt.NoPen)
-        painter.drawPolygon(QPolygonF([self.end, p1, p2]))
+        polygon = QPolygonF([self.end, p1, p2])
+        painter.drawPolygon(polygon)
 
 
 class MosaicItem(QGraphicsRectItem):
-    def __init__(self, source_pixmap, rect, block_size=8):
+    def __init__(self, rect, pixmap):
         super().__init__(rect)
-        self.source_pixmap = source_pixmap
-        self.block_size = block_size
-        self.setPen(Qt.NoPen)
+        self.mosaic_pixmap = pixmap
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIsMovable, True)
 
     def paint(self, painter, option, widget):
-        r = self.rect().toRect()
-        if r.isEmpty():
-            return
-        dpr = self.source_pixmap.devicePixelRatio()
-        src_rect = QRect(int(r.x() * dpr), int(r.y() * dpr), int(r.width() * dpr), int(r.height() * dpr))
-        section = self.source_pixmap.copy(src_rect)
-        w, h = section.width(), section.height()
-        bs = max(1, self.block_size)
-        small = section.scaled(max(1, w // bs), max(1, h // bs), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-        pixelated = small.scaled(w, h, Qt.IgnoreAspectRatio, Qt.FastTransformation)
-        pixelated.setDevicePixelRatio(dpr)
-        painter.drawPixmap(self.rect().topLeft(), pixelated)
+        painter.drawPixmap(self.rect().topLeft(), self.mosaic_pixmap)

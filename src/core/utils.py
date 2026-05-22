@@ -1,0 +1,139 @@
+import io
+import sys
+import os
+from typing import TYPE_CHECKING
+
+from PIL import Image
+from PySide6.QtCore import Qt, QRect, QBuffer, QIODevice
+from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen, QScreen
+from PySide6.QtWidgets import QApplication
+from PySide6.QtSvg import QSvgRenderer
+from .logger import setup_logger
+
+if TYPE_CHECKING:
+    from PIL.Image import Image as PILImage
+
+logger = setup_logger("utils")
+
+ICON_RENDER_SIZE = 48
+
+
+def load_icon_from_svg(svg_content: str, color: str = "#333333", size: int = ICON_RENDER_SIZE) -> QIcon:
+    """将 SVG 字符串渲染为 QIcon，支持颜色替换和高 DPI。"""
+    if not svg_content:
+        from PySide6.QtGui import QIcon
+        return QIcon()
+    svg_data = svg_content.replace("currentColor", color)
+    renderer = QSvgRenderer(svg_data.encode("utf-8"))
+    pm = QPixmap(size, size)
+    pm.fill(Qt.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.setRenderHint(QPainter.SmoothPixmapTransform)
+    renderer.render(p)
+    p.end()
+    dpr = QApplication.primaryScreen().devicePixelRatio()
+    pm.setDevicePixelRatio(dpr)
+    from PySide6.QtGui import QIcon
+    return QIcon(pm)
+
+
+def capture_all_screens() -> QPixmap:
+    screens = QApplication.screens()
+    if len(screens) == 1:
+        return _grab_and_fit(screens[0])
+
+    total_rect = QRect()
+    max_dpr = 1.0
+    for screen in screens:
+        total_rect = total_rect.united(screen.geometry())
+        max_dpr = max(max_dpr, screen.devicePixelRatio())
+
+    combined = QPixmap(total_rect.size())
+    combined.setDevicePixelRatio(max_dpr)
+    combined.fill(Qt.transparent)
+    painter = QPainter(combined)
+    for screen in screens:
+        geo = screen.geometry()
+        pixmap = _grab_and_fit(screen)
+        painter.drawPixmap(geo.topLeft() - total_rect.topLeft(), pixmap)
+    painter.end()
+    return combined
+
+
+def _grab_and_fit(screen: "QScreen") -> QPixmap:
+    geo = screen.geometry()
+    pixmap = screen.grabWindow(0)
+    dpr = screen.devicePixelRatio()
+
+    pixmap.setDevicePixelRatio(dpr)
+
+    return pixmap
+
+
+def qpixmap_to_pil(pixmap: QPixmap) -> "PILImage":
+    qimage = pixmap.toImage()
+    buffer = QBuffer()
+    buffer.open(QIODevice.ReadWrite)
+    qimage.save(buffer, "PNG")
+    return Image.open(io.BytesIO(buffer.data()))
+
+
+def qimage_to_pil(qimage: QImage) -> "PILImage":
+    buffer = QBuffer()
+    buffer.open(QIODevice.ReadWrite)
+    qimage.save(buffer, "PNG")
+    return Image.open(io.BytesIO(buffer.data()))
+
+
+def pil_to_qpixmap(pil_image: "PILImage") -> QPixmap:
+    buffer = io.BytesIO()
+    pil_image.save(buffer, "PNG")
+    pixmap = QPixmap()
+    pixmap.loadFromData(buffer.getvalue(), "PNG")
+    return pixmap
+
+
+def create_app_icon() -> QIcon:
+    """加载应用图标（优先使用自定义图标，回退到程序生成）
+
+    Returns:
+        QIcon: 应用图标对象
+    """
+    # 尝试加载自定义 PNG 图标（系统托盘推荐）
+    icon_sizes = [256, 128, 48, 32, 16]
+    icon = QIcon()
+
+    for size in icon_sizes:
+        icon_path = resource_path(f"assets/icons/icon-{size}.png")
+        if os.path.exists(icon_path):
+            icon.addFile(icon_path)
+
+    # 如果自定义图标加载成功，返回
+    if not icon.isNull():
+        return icon
+
+    # 如果 PNG 都不存在，尝试 ICO
+    ico_path = resource_path("icon.ico")
+    if os.path.exists(ico_path):
+        return QIcon(ico_path)
+
+    # 回退：生成默认图标
+    pixmap = QPixmap(64, 64)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setBrush(QColor(0, 120, 215))
+    painter.setPen(Qt.NoPen)
+    painter.drawRoundedRect(4, 4, 56, 56, 10, 10)
+    painter.setPen(QPen(Qt.white, 4))
+    painter.setFont(QFont("Arial", 28, QFont.Bold))
+    painter.drawText(QRect(4, 4, 56, 56), Qt.AlignCenter, "S")
+    painter.end()
+    return QIcon(pixmap)
+
+
+def resource_path(relative_path: str) -> str:
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.dirname(os.path.dirname(__file__)), relative_path)
