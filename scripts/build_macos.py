@@ -102,6 +102,108 @@ def find_tesseract():
     return tesseract_bin, tessdata_dir
 
 
+def _collect_dylibs(binary_path, bundle_dir):
+    """递归收集 Homebrew 动态库依赖并复制到打包目录。
+
+    使用 install_name_tool 将加载路径改为 @loader_path/ 相对路径，
+    确保在其他 Mac 上也能正常加载。
+    """
+    import subprocess
+    from collections import deque
+
+    processed = set()
+    queue = deque([binary_path])
+    SYSTEM_PREFIXES = ('/usr/', '/System/', '/usr/lib/')
+
+    while queue:
+        path = queue.popleft()
+        if path in processed:
+            continue
+        processed.add(path)
+
+        # 跳过系统库
+        rel = os.path.relpath(path, bundle_dir) if path.startswith(str(bundle_dir)) else path
+        if any(path.startswith(p) for p in SYSTEM_PREFIXES) and path not in processed:
+            continue
+
+        # 如果不是在 bundle 目录中，复制进去
+        dest = bundle_dir / os.path.basename(path)
+        if not dest.exists() and not any(path.startswith(p) for p in SYSTEM_PREFIXES):
+            try:
+                shutil.copy2(path, dest)
+                os.chmod(dest, 0o755)
+                print(f"  + {os.path.basename(path)}")
+            except (shutil.SameFileError, OSError):
+                pass
+
+        # 用 otool 读取依赖
+        try:
+            out = subprocess.check_output(
+                ["otool", "-L", path], stderr=subprocess.DEVNULL, text=True
+            )
+            for line in out.splitlines()[1:]:  # [1:] 跳过第一行（自身路径）
+                dep_path = line.strip().split()[0]
+                if not any(dep_path.startswith(p) for p in SYSTEM_PREFIXES):
+                    if dep_path not in processed:
+                        queue.append(dep_path)
+        except subprocess.CalledProcessError:
+            pass
+
+    return processed
+
+
+def _patch_rpaths(bundle_dir):
+    """用 install_name_tool 将所有 dylib 加载路径改为 @loader_path/ 相对路径。"""
+    import subprocess
+
+    for item in bundle_dir.iterdir():
+        if not item.is_file() or item.name == 'tesseract':
+            continue
+        name = item.name
+        # 修改 dylib 自身的 ID
+        try:
+            subprocess.run(
+                ["install_name_tool", "-id", f"@loader_path/{name}", str(item)],
+                capture_output=True, text=True, check=False,
+            )
+        except Exception:
+            pass
+
+        # 读取并修改依赖路径
+        try:
+            out = subprocess.check_output(
+                ["otool", "-L", str(item)], text=True, stderr=subprocess.DEVNULL
+            )
+            for line in out.splitlines()[1:]:
+                dep_path = line.strip().split()[0]
+                dep_name = os.path.basename(dep_path)
+                if (bundle_dir / dep_name).exists() and dep_name != name:
+                    subprocess.run(
+                        ["install_name_tool", "-change", dep_path, f"@loader_path/{dep_name}", str(item)],
+                        capture_output=True, text=True, check=False,
+                    )
+        except subprocess.CalledProcessError:
+            pass
+
+    # 最后修改 tesseract 二进制本身的加载路径
+    tess_bin = bundle_dir / "tesseract"
+    if tess_bin.exists():
+        try:
+            out = subprocess.check_output(
+                ["otool", "-L", str(tess_bin)], text=True, stderr=subprocess.DEVNULL
+            )
+            for line in out.splitlines()[1:]:
+                dep_path = line.strip().split()[0]
+                dep_name = os.path.basename(dep_path)
+                if (bundle_dir / dep_name).exists():
+                    subprocess.run(
+                        ["install_name_tool", "-change", dep_path, f"@loader_path/{dep_name}", str(tess_bin)],
+                        capture_output=True, text=True, check=False,
+                    )
+        except subprocess.CalledProcessError:
+            pass
+
+
 def prepare_tesseract_bundle(tesseract_bin, tessdata_dir):
     """准备 Tesseract 打包目录
 
@@ -118,16 +220,27 @@ def prepare_tesseract_bundle(tesseract_bin, tessdata_dir):
 
     print_step("准备 Tesseract 打包")
 
-    # 创建临时打包目录
     temp_tess_dir = BUILD_DIR / "tesseract_bundle"
     temp_tess_dir.mkdir(parents=True, exist_ok=True)
 
     # 复制 Tesseract 二进制
     temp_tess_bin = temp_tess_dir / "tesseract"
     shutil.copy2(tesseract_bin, temp_tess_bin)
-    # 确保可执行
     os.chmod(temp_tess_bin, 0o755)
     print(f"✓ 已复制 Tesseract 二进制")
+
+    # 收集并复制所有动态库依赖
+    print("  收集动态库依赖...")
+    _collect_dylibs(str(temp_tess_bin), temp_tess_dir)
+    print(f"  打包目录: {temp_tess_dir}")
+    for f in sorted(temp_tess_dir.iterdir()):
+        if f.name != "tessdata":
+            size_mb = f.stat().st_size / (1024 * 1024)
+            print(f"    {f.name}: {size_mb:.1f} MB")
+
+    # 重写加载路径为 @loader_path/ 相对路径
+    print("  重写动态库加载路径...")
+    _patch_rpaths(temp_tess_dir)
 
     # 复制语言包（只复制需要的，减小体积）
     temp_tessdata = temp_tess_dir / "tessdata"
@@ -139,7 +252,6 @@ def prepare_tesseract_bundle(tesseract_bin, tessdata_dir):
         lang_file = f"{lang}.traineddata"
         src = Path(tessdata_dir) / lang_file
         dst = temp_tessdata / lang_file
-
         if src.exists():
             shutil.copy2(src, dst)
             size_mb = src.stat().st_size / (1024 * 1024)
@@ -148,10 +260,14 @@ def prepare_tesseract_bundle(tesseract_bin, tessdata_dir):
 
     print(f"✓ 语言包总大小: {total_size:.1f} MB")
 
-    # 返回 PyInstaller 参数
+    # 生成 PyInstaller --add-binary 参数（整个目录）
     binary_args = [
-        "--add-binary", f"{temp_tess_bin}:tesseract",
+        "--add-binary", f"{temp_tess_dir}{os.sep}tesseract:tesseract",
     ]
+    # 每个 dylib 单独添加
+    for f in temp_tess_dir.iterdir():
+        if f.is_file() and f.name != "tesseract" and f.suffix in (".dylib", ""):
+            binary_args.extend(["--add-binary", f"{f}:tesseract"])
 
     data_args = [
         "--add-data", f"{temp_tessdata}:tesseract/tessdata",
@@ -235,9 +351,18 @@ def build_app():
 
 
 def create_icns():
-    """如果不存在 .icns 文件，从 PNG 创建"""
+    """如果不存在 .icns 文件或 PNG 图标更新了，从 PNG 创建"""
     icns_path = PROJECT_DIR / "icon.icns"
-    if icns_path.exists():
+
+    # 检查是否有 PNG 比 icns 更新
+    png_dir = PROJECT_DIR / "assets" / "icons"
+    png_files = list(png_dir.glob("icon-*.png")) if png_dir.exists() else []
+    need_rebuild = not icns_path.exists()
+    if not need_rebuild and png_files:
+        icns_mtime = icns_path.stat().st_mtime
+        need_rebuild = any(p.stat().st_mtime > icns_mtime for p in png_files)
+
+    if not need_rebuild:
         return
 
     print_step("创建 .icns 图标")

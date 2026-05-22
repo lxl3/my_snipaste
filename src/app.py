@@ -8,8 +8,8 @@ from .overlay.widget import CaptureOverlay
 from .ocr.engine import extract_text
 from .core.utils import create_app_icon
 from .core.logger import setup_logger
-from .core.permissions import check_macos_accessibility
 from .core.hotkeys import HotkeyListener
+from .core.permissions import check_macos_accessibility
 from .ui.pin_window import PinWindow
 from .ui.tray import TrayManager
 
@@ -32,20 +32,19 @@ class SnipasteApp(QApplication):
 
         self.setup_focused_hotkey()
 
-        have_hotkey = check_macos_accessibility()
+        self.hotkey_listener = HotkeyListener()
+        self.hotkey_listener.capture_signal.connect(self.start_capture)
+
+        check_macos_accessibility()
+
         self.tray = TrayManager(self)
-        self.tray.setup(have_hotkey)
+        self.tray.setup(True)
 
-        if have_hotkey:
-            self.setup_hotkeys()
-        else:
-            logger.warning("辅助功能权限未授权，全局快捷键不可用")
+        self.hotkey_listener.start()
+        logger.info("全局快捷键已启动")
+
         logger.info("MySnipaste 应用初始化完成")
-
-        if have_hotkey:
-            QTimer.singleShot(500, self._show_startup_notification)
-        else:
-            QTimer.singleShot(500, self._show_no_hotkey_notification)
+        QTimer.singleShot(500, self._show_startup_notification)
 
     def setup_focused_hotkey(self):
         self.f12_shortcut = QShortcut(QKeySequence("F12"), self)
@@ -57,7 +56,7 @@ class SnipasteApp(QApplication):
 
         msg = QMessageBox()
         msg.setWindowTitle("MySnipaste")
-        msg.setText("✨ MySnipaste 已启动")
+        msg.setText("MySnipaste 已启动")
         msg.setInformativeText(f"按 {hotkey_display} 开始截图\n点击托盘图标也可启动")
         msg.setIcon(QMessageBox.Information)
         msg.setStandardButtons(QMessageBox.Ok)
@@ -66,40 +65,9 @@ class SnipasteApp(QApplication):
         msg.exec()
         logger.info("启动提示框已关闭")
 
-    def _show_no_hotkey_notification(self):
-        from .core.hotkeys import get_default_hotkey
-        hotkey_display = get_default_hotkey().upper().replace('+', ' + ')
-
-        msg = QMessageBox()
-        msg.setWindowTitle("MySnipaste")
-        msg.setText("MySnipaste 已启动，但全局快捷键不可用")
-        msg.setInformativeText(
-            f"快捷键 {hotkey_display} 可能被系统拦截或权限不足。\n\n"
-            "解决方案：\n"
-            "• 点击托盘图标截图（最可靠）\n"
-            "• macOS: 授予辅助功能权限\n"
-            "  系统偏好设置 -> 安全性与隐私 -> 辅助功能\n"
-            "• 将应用切换到前台后使用快捷键\n\n"
-            "注意：macOS 的某些快捷键可能被系统占用"
-        )
-        msg.setIcon(QMessageBox.Information)
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
-        QTimer.singleShot(5000, msg.close)
-        msg.exec()
-        logger.info("无快捷键启动提示已关闭")
-
-    def setup_hotkeys(self):
-        self.hotkey_listener = HotkeyListener()
-        self.hotkey_listener.capture_signal.connect(self.start_capture)
-        self.hotkey_listener.start()
-
     def start_capture(self):
         if self.overlay is not None:
-            if self.overlay.isVisible():
-                logger.debug("截图覆盖层已存在，跳过")
-                return
-            # 覆盖层已关闭但还未销毁，清理以重新创建
+            self.overlay.close()
             self.overlay.deleteLater()
             self.overlay = None
 
@@ -110,6 +78,8 @@ class SnipasteApp(QApplication):
         self.overlay.save_requested.connect(self._on_save)
         self.overlay.destroyed.connect(lambda: setattr(self, 'overlay', None))
         self.overlay.show()
+        self.overlay.raise_()
+        self.overlay.activateWindow()
 
     def _on_pin(self, pixmap: QPixmap, pos):
         win = PinWindow(pixmap, pos)
