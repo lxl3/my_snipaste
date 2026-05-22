@@ -7,7 +7,7 @@
 """
 
 from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
-from PySide6.QtGui import QPainter, QColor, QPen, QFont, QRegion
+from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, QTimer
 
 from .utils import capture_all_screens
@@ -167,19 +167,14 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         rect = self.selection_rect
         if not rect.isNull():
-            # 仅对选区外绘制半透明遮罩，选区保持原始截图，避免两层叠加导致的边缘伪影
-            region = QRegion(self.rect())
-            region -= QRegion(rect)
-            painter.setClipRegion(region)
-            painter.fillRect(self.rect(), DIM_OVERLAY_COLOR)
-            painter.setClipping(False)
+            # 在选区外绘制4块半透明遮罩，选区本身保持原始截图，无任何叠加
+            w = self.width()
+            h = self.height()
+            painter.fillRect(0, 0, w, rect.top(), DIM_OVERLAY_COLOR)                     # 上
+            painter.fillRect(0, rect.bottom() + 1, w, h - rect.bottom() - 1, DIM_OVERLAY_COLOR)  # 下
+            painter.fillRect(0, rect.top(), rect.left(), rect.height(), DIM_OVERLAY_COLOR)        # 左
+            painter.fillRect(rect.right() + 1, rect.top(), w - rect.right() - 1, rect.height(), DIM_OVERLAY_COLOR)  # 右
 
-            dpr = self.full_screenshot.devicePixelRatio()
-            physical_rect = QRect(
-                round(rect.x() * dpr), round(rect.y() * dpr),
-                round(rect.width() * dpr), round(rect.height() * dpr),
-            )
-            painter.drawPixmap(rect, self.full_screenshot, physical_rect)
             self._draw_annotations(painter, rect.size(), rect.topLeft())
 
             painter.setPen(QPen(SELECTION_BORDER_COLOR, 2))
