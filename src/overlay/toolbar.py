@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QComboBox, QColorDialog,
 )
 from PySide6.QtGui import QColor, QIcon, QFontDatabase
-from PySide6.QtCore import Qt, QPoint, QSize
+from PySide6.QtCore import Qt, QPoint, QSize, QObject
 
 from ..resources.icons.toolbar_icons import TOOLBAR_ICONS
 from ..core.utils import load_icon_from_svg
@@ -37,10 +37,11 @@ SUBMENU_STYLE = """
 """
 
 
-class OverlayToolbar:
+class OverlayToolbar(QObject):
     """截图覆盖层顶端的浮动工具栏"""
 
     def __init__(self, overlay):
+        super().__init__()
         self.overlay = overlay
         self.toolbar = None
         self._tool_btns = {}
@@ -481,4 +482,4 @@ class OverlayToolbar:
         from PySide6.QtCore import QEvent
         if event.type() == QEvent.WindowActivate:
             self.overlay._position_toolbar()
-        return super().__init__(obj, event)
+        return super().eventFilter(obj, event)
