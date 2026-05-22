@@ -7,7 +7,7 @@
 """
 
 from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
-from PySide6.QtGui import QPainter, QColor, QPen, QFont
+from PySide6.QtGui import QPainter, QColor, QPen, QFont, QRegion
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, QTimer
 
 from .utils import capture_all_screens
@@ -164,15 +164,20 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self.full_screenshot)
-        painter.fillRect(self.rect(), DIM_OVERLAY_COLOR)
 
         rect = self.selection_rect
         if not rect.isNull():
-            painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            # 仅对选区外绘制半透明遮罩，选区保持原始截图，避免两层叠加导致的边缘伪影
+            region = QRegion(self.rect())
+            region -= QRegion(rect)
+            painter.setClipRegion(region)
+            painter.fillRect(self.rect(), DIM_OVERLAY_COLOR)
+            painter.setClipping(False)
+
             dpr = self.full_screenshot.devicePixelRatio()
             physical_rect = QRect(
-                int(rect.x() * dpr), int(rect.y() * dpr),
-                int(rect.width() * dpr), int(rect.height() * dpr),
+                round(rect.x() * dpr), round(rect.y() * dpr),
+                round(rect.width() * dpr), round(rect.height() * dpr),
             )
             painter.drawPixmap(rect, self.full_screenshot, physical_rect)
             self._draw_annotations(painter, rect.size(), rect.topLeft())
@@ -187,6 +192,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 painter.drawRect(h_rect)
 
             self._draw_size_info(painter, rect)
+        else:
+            painter.fillRect(self.rect(), DIM_OVERLAY_COLOR)
 
         if self.current_tool == "eraser_dot" and not self.selection_rect.isNull():
             painter.setPen(QPen(QColor(255, 255, 255, 180), 2))
