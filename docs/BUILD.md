@@ -9,7 +9,7 @@
 pip install -r requirements.txt
 
 # 构建（自动下载 Tesseract）
-python build.py
+python scripts/build_windows.py
 
 # 输出：dist/MySnipaste.exe
 ```
@@ -159,7 +159,7 @@ git push github --tags
 
 ### 自定义版本号
 
-编辑 `.github/workflows/build-macos.yml`：
+编辑 `.github/workflows/build-cross-platform.yml`：
 
 ```yaml
 env:
@@ -168,7 +168,7 @@ env:
 
 ### 修改构建配置
 
-编辑 `build.py`（Windows）或 `scripts/build_macos.py`（macOS）调整：
+编辑 \`scripts/build_windows.py\`（Windows）或 \`scripts/build_macos.py\`（macOS）调整：
 - 应用名称
 - 图标路径
 - 打包选项

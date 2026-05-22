@@ -35,7 +35,7 @@ jobs:
         pip install pyinstaller
 
     - name: Build Windows app
-      run: python build.py --no-spec
+      run: python scripts/build_windows.py --no-spec
       env:
         PYTHONIOENCODING: utf-8
 

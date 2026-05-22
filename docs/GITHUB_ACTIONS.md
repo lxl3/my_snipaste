@@ -106,7 +106,7 @@ git push github v1.0.0
 
 ## 配置文件
 
-**位置**: `.github/workflows/build-macos.yml`
+**位置**: `.github/workflows/build-cross-platform.yml`
 
 ### 关键配置
 
@@ -140,7 +140,7 @@ jobs:
 **A**: 检查：
 1. Actions 是否启用（Settings → Actions → Allow all actions）
 2. 标签是否正确推送（`git tag -l`）
-3. 工作流文件是否存在（`.github/workflows/build-macos.yml`）
+3. 工作流文件是否存在（`.github/workflows/build-cross-platform.yml`）
 
 ### Q: 构建失败？
 
@@ -167,7 +167,7 @@ jobs:
 
 ### 自定义构建
 
-编辑 `.github/workflows/build-macos.yml`：
+编辑 `.github/workflows/build-cross-platform.yml`：
 
 ```yaml
 # 修改 Python 版本
@@ -233,7 +233,7 @@ on:
 在 `README.md` 中添加构建状态徽章：
 
 ```markdown
-![Build Status](https://github.com/lxl3/my_snipaste/actions/workflows/build-macos.yml/badge.svg)
+![Build Status](https://github.com/lxl3/my_snipaste/actions/workflows/build-cross-platform.yml/badge.svg)
 ```
 
 ### 邮件通知
