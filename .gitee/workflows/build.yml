@@ -1,0 +1,160 @@
+name: Build Cross-Platform Apps
+
+on:
+  push:
+    tags:
+      - 'v*'  # 推送 v1.0.0 标签时触发
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      version:
+        description: '版本号（如 1.0.0）'
+        required: false
+        default: 'dev'
+
+jobs:
+  build-windows:
+    name: Build Windows App
+    runs-on: windows-latest
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v3
+
+    - name: 设置 Python 环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: 构建 Windows 应用
+      run: python build.py
+
+    - name: 创建压缩包
+      run: |
+        cd dist
+        powershell Compress-Archive -Path MySnipaste.exe -DestinationPath MySnipaste-Windows.zip
+
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v3
+      with:
+        name: MySnipaste-Windows
+        path: dist/MySnipaste-Windows.zip
+        retention-days: 30
+
+  build-macos:
+    name: Build macOS App
+    runs-on: macos-latest
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v3
+
+    - name: 设置 Python 环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: 安装系统依赖
+      run: |
+        brew install tesseract
+        brew install tesseract-lang
+
+    - name: 安装 Python 依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: 构建 macOS 应用
+      run: python scripts/build_macos.py
+
+    - name: 创建 ZIP 包
+      run: |
+        cd dist
+        zip -r MySnipaste-macOS.zip MySnipaste.app
+
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v3
+      with:
+        name: MySnipaste-macOS
+        path: dist/MySnipaste-macOS.zip
+        retention-days: 30
+
+  create-release:
+    name: 创建发布
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v3
+
+    - name: 下载所有构建产物
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: 创建发布说明
+      run: |
+        cat > RELEASE_NOTES.md << 'EOF'
+        ## MySnipaste ${{ github.ref_name }}
+
+        ### 下载
+        - **Windows**: MySnipaste-Windows.zip
+        - **macOS**: MySnipaste-macOS.zip
+
+        ### 安装说明
+        **Windows**:
+        1. 解压 zip 文件
+        2. 运行 MySnipaste.exe
+        3. 按 F12 开始截图
+
+        **macOS**:
+        1. 解压 zip 文件
+        2. 将 MySnipaste.app 拖到应用程序文件夹
+        3. 右键打开（首次运行需要）
+        4. 按 F12 开始截图
+
+        ### 功能特性
+        - 截图、贴图、标注
+        - OCR 文字识别（中英文）
+        - 橡皮擦（拖动删除、框选删除）
+        - 多种标注工具（矩形、圆形、箭头、画笔、马赛克、文字）
+        EOF
+
+    - name: 创建 Gitee Release
+      uses: actions/create-release@v1
+      env:
+        GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: MySnipaste ${{ github.ref_name }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+
+    - name: 上传 Windows 包
+      uses: actions/upload-release-asset@v1
+      env:
+        GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/MySnipaste-Windows/MySnipaste-Windows.zip
+        asset_name: MySnipaste-Windows.zip
+        asset_content_type: application/zip
+
+    - name: 上传 macOS 包
+      uses: actions/upload-release-asset@v1
+      env:
+        GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/MySnipaste-macOS/MySnipaste-macOS.zip
+        asset_name: MySnipaste-macOS.zip
+        asset_content_type: application/zip

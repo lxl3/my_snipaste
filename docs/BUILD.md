@@ -31,64 +31,102 @@ python scripts/build_macos.py
 
 ---
 
-## GitHub Actions 自动构建
+## 自动构建（CI/CD）
 
-### 方式1：手动触发
+### Gitee Go 自动构建（当前平台）
 
-1. 打开 GitHub 仓库页面
-2. 进入 **Actions** 标签
-3. 选择 **Build Cross-Platform Apps**
-4. 点击 **Run workflow**
-5. 等待构建完成（约5-10分钟）
-6. 下载构建产物
+**方式1：手动触发**
 
-### 方式2：版本发布（推荐）
+1. 打开 Gitee 仓库页面
+2. 进入 **流水线** (Pipeline) 标签
+3. 点击 **运行流水线**
+4. 等待构建完成（约5-10分钟）
+5. 下载构建产物
+
+**方式2：版本发布（推荐）**
 
 ```bash
 # 打标签并推送（自动触发构建和发布）
 git tag v1.0.0
 git push origin v1.0.0
 
-# GitHub 会自动：
+# Gitee 会自动：
 # 1. 构建 Windows 和 macOS 版本
-# 2. 创建 GitHub Release
+# 2. 创建 Gitee Release
 # 3. 上传安装包到 Release
+```
+
+### GitHub Actions 自动构建（可选）
+
+如果您也将代码推送到 GitHub：
+
+```bash
+# 添加 GitHub 远程仓库
+git remote add github https://github.com/your-username/my_snipaste.git
+git push github master
+
+# 打标签触发构建
+git tag v1.0.0
+git push github v1.0.0
 ```
 
 ### 构建产物
 
 - **Windows**: `MySnipaste-Windows.zip`
-- **macOS**: `MySnipaste-macOS.dmg` 和 `MySnipaste-macOS.zip`
+- **macOS**: `MySnipaste-macOS.zip`
+- **GitHub 额外**: `MySnipaste-macOS.dmg` (仅 GitHub Actions)
 
 ---
 
 ## 初次设置
 
-### 1. 推送 GitHub Actions 配置
+### Gitee Go 设置
+
+**1. 推送配置**
 
 ```bash
-git add .github/workflows/build-macos.yml
+git add .gitee/workflows/build.yml
 git add scripts/build_macos.py
 git add docs/BUILD.md
-git commit -m "ci: 添加跨平台构建工作流"
-git push
+git commit -m "ci: 添加 Gitee Go 构建工作流"
+git push origin master
 ```
 
-### 2. 测试构建
+**2. 启用 Gitee Go**
+
+1. 打开 Gitee 仓库页面
+2. 进入 **服务** → **Gitee Go**
+3. 点击 **启用 Gitee Go**
+4. 授权必要的权限
+
+**3. 测试构建**
+
+- Gitee 仓库 → 流水线 → 运行流水线
+
+**4. 发布版本**
 
 ```bash
-# 手动触发一次测试
-# GitHub → Actions → Run workflow
-```
-
-### 3. 发布版本
-
-```bash
-# 创建第一个版本
 git tag v1.0.0
 git push origin v1.0.0
 
-# 查看 GitHub Releases 页面
+# 查看 Gitee Releases 页面
+```
+
+---
+
+### GitHub Actions 设置（可选）
+
+如果您需要同时在 GitHub 上构建：
+
+```bash
+# 添加 GitHub 远程仓库
+git remote add github https://github.com/your-username/my_snipaste.git
+
+# 推送所有内容
+git push github master
+git push github --tags
+
+# GitHub → Actions 会自动运行
 ```
 
 ---
