@@ -3,7 +3,7 @@
 import math
 
 from PySide6.QtGui import QPainter, QPixmap, QColor, QPen, QFont, QPainterPath
-from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF
+from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QSize
 
 from ..core.constants import (
     ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR,
@@ -26,23 +26,34 @@ class OverlayRenderingMixin:
     """
 
     def _render_annotated_pixmap(self) -> QPixmap:
-        """渲染选区内的完整标注快照。"""
-        dpr = self.full_screenshot.devicePixelRatio()
+        """从截图中抠出选区，再画上标注。
+
+        关键：
+        1. selection_rect 是逻辑坐标（屏幕坐标）
+        2. full_screenshot 是带 DPR 的 QPixmap（物理像素）
+        3. annotations 存储的是相对于 selection_rect 左上角的逻辑坐标
+        4. Qt 的 copy() 会自动处理 DPR 转换
+        """
         sel = self.selection_rect
+        if sel.isNull():
+            return QPixmap()
 
-        result = QPixmap(sel.size())
-        result.setDevicePixelRatio(dpr)
-        result.fill(Qt.transparent)
+        # 获取 DPR 以便调试和验证
+        dpr = self.full_screenshot.devicePixelRatio()
 
+        # 方案：直接使用 Qt 的 copy，它会正确处理 DPR
+        # copy() 接受逻辑坐标，返回的 pixmap 保留原 pixmap 的 DPR
+        result = self.full_screenshot.copy(sel)
+
+        # 在结果上绘制标注
         p = QPainter(result)
         p.setRenderHint(QPainter.Antialiasing)
-        physical_sel = QRect(
-            round(sel.x() * dpr), round(sel.y() * dpr),
-            round(sel.width() * dpr), round(sel.height() * dpr),
-        )
-        p.drawPixmap(result.rect(), self.full_screenshot, physical_sel)
+
+        # 标注已经是相对坐标，offset 为 (0, 0)
+        # QPainter 在带 DPR 的 pixmap 上绘制时，会自动将逻辑坐标转换为物理像素
         self._draw_annotations(p, sel.size(), QPoint(0, 0))
         p.end()
+
         return result
 
     def _draw_annotations(self, painter, sel_size, offset):
@@ -131,12 +142,17 @@ class OverlayRenderingMixin:
             return
         dpr = self.full_screenshot.devicePixelRatio()
         scale = MOSAIC_SCALE_FACTOR
+
+        # ann["rect"] 是相对选区左上角的局部坐标 → 全局坐标 = 局部 + 选区偏移
+        local_rect = QRectF(ann["rect"])
+        global_x = round((local_rect.x() + self.selection_rect.x()) * dpr)
+        global_y = round((local_rect.y() + self.selection_rect.y()) * dpr)
+
         px = QPixmap(r.size())
         px.fill(Qt.transparent)
         p2 = QPainter(px)
         src = QRect(
-            round((r.x() + self.selection_rect.x()) * dpr),
-            round((r.y() + self.selection_rect.y()) * dpr),
+            global_x, global_y,
             round(r.width() * dpr),
             round(r.height() * dpr),
         )
@@ -155,4 +171,6 @@ class OverlayRenderingMixin:
         font.setItalic(ann["italic"])
         painter.setFont(font)
         painter.setPen(QColor(ann["color"]))
-        painter.drawText(pos, ann["text"])
+        # drawText(QPointF, text) 将 y 坐标作为基线，需要加上 ascent 使文本顶部对齐点击位置
+        fm = painter.fontMetrics()
+        painter.drawText(QPointF(pos.x(), pos.y() + fm.ascent()), ann["text"])
