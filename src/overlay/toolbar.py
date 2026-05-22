@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QWidgetAction, QPushButton, QSpinBox, QVBoxLayout,
     QComboBox, QColorDialog,
 )
-from PySide6.QtGui import QColor, QIcon
+from PySide6.QtGui import QColor, QIcon, QFontDatabase
 from PySide6.QtCore import Qt, QPoint, QSize
 
 from ..resources.icons.toolbar_icons import TOOLBAR_ICONS
@@ -269,7 +269,7 @@ class OverlayToolbar:
                 padding: 2px 4px; font-size: 11px;
             }
         """)
-        db = QApplication.fontDatabase()
+        db = QFontDatabase()
         families = db.families()
         common = ["Arial", "Segoe UI", "Microsoft YaHei", "SimHei",
                    "PingFang SC", "Helvetica Neue", "Times New Roman",
