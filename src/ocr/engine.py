@@ -27,34 +27,58 @@ def ensure_tesseract_ready():
 def setup_bundled_tesseract():
     """
     当程序通过 PyInstaller 打包运行时，自动配置打包的 Tesseract 路径。
-    PyInstaller onefile 模式会将文件解压到 sys._MEIPASS 临时目录。
+    支持 Windows (.exe) 和 macOS (.app) 打包版本。
     """
     if getattr(sys, 'frozen', False):
-        # 运行在 PyInstaller 打包的 exe 中
+        # 运行在 PyInstaller 打包的应用中
         base_dir = sys._MEIPASS
         tesseract_dir = os.path.join(base_dir, 'tesseract')
-        tesseract_exe = os.path.join(tesseract_dir, 'tesseract.exe')
+
+        # 根据平台选择可执行文件名
+        if sys.platform == 'win32':
+            tesseract_exe = os.path.join(tesseract_dir, 'tesseract.exe')
+        else:  # macOS/Linux
+            tesseract_exe = os.path.join(tesseract_dir, 'tesseract')
 
         if os.path.exists(tesseract_exe):
             # 设置 pytesseract 使用打包的 tesseract
             pytesseract.pytesseract.tesseract_cmd = tesseract_exe
+
+            # 设置语言包目录
             tesseract_data = os.path.join(tesseract_dir, 'tessdata')
             if os.path.exists(tesseract_data):
                 os.environ['TESSDATA_PREFIX'] = tesseract_data
-            logger.info(f"使用打包的 Tesseract: {tesseract_exe}")
-            return True
+                logger.info(f"使用打包的 Tesseract: {tesseract_exe}")
+                logger.info(f"语言包目录: {tesseract_data}")
+            else:
+                logger.warning(f"语言包目录不存在: {tesseract_data}")
+
+            # 验证 Tesseract 是否可用
+            try:
+                version = pytesseract.get_tesseract_version()
+                logger.info(f"Tesseract 版本: v{version}")
+                return True
+            except Exception as e:
+                logger.error(f"打包的 Tesseract 无法运行: {e}")
+                return False
         else:
             logger.warning(f"打包的 Tesseract 不存在: {tesseract_exe}")
-            return False
+            # 尝试使用系统 Tesseract
+            return _try_system_tesseract()
     else:
         # 开发模式：检查系统 tesseract 是否可用
-        try:
-            version = pytesseract.get_tesseract_version()
-            logger.info(f"使用系统 Tesseract v{version}")
-            return True
-        except Exception:
-            logger.warning("系统 Tesseract 不可用")
-            return False
+        return _try_system_tesseract()
+
+
+def _try_system_tesseract():
+    """尝试使用系统安装的 Tesseract"""
+    try:
+        version = pytesseract.get_tesseract_version()
+        logger.info(f"使用系统 Tesseract v{version}")
+        return True
+    except Exception as e:
+        logger.warning(f"系统 Tesseract 不可用: {e}")
+        return False
 
 
 def extract_text(pixmap_or_qimage) -> str:
