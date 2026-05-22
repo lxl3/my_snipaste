@@ -97,19 +97,19 @@ class OverlayActionsMixin:
 
     def _try_erase_annotation(self, pos):
         local = self._sel_to_local(QPointF(pos))
+        r = self.eraser_size
         for i in range(len(self.annotations) - 1, -1, -1):
             ann = self.annotations[i]
             t = ann["type"]
             if t in ("rect", "ellipse", "mosaic"):
-                r = QRectF(ann["rect"])
-                margin = self.eraser_size // 2
-                if r.adjusted(-margin, -margin, margin, margin).contains(local):
+                ann_rect = QRectF(ann["rect"])
+                if self._point_to_rect_distance(local, ann_rect) < r:
                     self._redo_stack.append(self.annotations.pop(i))
                     self.toolbar.update_undo_redo_state()
                     self.update()
                     return
             elif t in ("arrow", "line"):
-                if self._point_to_segment_distance(local, ann["start"], ann["end"]) < self.eraser_size:
+                if self._point_to_segment_distance(local, ann["start"], ann["end"]) < r:
                     self._redo_stack.append(self.annotations.pop(i))
                     self.toolbar.update_undo_redo_state()
                     self.update()
@@ -117,28 +117,23 @@ class OverlayActionsMixin:
             elif t == "freehand":
                 pts = ann["points"]
                 for j in range(len(pts) - 1):
-                    if self._point_to_segment_distance(local, pts[j], pts[j + 1]) < self.eraser_size:
+                    if self._point_to_segment_distance(local, pts[j], pts[j + 1]) < r:
                         self._redo_stack.append(self.annotations.pop(i))
                         self.toolbar.update_undo_redo_state()
                         self.update()
                         return
             elif t == "text":
-                font = QFont(ann.get("font_family", "Segoe UI"), ann.get("font_size", 20))
-                font.setBold(ann.get("bold", False))
-                font.setItalic(ann.get("italic", False))
-                fm = self.fontMetrics()
-                text_w = fm.horizontalAdvance(ann["text"]) + 12
-                text_h = fm.height() + 8
-                margin = self.eraser_size // 2
-                text_rect = QRectF(
-                    ann["pos"].x() - margin, ann["pos"].y() - margin,
-                    text_w + margin * 2, text_h + margin * 2,
-                )
-                if text_rect.contains(local):
+                if math.hypot(local.x() - ann["pos"].x(), local.y() - ann["pos"].y()) < r:
                     self._redo_stack.append(self.annotations.pop(i))
                     self.toolbar.update_undo_redo_state()
                     self.update()
                     return
+
+    @staticmethod
+    def _point_to_rect_distance(point, rect):
+        cx = max(rect.left(), min(point.x(), rect.right()))
+        cy = max(rect.top(), min(point.y(), rect.bottom()))
+        return math.hypot(point.x() - cx, point.y() - cy)
 
     @staticmethod
     def _point_to_segment_distance(point, p1, p2):
@@ -162,7 +157,8 @@ class OverlayActionsMixin:
             t = ann["type"]
             keep = False
             if t in ("rect", "ellipse", "mosaic"):
-                keep = not sel_rect.intersects(QRectF(ann["rect"]).toRect())
+                ann_global = QRectF(ann["rect"]).translated(QPointF(self.selection_rect.topLeft()))
+                keep = not sel_rect.intersects(ann_global.toRect())
             elif t in ("arrow", "line"):
                 # 保留线段两个端点都不在选区内的
                 start_in = sel_rect.contains(ann["start"] + QPointF(self.selection_rect.topLeft()))
