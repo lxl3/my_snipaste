@@ -30,8 +30,11 @@ def setup_bundled_tesseract():
     支持 Windows (.exe) 和 macOS (.app) 打包版本。
     """
     if getattr(sys, 'frozen', False):
-        # 运行在 PyInstaller 打包的应用中
-        base_dir = sys._MEIPASS
+        # 运行在打包的应用中（PyInstaller / Nuitka）
+        if hasattr(sys, '_MEIPASS'):
+            base_dir = sys._MEIPASS
+        else:
+            base_dir = os.path.dirname(sys.executable)
         tesseract_dir = os.path.join(base_dir, 'tesseract')
 
         # 根据平台选择可执行文件名

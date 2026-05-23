@@ -276,6 +276,47 @@ def prepare_tesseract_bundle(tesseract_bin, tessdata_dir):
     return binary_args, data_args
 
 
+def _patch_info_plist(app_path):
+    """在打包后向 Info.plist 注入屏幕录制权限描述。"""
+    plist_path = Path(app_path) / "Contents" / "Info.plist"
+    if not plist_path.exists():
+        print("[WARN] Info.plist 不存在，跳过权限注入")
+        return
+
+    try:
+        import plistlib
+        with open(plist_path, "rb") as f:
+            plist = plistlib.load(f)
+
+        plist["NSScreenCaptureUsageDescription"] = (
+            "MySnipaste needs screen recording permission to capture screenshots."
+        )
+        plist["NSInputMonitoringUsageDescription"] = (
+            "MySnipaste needs input monitoring permission to detect global hotkeys."
+        )
+
+        with open(plist_path, "wb") as f:
+            plistlib.dump(plist, f)
+        print("[OK] Info.plist 已添加屏幕录制权限描述")
+    except Exception as e:
+        print(f"[WARN] Info.plist 注入失败: {e}")
+
+
+def _sign_app(app_path):
+    """对 .app 进行 ad-hoc 签名（帮助 macOS 权限 API 正常工作）。"""
+    print("  签名应用...")
+    try:
+        subprocess.run(
+            ["codesign", "--force", "--deep", "--sign", "-", str(app_path)],
+            check=True, capture_output=True, text=True, timeout=30,
+        )
+        print("[OK] 签名完成")
+    except subprocess.CalledProcessError as e:
+        print(f"[WARN] 签名失败（不影响运行）: {e.stderr.strip()}")
+    except Exception as e:
+        print(f"[WARN] 签名异常: {e}")
+
+
 def build_app():
     """使用 PyInstaller 打包 macOS 应用"""
     print_step("开始打包 macOS 应用")
@@ -287,11 +328,14 @@ def build_app():
     tess_binary_args, tess_data_args = prepare_tesseract_bundle(tesseract_bin, tessdata_dir)
 
     # PyInstaller 基础命令
+    # 注意: 使用 --onedir 而非 --onefile 以避免 macOS 权限问题
+    # --onefile 每次解压到临时目录，macOS 无法跟踪权限
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--name", BUILD_NAME,
         "--windowed",  # macOS GUI 应用
-        "--onefile",   # 单文件模式
+        "--onedir",    # 目录模式（权限兼容更好）
+        "--osx-bundle-identifier", "com.mysnipaste.app",
         "--icon", str(PROJECT_DIR / "icon.icns") if (PROJECT_DIR / "icon.icns").exists() else str(PROJECT_DIR / "icon.ico"),
 
         # 添加数据文件
@@ -310,14 +354,7 @@ def build_app():
         "--hidden-import", "pytesseract",
         "--hidden-import", "PIL._tkinter_finder",
 
-        # macOS 热键：Quartz/PyObjC 轮询
-        "--hidden-import", "Quartz",
-        "--collect-submodules", "Quartz",
-        "--hidden-import", "objc",
-        "--hidden-import", "CoreFoundation",
-        "--hidden-import", "HIServices",
-
-        # pynput（用于文字键码映射和跨平台）
+        # pynput（文字键码映射和跨平台回退）
         "--hidden-import", "pynput",
         "--hidden-import", "pynput._util.darwin",
         "--hidden-import", "pynput.keyboard._darwin",
@@ -350,6 +387,8 @@ def build_app():
             else:
                 print(f"⚠️ Tesseract OCR: 未打包（需要用户安装）")
 
+            _patch_info_plist(app_path)
+            _sign_app(app_path)
             return True
         else:
             print(f"\n✗ 应用未找到: {app_path}")

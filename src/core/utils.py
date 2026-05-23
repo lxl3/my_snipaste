@@ -56,19 +56,40 @@ def capture_all_screens() -> QPixmap:
     for screen in screens:
         geo = screen.geometry()
         pixmap = _grab_and_fit(screen)
+        if pixmap.isNull():
+            painter.end()
+            raise ScreenCaptureError(
+                f"屏幕 {screen.name()} 截图失败，请检查屏幕录制权限。"
+            )
         painter.drawPixmap(geo.topLeft() - total_rect.topLeft(), pixmap)
     painter.end()
     return combined
 
 
+class ScreenCaptureError(RuntimeError):
+    pass
+
+
 def _grab_and_fit(screen: "QScreen") -> QPixmap:
     geo = screen.geometry()
     pixmap = screen.grabWindow(0)
+    _dbg(f"_grab_and_fit({screen.name()}): isNull={pixmap.isNull()} "
+         f"w={pixmap.width()} h={pixmap.height()} "
+         f"expected=({geo.width()}x{geo.height()})")
+    if pixmap.isNull() or pixmap.width() <= 1 or pixmap.height() <= 1:
+        logger.error(f"截屏失败: grabWindow 返回无效 pixmap (屏幕 {screen.name()})")
+        raise ScreenCaptureError(
+            "屏幕截图失败。请检查「系统设置 > 隐私与安全性 > 屏幕录制」中是否已授予权限。"
+        )
     dpr = screen.devicePixelRatio()
-
     pixmap.setDevicePixelRatio(dpr)
-
     return pixmap
+
+
+def _dbg(msg: str):
+    import time as _t
+    with open("/tmp/my_snipaste_capture.log", "a") as f:
+        f.write(f"[{_t.strftime('%H:%M:%S')}] {msg}\n")
 
 
 def qpixmap_to_pil(pixmap: QPixmap) -> "PILImage":
@@ -133,7 +154,13 @@ def create_app_icon() -> QIcon:
     return QIcon(pixmap)
 
 
-def resource_path(relative_path: str) -> str:
+def _get_app_dir() -> str:
     if hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), relative_path)
+        return sys._MEIPASS
+    import builtins
+    if getattr(sys, "frozen", False) or getattr(builtins, "__compiled__", False):
+        return os.path.dirname(sys.executable)
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+def resource_path(relative_path: str) -> str:
+    return os.path.join(_get_app_dir(), relative_path)

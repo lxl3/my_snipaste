@@ -8,6 +8,13 @@ from .logger import setup_logger
 
 logger = setup_logger("hotkeys")
 
+_DBG = "/tmp/my_snipaste_debug.log"
+
+
+def _d(msg):
+    with open(_DBG, "a") as f:
+        f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+
 
 DEFAULT_HOTKEY = {
     'darwin': 'cmd+shift+x',
@@ -32,10 +39,8 @@ class HotkeyListener(QObject):
         logger.info(f"快捷键设置为: {self.hotkey} (平台: {sys.platform})")
 
     def start(self):
-        if sys.platform == 'darwin':
-            self._listener = _MacOSListener(self.hotkey)
-        else:
-            self._listener = _PynputListener(self.hotkey)
+        # 所有平台统一使用 pynput（macOS 下 CGEventSourceKeyState 在打包后不可用）
+        self._listener = _PynputListener(self.hotkey)
         self._listener.capture_signal.connect(
             lambda: self.capture_signal.emit()
         )
@@ -63,11 +68,26 @@ class _PynputListener(QObject):
         self._current_keys = set()
 
     def start(self):
+        _d("PynputListener 启动中...")
+        if sys.platform == 'darwin':
+            try:
+                from .permissions import (
+                    request_input_monitoring_permission,
+                    open_input_monitoring_settings,
+                )
+                _d("PynputListener 请求输入监控权限...")
+                granted = request_input_monitoring_permission()
+                if not granted:
+                    _d("PynputListener 权限请求被拒，打开系统设置引导")
+                    open_input_monitoring_settings()
+            except Exception as e:
+                _d(f"PynputListener 权限请求异常: {e}")
         self.running = True
         self.thread = Thread(target=self._listen, daemon=True)
         self.thread.start()
 
     def stop(self):
+        _d("PynputListener 停止")
         self.running = False
 
     def _parse_hotkey(self):
@@ -90,12 +110,15 @@ class _PynputListener(QObject):
                 keys.add(keyboard.KeyCode.from_char(part))
             else:
                 logger.warning(f"未识别的快捷键部分: {part}")
+        _d(f"PynputListener 热键解析完成: {self.hotkey} → {len(keys)} keys")
         return keys
 
     def _listen(self):
+        _d("PynputListener 监听线程已启动")
         try:
             from pynput import keyboard
             required_keys = self._parse_hotkey()
+            _d(f"PynputListener 目标组合键: {required_keys}")
 
             def on_press(key):
                 if not self.running:
@@ -103,11 +126,14 @@ class _PynputListener(QObject):
                 try:
                     normalized = self._normalize(key)
                     self._current_keys.add(normalized)
+                    _d(f"按键按下: {key} normalized={normalized}")
                     if required_keys.issubset(self._current_keys):
+                        _d(f"快捷键触发: {self.hotkey}")
                         logger.debug(f"快捷键触发: {self.hotkey}")
                         self.capture_signal.emit()
                         self._current_keys.clear()
-                except Exception:
+                except Exception as e:
+                    _d(f"on_press 异常: {e}")
                     pass
 
             def on_release(key):
@@ -119,10 +145,14 @@ class _PynputListener(QObject):
                 except Exception:
                     pass
 
+            _d("PynputListener 创建 keyboard.Listener...")
             with keyboard.Listener(on_press=on_press, on_release=on_release) as self.listener:
+                _d("PynputListener 加入监听循环")
                 self.listener.join()
+                _d("PynputListener 监听循环已退出！pynput 线程静默结束了")
 
         except Exception as e:
+            _d(f"pynput 监听失败: {e}")
             logger.error(f"pynput 监听失败: {e}")
 
     def _normalize(self, key):
@@ -142,10 +172,7 @@ class _PynputListener(QObject):
 
 
 class _MacOSListener(QObject):
-    """macOS 全局快捷键监听，基于 Quartz CGEventSourceKeyState 轮询。
-
-    不需要 Accessibility 权限或代码签名，通过每 50ms 查询系统按键状态工作。
-    """
+    """macOS 全局快捷键监听，基于 ctypes + CoreGraphics 轮询"""
     capture_signal = Signal()
 
     MODIFIER_CODES = {
@@ -170,6 +197,7 @@ class _MacOSListener(QObject):
         super().__init__()
         self.hotkey = hotkey
         self.running = False
+        self._cg_func = None
         self._thread = None
         self._triggered = False
         self._last_trigger = 0.0
@@ -207,44 +235,70 @@ class _MacOSListener(QObject):
     def start(self):
         if self.running:
             return
+        self._cg_func = self._init_cg()
+        if not self._cg_func:
+            _d("CGEventSourceKeyState 初始化失败")
+            return
         self.running = True
         self._thread = Thread(target=self._poll, daemon=True)
         self._thread.start()
+        _d("轮询线程已启动")
 
     def stop(self):
         self.running = False
 
-    def _poll(self):
+    def _init_cg(self):
         try:
-            from Quartz import (
-                CGEventSourceKeyState,
-                kCGEventSourceStateCombinedSessionState,
-            )
-        except ImportError:
-            logger.error("Quartz 不可用，macOS 热键无法工作")
-            return
+            import ctypes
+            import ctypes.util
+            path = ctypes.util.find_library("CoreGraphics")
+            if not path:
+                path = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics"
+            cg = ctypes.cdll.LoadLibrary(path)
+            func = cg.CGEventSourceKeyState
+            func.restype = ctypes.c_bool
+            func.argtypes = [ctypes.c_uint32, ctypes.c_uint16]
+            return func
+        except Exception as e:
+            logger.error(f"初始化 CoreGraphics 失败: {e}")
+            return None
 
+    def _poll(self):
+        cg_func = self._cg_func
+        # kCGEventSourceStateHIDSystemState = 1
+        # 直接读取硬件键盘状态（最可靠，不依赖进程焦点或权限）
+        STATE = 1
         MIN_INTERVAL = 0.3
+        count = 0
 
         while self.running:
+            count += 1
+            states = {}
+            for codes in self._key_variants:
+                for code in codes:
+                    states[code] = cg_func(STATE, code)
+
             all_pressed = all(
-                any(
-                    CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, code)
-                    for code in codes
-                )
+                any(states[c] for c in codes)
                 for codes in self._key_variants
             )
 
             if all_pressed and not self._triggered:
                 now = time.time()
                 if now - self._last_trigger >= MIN_INTERVAL:
+                    _d(f"触发截图 {states}")
                     self._triggered = True
                     self._last_trigger = now
                     self.capture_signal.emit()
             elif not all_pressed:
                 self._triggered = False
 
+            if count % 200 == 0:
+                _d(f"心跳 #{count} {states}")
             time.sleep(0.05)
+
+    def __del__(self):
+        self.stop()
 
     def __del__(self):
         self.stop()

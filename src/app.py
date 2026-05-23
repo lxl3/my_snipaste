@@ -1,3 +1,6 @@
+import os
+import sys
+import time
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
@@ -6,14 +9,53 @@ from PySide6.QtWidgets import (
 
 from .overlay.widget import CaptureOverlay
 from .ocr.engine import extract_text
-from .core.utils import create_app_icon
+from .core.utils import create_app_icon, ScreenCaptureError
 from .core.logger import setup_logger
 from .core.hotkeys import HotkeyListener
-from .core.permissions import check_macos_accessibility
+from .core.permissions import (
+    check_macos_accessibility,
+    check_screen_recording_permission,
+    open_screen_recording_settings,
+    request_screen_recording_permission,
+    show_permission_guide,
+)
 from .ui.pin_window import PinWindow
 from .ui.tray import TrayManager
 
 logger = setup_logger("app")
+
+
+def _dbg_app(msg: str):
+    """写调试日志到 /tmp/my_snipaste_app.log"""
+    import time as _t
+    with open("/tmp/my_snipaste_app.log", "a") as _f:
+        _f.write(f"[{_t.strftime('%H:%M:%S')}] {msg}\n")
+
+
+def _show_dialog(icon, title, text):
+    """显示一个必定置顶的对话框，避免被其他窗口挡住。"""
+    _mac_activate_app()
+    msg = QMessageBox()
+    msg.setIcon(icon)
+    msg.setWindowTitle(title)
+    msg.setText(text)
+    msg.setStandardButtons(QMessageBox.Ok)
+    msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
+    msg.exec()
+
+
+def _mac_activate_app():
+    """macOS: 强制把 app 提到前台（后台托盘 app 需要）"""
+    if sys.platform != 'darwin':
+        return
+    try:
+        import subprocess
+        subprocess.run([
+            "osascript", "-e",
+            f'tell application "System Events" to set frontmost of every process whose unix id is {os.getpid()} to true'
+        ], capture_output=True, timeout=5)
+    except Exception:
+        pass
 
 
 class SnipasteApp(QApplication):
@@ -66,13 +108,54 @@ class SnipasteApp(QApplication):
         logger.info("启动提示框已关闭")
 
     def start_capture(self):
+        _dbg_app("start_capture 被调用")
+        logger.info("start_capture() 被调用")
+        _mac_activate_app()
         if self.overlay is not None:
             self.overlay.close()
             self.overlay.deleteLater()
             self.overlay = None
 
+        # macOS: 检测屏幕录制权限
+        if sys.platform == "darwin":
+            perm = check_screen_recording_permission()
+            _dbg_app(f"权限检测结果: {perm}")
+            if perm is False:
+                show_permission_guide()
+                open_screen_recording_settings()
+                _show_dialog(
+                    QMessageBox.Warning, "权限不足",
+                    "MySnipaste 需要「屏幕录制」权限才能截图。\n\n"
+                    "请在弹出的系统设置中：\n"
+                    "  1. 点击锁图标解锁\n"
+                    "  2. 点击 ＋ 添加 MySnipaste\n"
+                    "  3. 勾选授权\n\n"
+                    "授权后请重新打开应用。"
+                )
+                return
+
         logger.info("启动截图")
-        self.overlay = CaptureOverlay()
+        try:
+            self.overlay = CaptureOverlay()
+        except ScreenCaptureError as e:
+            logger.error(f"截屏失败: {e}")
+            _dbg_app(f"ScreenCaptureError: {e}")
+            show_permission_guide()
+            open_screen_recording_settings()
+            _show_dialog(
+                QMessageBox.Critical, "截图失败",
+                f"{e}\n\n"
+                "请在系统设置中：\n"
+                "  1. 点击锁图标解锁\n"
+                "  2. 点击 ＋ 添加 MySnipaste\n"
+                "  3. 勾选授权\n\n"
+                "授权后重新打开应用。"
+            )
+            return
+        except Exception as e:
+            logger.exception(f"截图异常: {e}")
+            _dbg_app(f"意外异常: {e}")
+            return
         self.overlay.pin_requested.connect(self._on_pin)
         self.overlay.copy_requested.connect(self._on_copy)
         self.overlay.save_requested.connect(self._on_save)

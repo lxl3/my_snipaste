@@ -5,9 +5,11 @@ import sys
 import os
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
+import getpass
+
+_LOG_DIR: str = ""
 
 
-# ANSI 颜色代码
 class LogColors:
     """日志颜色配置"""
     RESET = "\033[0m"
@@ -110,7 +112,12 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
     logger.addHandler(console_handler)
 
     # ========== 文件 Handler（按大小轮转） ==========
-    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
+    global _LOG_DIR
+    if getattr(sys, 'frozen', False):
+        _LOG_DIR = os.path.expanduser("~/Library/Logs/MySnipaste")
+    else:
+        _LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
+    log_dir = _LOG_DIR
 
     # 创建按日期命名的子目录
     today = datetime.now().strftime("%Y-%m-%d")
@@ -162,3 +169,13 @@ logger = setup_logger()
 def get_logger(name):
     """获取指定名称的日志记录器（继承主配置）"""
     return logging.getLogger(f"MySnipaste.{name}")
+
+
+def get_log_dir() -> str:
+    return _LOG_DIR
+
+
+def get_current_log_path() -> str | None:
+    today = datetime.now().strftime("%Y-%m-%d")
+    path = os.path.join(_LOG_DIR, today, "app.log")
+    return path if os.path.exists(path) else None
