@@ -34,21 +34,20 @@ class OverlayRenderingMixin:
         if logical_rect.isNull():
             return QPixmap()
 
-        dpr = screen.devicePixelRatio()
+        dpr = self.full_screenshot.devicePixelRatio()
 
-        phys_rect = QRect(
-            int(stream_rect.x() * dpr),
-            int(stream_rect.y() * dpr),
-            int(stream_rect.width() * dpr),
-            int(stream_rect.height() * dpr),
+        physical_rect = QRect(
+            int(logical_rect.x() * dpr),
+            int(logical_rect.y() * dpr),
+            int(logical_rect.width() * dpr),
+            int(logical_rect.height() * dpr),
         )
 
-        cropped = screenshot.copy(phys_rect)
-        cropped.setDevicePixelRatio(dpr)
+        result = self.full_screenshot.copy(physical_rect)
+        result.setDevicePixelRatio(dpr)
 
-        self._draw_annotations(painter, cropped.size() / dpr, QPointF(0, 0))
-
-        # annotations use logical coords relative to selection top-left; offset = (0,0)
+        painter = QPainter(result)
+        painter.setRenderHint(QPainter.Antialiasing)
         self._draw_annotations(painter, logical_rect.size(), QPoint(0, 0))
         painter.end()
 
