@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+from datetime import datetime
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
@@ -11,6 +12,7 @@ from .overlay.widget import CaptureOverlay
 from .ocr.engine import extract_text
 from .core.utils import create_app_icon, ScreenCaptureError
 from .core.logger import setup_logger
+from .core.settings import AppSettings, get_settings
 from .core.hotkeys import HotkeyListener
 from .core.permissions import (
     check_macos_accessibility,
@@ -21,6 +23,7 @@ from .core.permissions import (
 )
 from .ui.pin_window import PinWindow
 from .ui.tray import TrayManager
+from .ui.settings_dialog import SettingsDialog
 
 logger = setup_logger("app")
 
@@ -65,16 +68,18 @@ class SnipasteApp(QApplication):
 
         self.overlay: CaptureOverlay | None = None
         self.pin_windows: list = []
+        self.settings: AppSettings = get_settings()
 
         self.setup_focused_hotkey()
 
-        self.hotkey_listener = HotkeyListener()
+        self.hotkey_listener = HotkeyListener(self.settings.hotkey)
         self.hotkey_listener.capture_signal.connect(self.start_capture)
 
         check_macos_accessibility()
 
         self.tray = TrayManager(self)
         self.tray.setup(True)
+        self.tray.settings_requested.connect(self._open_settings)
 
         self.hotkey_listener.start()
         logger.info("全局快捷键已启动")
@@ -169,8 +174,13 @@ class SnipasteApp(QApplication):
         self.clipboard().setPixmap(pixmap)
 
     def _on_save(self, pixmap: QPixmap) -> None:
+        s = self.settings
+        default_name = f"截图_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{s.auto_save_format}"
+        default_dir = s.auto_save_dir or ""
+        default_path = os.path.join(default_dir, default_name) if default_dir else default_name
+
         file_path, _ = QFileDialog.getSaveFileName(
-            None, "保存截图", "截图.png",
+            None, "保存截图", default_path,
             "PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg);;所有文件 (*)",
         )
         if file_path:
@@ -200,6 +210,19 @@ class SnipasteApp(QApplication):
             )
         else:
             logger.warning("OCR 识别结果为空")
+
+    def _open_settings(self) -> None:
+        result = SettingsDialog.open(None)
+        if result is not None:
+            self.settings = result
+            self.hotkey_listener.stop()
+            QTimer.singleShot(200, self._restart_hotkey)
+
+    def _restart_hotkey(self) -> None:
+        self.hotkey_listener = HotkeyListener(self.settings.hotkey)
+        self.hotkey_listener.capture_signal.connect(self.start_capture)
+        self.hotkey_listener.start()
+        logger.info(f"Settings applied, hotkey: {self.settings.hotkey}")
 
     def cleanup(self) -> None:
         if hasattr(self, 'hotkey_listener'):

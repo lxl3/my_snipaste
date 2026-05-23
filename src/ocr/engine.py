@@ -9,6 +9,7 @@ from PySide6.QtCore import QThread, Signal
 
 from ..core.utils import qpixmap_to_pil, qimage_to_pil
 from ..core.logger import setup_logger
+from ..core.settings import get_settings
 
 logger = setup_logger("ocr")
 
@@ -81,7 +82,8 @@ def extract_text(pixmap_or_qimage) -> str:
         pil_image = qimage_to_pil(pixmap_or_qimage)
 
     try:
-        text = pytesseract.image_to_string(pil_image, lang='eng+chi_sim')
+        lang = get_settings().ocr_language
+        text = pytesseract.image_to_string(pil_image, lang=lang)
         return text.strip()
     except Exception as e:
         logger.error(f"OCR 识别失败: {e}")
@@ -98,6 +100,7 @@ class OcrWorker(QThread):
         self.pil_image = pil_image
         self._proc: subprocess.Popen | None = None
         self._cancelled: bool = False
+        self._ocr_lang: str = get_settings().ocr_language
 
     def cancel(self) -> None:
         self._cancelled = True
@@ -118,7 +121,7 @@ class OcrWorker(QThread):
             output_base = os.path.join(tmp_dir, "output")
             tess_cmd = pytesseract.pytesseract.tesseract_cmd
             self._proc = subprocess.Popen(
-                [tess_cmd, input_path, output_base, "-l", "eng+chi_sim"],
+                [tess_cmd, input_path, output_base, "-l", self._ocr_lang],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
 

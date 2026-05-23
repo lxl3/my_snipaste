@@ -11,6 +11,7 @@ from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, QTimer
 
 from ..core.utils import capture_all_screens
+from ..core.settings import get_settings
 from .toolbar import OverlayToolbar
 from .rendering import OverlayRenderingMixin
 from .actions import OverlayActionsMixin
@@ -60,8 +61,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._drag_start_rect: QRect = QRect()
 
         self.current_tool: str = "select"
-        self.current_color: QColor = QColor(DEFAULT_ANNOTATION_COLOR)
-        self.current_width: int = DEFAULT_LINE_WIDTH
+        s = get_settings()
+        self.current_color: QColor = QColor(s.default_color)
+        self.current_width: int = s.default_line_width
         self.annotations: list[dict] = []
         self._redo_stack: list[dict] = []
         self._drawing: bool = False
@@ -80,11 +82,12 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._text_editor: QLineEdit | None = None
         self._text_editor_pos: QPointF | None = None
 
-        self.text_font_family: str = DEFAULT_FONT_FAMILY
-        self.text_font_size: int = DEFAULT_FONT_SIZE
+        s = get_settings()
+        self.text_font_family: str = s.default_font_family
+        self.text_font_size: int = s.default_font_size
         self.text_bold: bool = False
         self.text_italic: bool = False
-        self.text_color: QColor = QColor(DEFAULT_ANNOTATION_COLOR)
+        self.text_color: QColor = QColor(s.default_color)
 
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)

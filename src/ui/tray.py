@@ -2,6 +2,7 @@ import platform
 import subprocess
 
 from PySide6.QtGui import QAction, QIcon
+from PySide6.QtCore import Signal, QObject
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QDialog, QTextEdit, QVBoxLayout, QPushButton, QHBoxLayout
 
 from ..core.utils import create_app_icon
@@ -10,8 +11,10 @@ from ..core.logger import setup_logger, get_current_log_path, get_log_dir
 logger = setup_logger("tray")
 
 
-class TrayManager:
+class TrayManager(QObject):
+    settings_requested = Signal()
     def __init__(self, app) -> None:
+        super().__init__()
         self.app = app
         self.tray_icon: QSystemTrayIcon | None = None
         self._menubar = None
@@ -42,11 +45,16 @@ class TrayManager:
         quit_action = QAction("退出", self.app)
         quit_action.triggered.connect(self.app.quit)
 
+        settings_action = QAction("Settings...", self.app)
+        settings_action.triggered.connect(self._open_settings)
+
         if platform.system() == "Darwin":
             self.tray_icon.activated.connect(lambda r: self.app.start_capture())
             from PySide6.QtWidgets import QMenuBar
             self._menubar = QMenuBar()
             app_menu = self._menubar.addMenu("MySnipaste")
+            app_menu.addAction(settings_action)
+            app_menu.addSeparator()
             app_menu.addAction(ocr_action)
             app_menu.addSeparator()
             app_menu.addAction(log_dir_action)
@@ -66,6 +74,7 @@ class TrayManager:
             menu.addSeparator()
             menu.addAction(quit_action)
 
+            menu.addAction(settings_action)
             self.tray_icon.setContextMenu(menu)
             self.tray_icon.activated.connect(self._on_tray_activated)
             logger.info("托盘菜单已配置")
@@ -119,6 +128,9 @@ class TrayManager:
     def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.app.start_capture()
+
+    def _open_settings(self) -> None:
+        self.settings_requested.emit()
 
     def cleanup(self) -> None:
         if self.tray_icon:
