@@ -350,6 +350,7 @@ def build_app():
     cmd.extend([
         "--hidden-import", "PySide6.QtCore",
         "--hidden-import", "PySide6.QtGui",
+        "--hidden-import", "PySide6.QtSvg",
         "--hidden-import", "PySide6.QtWidgets",
         "--hidden-import", "pytesseract",
         "--hidden-import", "PIL._tkinter_finder",

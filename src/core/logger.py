@@ -15,16 +15,14 @@ class LogColors:
     RESET = "\033[0m"
     BOLD = "\033[1m"
 
-    # 等级颜色
-    DEBUG = "\033[36m"      # 青色
-    INFO = "\033[32m"       # 绿色
-    WARNING = "\033[33m"    # 黄色
-    ERROR = "\033[31m"      # 红色
-    CRITICAL = "\033[35m"   # 紫色
+    DEBUG = "\033[36m"
+    INFO = "\033[32m"
+    WARNING = "\033[33m"
+    ERROR = "\033[31m"
+    CRITICAL = "\033[35m"
 
-    # 组件颜色
-    TIME = "\033[90m"       # 灰色
-    NAME = "\033[94m"       # 蓝色
+    TIME = "\033[90m"
+    NAME = "\033[94m"
 
 
 class ColoredFormatter(logging.Formatter):
@@ -39,24 +37,15 @@ class ColoredFormatter(logging.Formatter):
     }
 
     def format(self, record):
-        # 保存原始 levelname
         levelname_orig = record.levelname
-
-        # 添加颜色
         level_color = self.LEVEL_COLORS.get(record.levelno, LogColors.RESET)
         record.levelname = f"{level_color}{record.levelname:8s}{LogColors.RESET}"
 
-        # 格式化时间（灰色）
         record.asctime = self.formatTime(record, self.datefmt)
         colored_time = f"{LogColors.TIME}{record.asctime}{LogColors.RESET}"
-
-        # 格式化名称（蓝色）
         colored_name = f"{LogColors.NAME}{record.name}{LogColors.RESET}"
-
-        # 构建最终消息
         message = f"{colored_time} [{record.levelname}] {colored_name}: {record.getMessage()}"
 
-        # 处理异常
         if record.exc_info:
             if not record.exc_text:
                 record.exc_text = self.formatException(record.exc_info)
@@ -65,7 +54,6 @@ class ColoredFormatter(logging.Formatter):
         if record.stack_info:
             message = f"{message}\n{self.formatStack(record.stack_info)}"
 
-        # 恢复原始 levelname
         record.levelname = levelname_orig
 
         return message
@@ -88,21 +76,18 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # 避免重复添加 handler
     if logger.handlers:
         return logger
 
-    # ========== 控制台 Handler（彩色） ==========
+    # ─── Console handler (colored) ───
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
 
     if enable_colors and (sys.platform != "win32" or "ANSICON" in os.environ or "WT_SESSION" in os.environ):
-        # Windows Terminal、Linux、macOS 支持颜色
         console_formatter = ColoredFormatter(
             datefmt="%H:%M:%S"
         )
     else:
-        # 降级到普通格式
         console_formatter = logging.Formatter(
             fmt="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
             datefmt="%H:%M:%S"
@@ -111,7 +96,7 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
-    # ========== 文件 Handler（按大小轮转） ==========
+    # ─── File handler (rotating) ───
     global _LOG_DIR
     if getattr(sys, 'frozen', False):
         _LOG_DIR = os.path.expanduser("~/Library/Logs/MySnipaste")
@@ -119,31 +104,27 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
         _LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
     log_dir = _LOG_DIR
 
-    # 创建按日期命名的子目录
     today = datetime.now().strftime("%Y-%m-%d")
     daily_log_dir = os.path.join(log_dir, today)
     os.makedirs(daily_log_dir, exist_ok=True)
 
-    # 文件格式化器（无颜色）
     file_formatter = logging.Formatter(
         fmt="%(asctime)s [%(levelname)-8s] %(name)s:%(lineno)d - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
     try:
-        # 1. 主日志文件（所有级别）- 轮转
         all_log_file = os.path.join(daily_log_dir, "app.log")
         all_handler = RotatingFileHandler(
             all_log_file,
             maxBytes=5 * 1024 * 1024,  # 5MB
-            backupCount=5,              # 保留 5 个备份
+            backupCount=5,
             encoding="utf-8"
         )
         all_handler.setLevel(logging.DEBUG)
         all_handler.setFormatter(file_formatter)
         logger.addHandler(all_handler)
 
-        # 2. 错误日志文件（只记录 ERROR 和 CRITICAL）- 轮转
         error_log_file = os.path.join(daily_log_dir, "error.log")
         error_handler = RotatingFileHandler(
             error_log_file,
@@ -156,13 +137,27 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
         logger.addHandler(error_handler)
 
     except Exception as e:
-        # 如果无法写入日志文件，在控制台警告但不中断程序
-        print(f"警告: 无法创建日志文件: {e}", file=sys.stderr)
+        print(f"Warning: cannot create log file: {e}", file=sys.stderr)
+
+    # ─── /tmp/ fallback (for packaged app) ───
+    try:
+        tmp_log = "/tmp/my_snipaste.log"
+        tmp_handler = RotatingFileHandler(
+            tmp_log,
+            maxBytes=2 * 1024 * 1024,
+            backupCount=2,
+            encoding="utf-8",
+        )
+        tmp_handler.setLevel(logging.DEBUG)
+        tmp_handler.setFormatter(file_formatter)
+        logger.addHandler(tmp_handler)
+    except Exception:
+        pass
 
     return logger
 
 
-# 预定义的日志记录器
+# Pre-defined loggers
 logger = setup_logger()
 
 

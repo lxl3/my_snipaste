@@ -8,9 +8,9 @@ logger = setup_logger("pin_window")
 
 
 class PinWindow(QWidget):
-    """贴图悬浮窗口，带居中投影阴影效果。"""
+    """Floating pinned window with centered drop shadow."""
 
-    SHADOW_SIZE = 6  # 阴影宽度（像素）
+    SHADOW_SIZE = 6  # shadow width in pixels
 
     def __init__(self, pixmap: QPixmap, pos):
         super().__init__()

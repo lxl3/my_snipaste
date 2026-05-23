@@ -73,7 +73,7 @@ class ScreenCaptureError(RuntimeError):
 def _grab_and_fit(screen: "QScreen") -> QPixmap:
     geo = screen.geometry()
     pixmap = screen.grabWindow(0)
-    _dbg(f"_grab_and_fit({screen.name()}): isNull={pixmap.isNull()} "
+    logger.debug(f"_grab_and_fit({screen.name()}): isNull={pixmap.isNull()} "
          f"w={pixmap.width()} h={pixmap.height()} "
          f"expected=({geo.width()}x{geo.height()})")
     if pixmap.isNull() or pixmap.width() <= 1 or pixmap.height() <= 1:
@@ -85,11 +85,6 @@ def _grab_and_fit(screen: "QScreen") -> QPixmap:
     pixmap.setDevicePixelRatio(dpr)
     return pixmap
 
-
-def _dbg(msg: str):
-    import time as _t
-    with open("/tmp/my_snipaste_capture.log", "a") as f:
-        f.write(f"[{_t.strftime('%H:%M:%S')}] {msg}\n")
 
 
 def qpixmap_to_pil(pixmap: QPixmap) -> "PILImage":
@@ -121,7 +116,6 @@ def create_app_icon() -> QIcon:
     Returns:
         QIcon: 应用图标对象
     """
-    # 尝试加载自定义 PNG 图标（系统托盘推荐）
     icon_sizes = [256, 128, 48, 32, 16]
     icon = QIcon()
 
@@ -130,16 +124,12 @@ def create_app_icon() -> QIcon:
         if os.path.exists(icon_path):
             icon.addFile(icon_path)
 
-    # 如果自定义图标加载成功，返回
     if not icon.isNull():
         return icon
-
-    # 如果 PNG 都不存在，尝试 ICO
     ico_path = resource_path("icon.ico")
     if os.path.exists(ico_path):
         return QIcon(ico_path)
 
-    # 回退：生成默认图标
     pixmap = QPixmap(64, 64)
     pixmap.fill(Qt.transparent)
     painter = QPainter(pixmap)

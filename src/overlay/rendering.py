@@ -1,4 +1,4 @@
-"""截图覆盖层绘图渲染 Mixin。"""
+"""Overlay rendering mixin for annotations."""
 
 import math
 
@@ -11,61 +11,51 @@ from ..core.constants import (
 
 
 class OverlayRenderingMixin:
-    """提供覆盖层上所有标注的绘制/渲染逻辑。
+    """Rendering logic for all annotation types.
 
-    子类必须提供:
+    Subclass must provide:
+    - self.selection_rect (QRectF)
     - self.full_screenshot (QPixmap)
-    - self.selection_rect (QRect)
-    - self.annotations (list)
+    - self.annotations (list[dict])
     - self._preview_annotation (dict | None)
-    - self.current_mouse_pos (QPoint)
-    - self.current_color (QColor)
-    - self.current_width (int)
-    - self.total_geometry (QRect)
-    - 标准 QWidget 方法: self.rect(), self.height(), self.width()
+
+    Mixin expects host QWidget methods: rect(), height(), width()
     """
 
     def _render_annotated_pixmap(self) -> QPixmap:
-        """从截图中抠出选区，再画上标注。
+        """Crop selection from screenshot and draw annotations.
 
-        重要：高 DPI 显示器需要手动转换坐标
-        - selection_rect 是逻辑坐标（屏幕坐标）
-        - full_screenshot 的物理尺寸 = 逻辑尺寸 × devicePixelRatio
-        - 必须用物理坐标从 full_screenshot 中 copy，否则会复制错误的区域
+        High DPI note: coordinate conversion is manual.
+        - selection_rect is in logical (screen) coords
+        - full_screenshot physical size = logical size × devicePixelRatio
+        - must copy from full_screenshot in physical coords
         """
         logical_rect = self.selection_rect
         if logical_rect.isNull():
             return QPixmap()
 
-        # 获取设备像素比（高 DPI 显示器 > 1.0）
-        dpr = self.full_screenshot.devicePixelRatio()
+        dpr = screen.devicePixelRatio()
 
-        # 将逻辑坐标转换为物理坐标
-        physical_rect = QRect(
-            int(logical_rect.x() * dpr),
-            int(logical_rect.y() * dpr),
-            int(logical_rect.width() * dpr),
-            int(logical_rect.height() * dpr)
+        phys_rect = QRect(
+            int(stream_rect.x() * dpr),
+            int(stream_rect.y() * dpr),
+            int(stream_rect.width() * dpr),
+            int(stream_rect.height() * dpr),
         )
 
-        # 使用物理坐标复制
-        result = self.full_screenshot.copy(physical_rect)
+        cropped = screenshot.copy(phys_rect)
+        cropped.setDevicePixelRatio(dpr)
 
-        # 设置结果的 DPR，确保显示时正确缩放
-        result.setDevicePixelRatio(dpr)
+        self._draw_annotations(painter, cropped.size() / dpr, QPointF(0, 0))
 
-        # 在结果上绘制标注（使用逻辑坐标）
-        painter = QPainter(result)
-        painter.setRenderHint(QPainter.Antialiasing)
-
-        # 标注是相对于选区左上角的逻辑坐标，offset 为 (0, 0)
+        # annotations use logical coords relative to selection top-left; offset = (0,0)
         self._draw_annotations(painter, logical_rect.size(), QPoint(0, 0))
         painter.end()
 
         return result
 
     def _draw_annotations(self, painter, sel_size, offset):
-        """在 painter 上绘制 annotations + preview。"""
+        """Draw annotations + preview on painter."""
         for ann in self.annotations:
             self._draw_one_annotation(painter, ann, offset)
         if self._preview_annotation:
@@ -151,7 +141,7 @@ class OverlayRenderingMixin:
         dpr = self.full_screenshot.devicePixelRatio()
         scale = MOSAIC_SCALE_FACTOR
 
-        # ann["rect"] 是相对选区左上角的局部坐标 → 全局坐标 = 局部 + 选区偏移
+        # ann["rect"] is local to selection top-left → global = local + offset
         local_rect = QRectF(ann["rect"])
         global_x = round((local_rect.x() + self.selection_rect.x()) * dpr)
         global_y = round((local_rect.y() + self.selection_rect.y()) * dpr)
@@ -179,6 +169,6 @@ class OverlayRenderingMixin:
         font.setItalic(ann["italic"])
         painter.setFont(font)
         painter.setPen(QColor(ann["color"]))
-        # drawText(QPointF, text) 将 y 坐标作为基线，需要加上 ascent 使文本顶部对齐点击位置
+        # drawText(QPointF, text) uses y as baseline; add ascent to align top with click point
         fm = painter.fontMetrics()
         painter.drawText(QPointF(pos.x(), pos.y() + fm.ascent()), ann["text"])

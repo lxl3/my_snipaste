@@ -2,9 +2,9 @@ import os
 import sys
 import subprocess
 import tempfile
+import shutil
 import pytesseract
 from PIL import Image
-from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import QThread, Signal
 
 from ..core.utils import qpixmap_to_pil, qimage_to_pil
@@ -88,28 +88,62 @@ def extract_text(pixmap_or_qimage) -> str:
 
 
 class OcrWorker(QThread):
-    """后台 OCR 工作线程（支持安全取消）"""
+    """后台 OCR 工作线程，可安全取消（终止 tesseract 子进程而非线程）"""
     finished = Signal(str)
     error = Signal(str)
 
     def __init__(self, pil_image):
         super().__init__()
         self.pil_image = pil_image
+        self._proc = None
         self._cancelled = False
 
     def cancel(self):
         self._cancelled = True
+        if self._proc:
+            self._proc.kill()
 
     def run(self):
+        tmp_dir = None
         try:
             if not ensure_tesseract_ready():
                 self.error.emit("Tesseract OCR 引擎未就绪")
                 return
-            text = pytesseract.image_to_string(
-                self.pil_image, lang='eng+chi_sim',
+
+            tmp_dir = tempfile.mkdtemp(prefix="mysnipaste_ocr_")
+            input_path = os.path.join(tmp_dir, "input.png")
+            self.pil_image.save(input_path, format="PNG")
+
+            output_base = os.path.join(tmp_dir, "output")
+            tess_cmd = pytesseract.pytesseract.tesseract_cmd
+            self._proc = subprocess.Popen(
+                [tess_cmd, input_path, output_base, "-l", "eng+chi_sim"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
+
+            try:
+                self._proc.communicate(timeout=60)
+            except subprocess.TimeoutExpired:
+                self._proc.kill()
+                self._proc.wait()
+                self._proc = None
+                if not self._cancelled:
+                    self.error.emit("OCR 超时")
+                return
+
+            output_path = output_base + ".txt"
+            text = ""
+            if os.path.exists(output_path):
+                with open(output_path, "r", encoding="utf-8") as f:
+                    text = f.read().strip()
+
             if not self._cancelled:
-                self.finished.emit(text.strip())
+                self.finished.emit(text)
+
         except Exception as e:
             if not self._cancelled:
                 self.error.emit(str(e))
+        finally:
+            self._proc = None
+            if tmp_dir:
+                shutil.rmtree(tmp_dir, ignore_errors=True)

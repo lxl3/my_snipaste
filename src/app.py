@@ -25,15 +25,9 @@ from .ui.tray import TrayManager
 logger = setup_logger("app")
 
 
-def _dbg_app(msg: str):
-    """写调试日志到 /tmp/my_snipaste_app.log"""
-    import time as _t
-    with open("/tmp/my_snipaste_app.log", "a") as _f:
-        _f.write(f"[{_t.strftime('%H:%M:%S')}] {msg}\n")
-
 
 def _show_dialog(icon, title, text):
-    """显示一个必定置顶的对话框，避免被其他窗口挡住。"""
+    """Show an always-on-top dialog to ensure visibility."""
     _mac_activate_app()
     msg = QMessageBox()
     msg.setIcon(icon)
@@ -45,7 +39,7 @@ def _show_dialog(icon, title, text):
 
 
 def _mac_activate_app():
-    """macOS: 强制把 app 提到前台（后台托盘 app 需要）"""
+    """macOS: bring app to foreground (needed for tray app)."""
     if sys.platform != 'darwin':
         return
     try:
@@ -109,7 +103,7 @@ class SnipasteApp(QApplication):
         logger.info("启动提示框已关闭")
 
     def start_capture(self):
-        _dbg_app("start_capture 被调用")
+        logger.debug("start_capture 被调用")
         logger.info("start_capture() 被调用")
         _mac_activate_app()
         if self.overlay is not None:
@@ -117,10 +111,10 @@ class SnipasteApp(QApplication):
             self.overlay.deleteLater()
             self.overlay = None
 
-        # macOS: 检测屏幕录制权限
+        # macOS: check screen recording permission
         if sys.platform == "darwin":
             perm = check_screen_recording_permission()
-            _dbg_app(f"权限检测结果: {perm}")
+            logger.debug(f"权限检测结果: {perm}")
             if perm is False:
                 show_permission_guide()
                 open_screen_recording_settings()
@@ -140,7 +134,7 @@ class SnipasteApp(QApplication):
             self.overlay = CaptureOverlay()
         except ScreenCaptureError as e:
             logger.error(f"截屏失败: {e}")
-            _dbg_app(f"ScreenCaptureError: {e}")
+            logger.debug(f"ScreenCaptureError: {e}")
             show_permission_guide()
             open_screen_recording_settings()
             _show_dialog(
@@ -155,7 +149,7 @@ class SnipasteApp(QApplication):
             return
         except Exception as e:
             logger.exception(f"截图异常: {e}")
-            _dbg_app(f"意外异常: {e}")
+            logger.debug(f"意外异常: {e}")
             return
         self.overlay.pin_requested.connect(self._on_pin)
         self.overlay.copy_requested.connect(self._on_copy)

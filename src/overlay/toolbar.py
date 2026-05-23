@@ -342,7 +342,7 @@ class OverlayToolbar:
             tool_btn.setCheckable(True)
             tool_btn.setProperty("tool_type", tool_id)
             tool_btn.setStyleSheet(SUBMENU_STYLE)
-            # 始终激活工具，不切换回 select
+            # keep tool active, do not revert to select
             tool_btn.clicked.connect(
                 lambda checked, t=tool_id, b=eraser_btn, ic=icon_key, m=eraser_menu:
                 self._select_eraser_subtool(t, b, ic, m)
@@ -361,7 +361,7 @@ class OverlayToolbar:
         self._tool_btns["eraser_dot"] = eraser_btn
 
     def _select_eraser_subtool(self, tool_id, btn, icon_name, menu_obj):
-        """始终设置橡皮擦子工具，不切换回 select。"""
+        """Always activate eraser subtool, do not revert to select."""
         self._select_tool(tool_id, btn, icon_name)
         self._update_submenu_check_state(menu_obj, tool_id)
 
@@ -442,7 +442,7 @@ class OverlayToolbar:
             b.setChecked(False)
 
     def _toggle_or_open_menu(self, menu, button, tool_ids):
-        """子菜单主按钮单击逻辑：工具激活时切换到选择（拖动），否则打开菜单。"""
+        """Sub-menu main button: if tool active, switch to select; otherwise open menu."""
         if self.overlay.current_tool in tool_ids:
             self._select_tool("select")
             if menu.isVisible():

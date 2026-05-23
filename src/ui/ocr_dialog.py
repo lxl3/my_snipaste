@@ -1,4 +1,4 @@
-"""OCR 结果对话框。"""
+"""OCR result dialog."""
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
 
 
 class OcrResultDialog(QDialog):
-    """OCR 结果对话框 - 现代极简风格 + 智能排版"""
+    """Minimal OCR result dialog with smart layout."""
 
     def __init__(self, text: str, parent=None):
         super().__init__(parent)
@@ -138,14 +138,14 @@ class OcrResultDialog(QDialog):
 
     def close_dialog_only(self):
         """只关闭对话框，不关闭截图编辑器"""
-        # 保存当前选中文本，防止关闭时被清空
+        # save selected text before closing
         cursor = self.text_edit.textCursor()
         if cursor.hasSelection():
             QApplication.clipboard().setText(cursor.selectedText())
         self.accept()
 
     def mousePressEvent(self, event):
-        # 不accept，让事件传播到子控件（QTextEdit需要接收事件）
+        # do not accept; let event propagate to child QTextEdit
         if event.button() == Qt.LeftButton:
             self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
         super().mousePressEvent(event)
@@ -171,17 +171,17 @@ class OcrResultDialog(QDialog):
         line_count = text.count('\n') + 1
         char_count = len(text)
 
-        # 估算高度：每行约 22px + padding
+        # estimate height: ~22px per line + padding
+        line_count = text.count('\n') + 1
         estimated_height = line_count * 22 + 40
 
-        # 最小高度 100px，最大高度 450px
         min_height = 100
         max_height = 450
 
         final_height = max(min_height, min(estimated_height, max_height))
         self.text_edit.setFixedHeight(final_height)
 
-        # 智能滚动条
+        # smart scrollbars
         if char_count < 150:
             self.text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             self.text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -213,7 +213,7 @@ class OcrResultDialog(QDialog):
         cursor = self.text_edit.textCursor()
         if cursor.hasSelection():
             self._last_selected_text = cursor.selectedText()
-        # 不清空！失去焦点时保留最后的选中文本
+        # do NOT clear; keep selected text when focus is lost
 
     def _copy_and_close_editor(self):
         """复制文本（优先选中内容），然后关闭截图编辑器"""

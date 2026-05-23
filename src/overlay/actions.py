@@ -1,4 +1,4 @@
-"""截图覆盖层动作/操作 Mixin（OCR、保存、撤销、擦除、文本编辑）。"""
+"""Overlay action/operation mixin (OCR, save, undo/redo, erase, text edit)."""
 
 import math
 
@@ -11,29 +11,18 @@ logger = setup_logger("overlay_actions")
 
 
 class OverlayActionsMixin:
-    """提供覆盖层上的交互动作：OCR、pin/copy/save、undo/redo、擦除、文本编辑。
+    """Annotation actions: OCR, pin/copy/save, undo/redo, erase, text editing.
 
-    子类必须提供:
-    - self.selection_rect (QRect)
+    Subclass must provide:
+    - self.selection_rect (QRectF)
+    - self.annotations (list[dict])
+    - self._redo_stack (list[dict])
     - self.full_screenshot (QPixmap)
-    - self.annotations (list)
-    - self._redo_stack (list)
-    - self.current_tool (str)
-    - self.current_color (QColor)
-    - self.current_width (int)
-    - self.text_font_family (str)
-    - self.text_font_size (int)
-    - self.text_bold (bool)
-    - self.text_italic (bool)
-    - self.text_color (QColor)
-    - self._text_editor (QLineEdit | None)
-    - self._text_editor_pos (QPointF | None)
-    - self.toolbar (object) — 至少提供 update_undo_redo_state()
-    - self.pin_requested (Signal)
-    - self.copy_requested (Signal)
-    - self.save_requested (Signal)
-    - QWidget 方法: self.close(), self.update(), self.grabKeyboard(),
-      self.releaseKeyboard(), self.setCursor(), self.fontMetrics()
+    - self.current_mouse_pos (QPoint)
+    - self.toolbar (object) — at minimum update_undo_redo_state()
+
+    Mixin expects host to have:
+    - QWidget: close(), update(), grabKeyboard(), releaseKeyboard()
     """
 
     # ─── OCR ───
@@ -164,7 +153,7 @@ class OverlayActionsMixin:
         return math.hypot(point.x() - proj_x, point.y() - proj_y)
 
     def _erase_all_in_selection(self):
-        """填充擦除：删除当前选区内的所有标注。"""
+        """Fill erase: delete all annotations inside the current selection."""
         if self.selection_rect.isNull():
             return
         sel_rect = QRectF(self.selection_rect)
@@ -176,7 +165,7 @@ class OverlayActionsMixin:
                 ann_global = QRectF(ann["rect"]).translated(QPointF(self.selection_rect.topLeft()))
                 keep = not sel_rect.intersects(ann_global.toRect())
             elif t in ("arrow", "line"):
-                # 保留线段两个端点都不在选区内的
+                # keep segment if neither endpoint is inside the new selection
                 start_in = sel_rect.contains(ann["start"] + QPointF(self.selection_rect.topLeft()))
                 end_in = sel_rect.contains(ann["end"] + QPointF(self.selection_rect.topLeft()))
                 keep = not (start_in or end_in)
@@ -204,15 +193,15 @@ class OverlayActionsMixin:
             self.update()
 
     def _erase_in_rect(self, erase_rect):
-        """删除指定矩形区域内的所有标注（全局坐标）。
+        """Delete all annotations inside a rectangle (global coords).
 
         Args:
-            erase_rect: QRect，全局坐标系下的矩形区域
+            erase_rect: QRect in global coordinates
         """
         if self.selection_rect.isNull() or erase_rect.isNull():
             return
 
-        # 转换为相对于选区的局部矩形
+        # convert to coords relative to selection top-left
         local_erase = QRectF(
             erase_rect.x() - self.selection_rect.x(),
             erase_rect.y() - self.selection_rect.y(),
@@ -225,20 +214,16 @@ class OverlayActionsMixin:
             t = ann["type"]
             keep = False
             if t in ("rect", "ellipse", "mosaic"):
-                # 检查标注矩形是否与擦除区域相交
                 keep = not local_erase.intersects(ann["rect"])
             elif t in ("arrow", "line"):
-                # 检查线段两个端点是否在擦除区域内
                 start_in = local_erase.contains(ann["start"])
                 end_in = local_erase.contains(ann["end"])
                 keep = not (start_in or end_in)
             elif t == "freehand":
-                # 检查是否有任何点在擦除区域内
                 pts = ann["points"]
                 any_in = any(local_erase.contains(p) for p in pts)
                 keep = not any_in
             elif t == "text":
-                # 检查文字位置是否在擦除区域内
                 keep = not local_erase.contains(ann["pos"])
             else:
                 keep = True

@@ -2,35 +2,35 @@
 
 from PySide6.QtGui import QColor
 
-# ─── 颜色 ───
+# ─── Colors ───
 DEFAULT_ANNOTATION_COLOR = QColor(255, 50, 50)
 SELECTION_BORDER_COLOR = QColor(0, 120, 215)
 DIM_OVERLAY_COLOR = QColor(0, 0, 0, 140)
 BORDER_BLUE = QColor(10, 125, 255, 80)
 
-# ─── 尺寸 ───
+# ─── Sizes ───
 HANDLE_SIZE = 8
 MIN_SELECTION_SIZE = 5
 MIN_DRAW_THRESHOLD = 3
 TOOLBAR_MARGIN = 8
 WIDGET_MARGIN = 10
 ARROW_SIZE_BASE = 10
-ARROW_SPREAD_ANGLE = 3.14159 / 6  # math.pi / 6
+ARROW_SPREAD_ANGLE = 3.14159 / 6
 MOSAIC_SCALE_FACTOR = 8
 
-# ─── 文本 ───
+# ─── Text ───
 DEFAULT_FONT_FAMILY = "Segoe UI"
 DEFAULT_FONT_SIZE = 20
 DEFAULT_LINE_WIDTH = 3
 
-# ─── 工具栏 ───
+# ─── Toolbar ───
 TOOLBAR_HEIGHT = 28
 ICON_RENDER_SIZE = 48
 ICON_SIZE_SMALL = 16
 ICON_SIZE_MENU = 20
 ICON_SIZE_BTN = 24
 
-# ─── 编辑器 ───
+# ─── Editor ───
 SCREEN_MARGIN = 20
 MIN_EDITOR_SIZE = (100, 100)
 DRAG_THRESHOLD = 10
@@ -38,7 +38,7 @@ ZOOM_FACTOR = 1.15
 RESIZE_DEBOUNCE_MS = 50
 ARROWHEAD_SIZE_BASE = 12
 
-# ─── 阴影 ───
+# ─── Shadow ───
 SHADOW_BLUR = 15
 SHADOW_OFFSET = (0, 2)
 SHADOW_COLOR = QColor(0, 0, 0, 60)
@@ -46,14 +46,14 @@ TOOLBAR_SHADOW_BLUR = 12
 TOOLBAR_SHADOW_OFFSET = (2, 2)
 TOOLBAR_SHADOW_COLOR = QColor(0, 0, 0, 120)
 
-# ─── 预设颜色 ───
+# ─── Preset Colors ───
 PRESET_COLORS = ["#ff3232", "#ff8c00", "#ffd700", "#32cd32", "#1e90ff", "#8a2be2", "#ffffff", "#000000"]
 TEXT_PRESET_COLORS = [
     ["#000000", "#ffffff", "#ff3232", "#ff8c00", "#ffd700"],
     ["#32cd32", "#1e90ff", "#8a2be2", "#ff69b4", "#808080"]
 ]
 
-# ─── 计时器 ───
+# ─── Timers ───
 NOTIFICATION_DELAY_MS = 500
 STARTUP_NOTIFICATION_TIMEOUT_MS = 3000
 NO_HOTKEY_NOTIFICATION_TIMEOUT_MS = 5000
