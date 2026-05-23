@@ -144,7 +144,6 @@ class _PynputListener(QObject):
                 logger.debug("PynputListener 监听循环已退出！pynput 线程静默结束了")
 
         except Exception as e:
-            logger.debug(f"pynput 监听失败: {e}")
             logger.error(f"pynput 监听失败: {e}")
 
     def _normalize(self, key) -> object:

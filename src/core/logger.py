@@ -161,6 +161,14 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
 logger = setup_logger()
 
 
+def apply_log_level(level_str: str) -> None:
+    """Apply a log level string (DEBUG/INFO/WARNING/ERROR) to the root logger at runtime."""
+    level = getattr(logging, level_str.upper(), logging.DEBUG)
+    logging.getLogger("MySnipaste").setLevel(level)
+    for handler in logging.getLogger("MySnipaste").handlers:
+        handler.setLevel(level)
+
+
 def get_logger(name):
     """获取指定名称的日志记录器（继承主配置）"""
     return logging.getLogger(f"MySnipaste.{name}")

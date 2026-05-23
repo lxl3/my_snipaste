@@ -63,6 +63,7 @@ class EditorWindow(QWidget, OcrMixin):
         self.view.source_pixmap = pixmap
         self.view.current_color = QColor(DEFAULT_ANNOTATION_COLOR)
         self.view.current_width = DEFAULT_LINE_WIDTH
+        self.view.annotation_added.connect(self._on_annotation_added)
 
         self.undo_stack: list = []
         self.redo_stack: list = []
@@ -77,17 +78,25 @@ class EditorWindow(QWidget, OcrMixin):
         self.toolbar = EditorToolbar(self)
         self.toolbar.setup()
 
+    def _on_annotation_added(self, item) -> None:
+        self.undo_stack.append(item)
+        self.redo_stack.clear()
+        self.toolbar.update_undo_redo_state()
+
     def _undo(self) -> None:
         if self.undo_stack:
-            self.redo_stack.append(self.undo_stack.pop())
+            item = self.undo_stack.pop()
+            self.view._items.pop()
+            self.scene.removeItem(item)
+            self.redo_stack.append(item)
             self.toolbar.update_undo_redo_state()
-            if self.view._items:
-                item = self.view._items.pop()
-                self.scene.removeItem(item)
 
     def _redo(self) -> None:
         if self.redo_stack:
-            self.undo_stack.append(self.redo_stack.pop())
+            item = self.redo_stack.pop()
+            self.scene.addItem(item)
+            self.view._items.append(item)
+            self.undo_stack.append(item)
             self.toolbar.update_undo_redo_state()
 
     def _render_pixmap(self) -> QPixmap:

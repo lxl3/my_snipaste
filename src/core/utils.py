@@ -1,10 +1,9 @@
-import io
 import sys
 import os
 from typing import TYPE_CHECKING
 
 from PIL import Image
-from PySide6.QtCore import Qt, QRect, QRectF, QSize, QBuffer, QIODevice
+from PySide6.QtCore import Qt, QRect, QRectF, QSize
 from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen, QScreen
 from PySide6.QtWidgets import QApplication
 from PySide6.QtSvg import QSvgRenderer
@@ -88,26 +87,19 @@ def _grab_and_fit(screen: "QScreen") -> QPixmap:
 
 
 def qpixmap_to_pil(pixmap: QPixmap) -> "PILImage":
-    qimage = pixmap.toImage()
-    buffer = QBuffer()
-    buffer.open(QIODevice.ReadWrite)
-    qimage.save(buffer, "PNG")
-    return Image.open(io.BytesIO(buffer.data()))
+    return qimage_to_pil(pixmap.toImage())
 
 
 def qimage_to_pil(qimage: QImage) -> "PILImage":
-    buffer = QBuffer()
-    buffer.open(QIODevice.ReadWrite)
-    qimage.save(buffer, "PNG")
-    return Image.open(io.BytesIO(buffer.data()))
+    qimage = qimage.convertToFormat(QImage.Format_RGBA8888)
+    ptr = qimage.constBits()
+    ptr.setsize(qimage.sizeInBytes())
+    return Image.frombuffer("RGBA", (qimage.width(), qimage.height()), bytes(ptr))
 
 
 def pil_to_qpixmap(pil_image: "PILImage") -> QPixmap:
-    buffer = io.BytesIO()
-    pil_image.save(buffer, "PNG")
-    pixmap = QPixmap()
-    pixmap.loadFromData(buffer.getvalue(), "PNG")
-    return pixmap
+    from PIL.ImageQt import ImageQt
+    return QPixmap.fromImage(ImageQt(pil_image))
 
 
 def create_app_icon() -> QIcon:

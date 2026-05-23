@@ -22,7 +22,6 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._settings: AppSettings = get_settings()
-        self._dirty: bool = False
         self._build_ui()
         self._load_settings()
 

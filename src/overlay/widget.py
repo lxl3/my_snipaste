@@ -353,13 +353,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def _on_color_changed(self, color: QColor) -> None:
         self.current_color = color
-        self.toolbar._color_picker_btn.setStyleSheet(f"""
-            QToolButton {{
-                border: 2px solid #ccc; border-radius: 18px;
-                background: {color.name()}; padding: 0px; margin: 0px;
-            }}
-            QToolButton:hover {{ border-color: #207ff0; }}
-        """)
         if self.current_tool == "mosaic":
             QTimer.singleShot(50, self.update)
 

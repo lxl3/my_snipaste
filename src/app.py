@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 from datetime import datetime
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence, QPixmap
@@ -11,7 +10,7 @@ from PySide6.QtWidgets import (
 from .overlay.widget import CaptureOverlay
 from .ocr.engine import extract_text
 from .core.utils import create_app_icon, ScreenCaptureError
-from .core.logger import setup_logger
+from .core.logger import setup_logger, apply_log_level
 from .core.settings import AppSettings, get_settings
 from .core.hotkeys import HotkeyListener
 from .core.permissions import (
@@ -70,6 +69,8 @@ class SnipasteApp(QApplication):
         self.pin_windows: list = []
         self.settings: AppSettings = get_settings()
 
+        apply_log_level(self.settings.log_level)
+
         self.setup_focused_hotkey()
 
         self.hotkey_listener = HotkeyListener(self.settings.hotkey)
@@ -108,7 +109,6 @@ class SnipasteApp(QApplication):
         logger.info("启动提示框已关闭")
 
     def start_capture(self) -> None:
-        logger.debug("start_capture 被调用")
         logger.info("start_capture() 被调用")
         _mac_activate_app()
         if self.overlay is not None:
@@ -139,7 +139,6 @@ class SnipasteApp(QApplication):
             self.overlay = CaptureOverlay()
         except ScreenCaptureError as e:
             logger.error(f"截屏失败: {e}")
-            logger.debug(f"ScreenCaptureError: {e}")
             show_permission_guide()
             open_screen_recording_settings()
             _show_dialog(
@@ -154,7 +153,6 @@ class SnipasteApp(QApplication):
             return
         except Exception as e:
             logger.exception(f"截图异常: {e}")
-            logger.debug(f"意外异常: {e}")
             return
         self.overlay.pin_requested.connect(self._on_pin)
         self.overlay.copy_requested.connect(self._on_copy)
