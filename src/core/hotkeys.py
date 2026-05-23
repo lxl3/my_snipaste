@@ -39,7 +39,8 @@ class HotkeyListener(QObject):
         logger.info(f"快捷键设置为: {self.hotkey} (平台: {sys.platform})")
 
     def start(self):
-        # 所有平台统一使用 pynput（macOS 下 CGEventSourceKeyState 在打包后不可用）
+        if self.running:
+            return
         self._listener = _PynputListener(self.hotkey)
         self._listener.capture_signal.connect(
             lambda: self.capture_signal.emit()
@@ -296,9 +297,6 @@ class _MacOSListener(QObject):
             if count % 200 == 0:
                 _d(f"心跳 #{count} {states}")
             time.sleep(0.05)
-
-    def __del__(self):
-        self.stop()
 
     def __del__(self):
         self.stop()

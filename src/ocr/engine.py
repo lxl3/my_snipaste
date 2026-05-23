@@ -1,5 +1,7 @@
 import os
 import sys
+import subprocess
+import tempfile
 import pytesseract
 from PIL import Image
 from PySide6.QtWidgets import QMessageBox
@@ -10,44 +12,32 @@ from ..core.logger import setup_logger
 
 logger = setup_logger("ocr")
 
-# Tesseract 初始化状态
 _tesseract_initialized = False
 
 
 def ensure_tesseract_ready():
-    """延迟初始化 Tesseract，只在首次使用时执行"""
     global _tesseract_initialized
     if _tesseract_initialized:
         return True
-
     _tesseract_initialized = True
     return setup_bundled_tesseract()
 
 
 def setup_bundled_tesseract():
-    """
-    当程序通过 PyInstaller 打包运行时，自动配置打包的 Tesseract 路径。
-    支持 Windows (.exe) 和 macOS (.app) 打包版本。
-    """
     if getattr(sys, 'frozen', False):
-        # 运行在打包的应用中（PyInstaller / Nuitka）
         if hasattr(sys, '_MEIPASS'):
             base_dir = sys._MEIPASS
         else:
             base_dir = os.path.dirname(sys.executable)
         tesseract_dir = os.path.join(base_dir, 'tesseract')
 
-        # 根据平台选择可执行文件名
         if sys.platform == 'win32':
             tesseract_exe = os.path.join(tesseract_dir, 'tesseract.exe')
-        else:  # macOS/Linux
+        else:
             tesseract_exe = os.path.join(tesseract_dir, 'tesseract')
 
         if os.path.exists(tesseract_exe):
-            # 设置 pytesseract 使用打包的 tesseract
             pytesseract.pytesseract.tesseract_cmd = tesseract_exe
-
-            # 设置语言包目录
             tesseract_data = os.path.join(tesseract_dir, 'tessdata')
             if os.path.exists(tesseract_data):
                 os.environ['TESSDATA_PREFIX'] = tesseract_data
@@ -56,7 +46,6 @@ def setup_bundled_tesseract():
             else:
                 logger.warning(f"语言包目录不存在: {tesseract_data}")
 
-            # 验证 Tesseract 是否可用
             try:
                 version = pytesseract.get_tesseract_version()
                 logger.info(f"Tesseract 版本: v{version}")
@@ -66,15 +55,12 @@ def setup_bundled_tesseract():
                 return False
         else:
             logger.warning(f"打包的 Tesseract 不存在: {tesseract_exe}")
-            # 尝试使用系统 Tesseract
             return _try_system_tesseract()
     else:
-        # 开发模式：检查系统 tesseract 是否可用
         return _try_system_tesseract()
 
 
 def _try_system_tesseract():
-    """尝试使用系统安装的 Tesseract"""
     try:
         version = pytesseract.get_tesseract_version()
         logger.info(f"使用系统 Tesseract v{version}")
@@ -85,7 +71,6 @@ def _try_system_tesseract():
 
 
 def extract_text(pixmap_or_qimage) -> str:
-    """对 QPixmap 或 QImage 执行 OCR，返回文本。"""
     if not ensure_tesseract_ready():
         return ""
 
@@ -103,13 +88,17 @@ def extract_text(pixmap_or_qimage) -> str:
 
 
 class OcrWorker(QThread):
-    """后台 OCR 工作线程"""
+    """后台 OCR 工作线程（支持安全取消）"""
     finished = Signal(str)
     error = Signal(str)
 
-    def __init__(self, pil_image: Image.Image):
+    def __init__(self, pil_image):
         super().__init__()
         self.pil_image = pil_image
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
 
     def run(self):
         try:
@@ -119,6 +108,8 @@ class OcrWorker(QThread):
             text = pytesseract.image_to_string(
                 self.pil_image, lang='eng+chi_sim',
             )
-            self.finished.emit(text.strip())
+            if not self._cancelled:
+                self.finished.emit(text.strip())
         except Exception as e:
-            self.error.emit(str(e))
+            if not self._cancelled:
+                self.error.emit(str(e))

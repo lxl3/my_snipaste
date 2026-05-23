@@ -24,9 +24,12 @@ class OcrMixin:
         self._ocr_progress.show()
 
     def _cancel_ocr(self) -> None:
-        if hasattr(self, '_ocr_worker') and self._ocr_worker.isRunning():
-            self._ocr_worker.terminate()
-            self._ocr_worker.wait(1000)
+        if hasattr(self, '_ocr_worker'):
+            self._ocr_worker.cancel()
+            self._ocr_worker.quit()
+            if not self._ocr_worker.wait(2000):
+                self._ocr_worker.terminate()
+                self._ocr_worker.wait(500)
         if hasattr(self, '_ocr_progress'):
             self._ocr_progress.close()
             self._ocr_progress = None
