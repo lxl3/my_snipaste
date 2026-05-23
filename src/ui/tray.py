@@ -17,7 +17,6 @@ class TrayManager(QObject):
         super().__init__()
         self.app = app
         self.tray_icon: QSystemTrayIcon | None = None
-        self._menubar = None
 
     def setup(self, have_hotkey: bool = True) -> None:
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -33,51 +32,44 @@ class TrayManager(QObject):
         else:
             self.tray_icon.setToolTip("MySnipaste - 点击托盘图标截屏")
 
-        ocr_action = QAction("OCR 剪贴板图片", self.app)
-        ocr_action.triggered.connect(self.app.ocr_clipboard)
+        menu = QMenu()
+        capture_action = QAction(f"Capture ({hotkey_display})", self.app)
+        capture_action.triggered.connect(self.app.start_capture)
+        menu.addAction(capture_action)
+        menu.addSeparator()
 
-        log_dir_action = QAction("打开日志目录", self.app)
-        log_dir_action.triggered.connect(self._open_log_dir)
-
-        view_log_action = QAction("查看日志", self.app)
-        view_log_action.triggered.connect(self._show_log_viewer)
-
-        quit_action = QAction("退出", self.app)
-        quit_action.triggered.connect(self.app.quit)
+        ocr_menu_action = QAction("OCR Clipboard Image", self.app)
+        ocr_menu_action.triggered.connect(self.app.ocr_clipboard)
+        menu.addAction(ocr_menu_action)
+        menu.addSeparator()
 
         settings_action = QAction("Settings...", self.app)
         settings_action.triggered.connect(self._open_settings)
+        menu.addAction(settings_action)
+        menu.addSeparator()
+
+        log_dir_action = QAction("Open Log Directory", self.app)
+        log_dir_action.triggered.connect(self._open_log_dir)
+        menu.addAction(log_dir_action)
+
+        view_log_action = QAction("View Log", self.app)
+        view_log_action.triggered.connect(self._show_log_viewer)
+        menu.addAction(view_log_action)
+        menu.addSeparator()
+
+        quit_action = QAction("Quit", self.app)
+        quit_action.triggered.connect(self.app.quit)
+        menu.addAction(quit_action)
+
+        self.tray_icon.setContextMenu(menu)
 
         if platform.system() == "Darwin":
-            self.tray_icon.activated.connect(lambda r: self.app.start_capture())
-            from PySide6.QtWidgets import QMenuBar
-            self._menubar = QMenuBar()
-            app_menu = self._menubar.addMenu("MySnipaste")
-            app_menu.addAction(settings_action)
-            app_menu.addSeparator()
-            app_menu.addAction(ocr_action)
-            app_menu.addSeparator()
-            app_menu.addAction(log_dir_action)
-            app_menu.addAction(view_log_action)
-            app_menu.addSeparator()
-            app_menu.addAction(quit_action)
-            logger.info("macOS 托盘已配置（单击触发截图 + 系统菜单栏）")
+            # macOS: left-click → capture, right-click → context menu
+            self.tray_icon.activated.connect(self._on_tray_activated_mac)
+            logger.info(f"macOS tray ready — left-click captures, right-click for menu")
         else:
-            menu = QMenu()
-            capture_action = QAction(f"截屏 ({hotkey_display})", self.app)
-            capture_action.triggered.connect(self.app.start_capture)
-            menu.addAction(capture_action)
-            menu.addAction(ocr_action)
-            menu.addSeparator()
-            menu.addAction(log_dir_action)
-            menu.addAction(view_log_action)
-            menu.addSeparator()
-            menu.addAction(quit_action)
-
-            menu.addAction(settings_action)
-            self.tray_icon.setContextMenu(menu)
             self.tray_icon.activated.connect(self._on_tray_activated)
-            logger.info("托盘菜单已配置")
+            logger.info("Tray menu configured")
 
         self.tray_icon.show()
 
@@ -127,6 +119,14 @@ class TrayManager(QObject):
 
     def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            self.app.start_capture()
+
+    def _on_tray_activated_mac(self, reason: QSystemTrayIcon.ActivationReason) -> None:
+        # macOS: left-click (Trigger) → capture, right-click (Context) → menu handled by OS
+        if reason in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
             self.app.start_capture()
 
     def _open_settings(self) -> None:
