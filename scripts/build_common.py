@@ -107,6 +107,12 @@ def find_tesseract() -> tuple[Optional[str], Optional[str]]:
     return tesseract_bin, tessdata_dir
 
 
+def _copy_without_fork(src: str, dst: str | Path) -> None:
+    """Copy a file without creating Apple Double (._) resource fork files."""
+    env = {**os.environ, "COPYFILE_DISABLE": "1"}
+    subprocess.run(["cp", "-f", src, str(dst)], check=True, capture_output=True, env=env)
+
+
 def _collect_dylibs(binary_path: str, bundle_dir: Path) -> set:
     """Recursively collect Homebrew dylib dependencies into bundle_dir."""
     processed: set[str] = set()
@@ -124,7 +130,7 @@ def _collect_dylibs(binary_path: str, bundle_dir: Path) -> set:
         dest = bundle_dir / os.path.basename(path)
         if not dest.exists() and not any(path.startswith(p) for p in SYSTEM_PREFIXES):
             try:
-                shutil.copy2(path, dest)
+                _copy_without_fork(path, dest)
                 os.chmod(dest, 0o755)
                 print(f"  + {os.path.basename(path)}")
             except (shutil.SameFileError, OSError):
@@ -210,7 +216,7 @@ def prepare_tesseract_bundle(
     temp_tess_dir.mkdir(parents=True, exist_ok=True)
 
     temp_tess_bin = temp_tess_dir / "tesseract"
-    shutil.copy2(tesseract_bin, temp_tess_bin)
+    _copy_without_fork(tesseract_bin, temp_tess_bin)
     os.chmod(temp_tess_bin, 0o755)
     print("  Tesseract 二进制已复制")
 
@@ -222,7 +228,7 @@ def prepare_tesseract_bundle(
     for lang in ("eng", "chi_sim"):
         src = Path(tessdata_dir) / f"{lang}.traineddata"
         if src.exists():
-            shutil.copy2(src, temp_tessdata / f"{lang}.traineddata")
+            _copy_without_fork(str(src), temp_tessdata / f"{lang}.traineddata")
             print(f"  {lang}: {src.stat().st_size / (1024 * 1024):.1f} MB")
 
     binary_paths = [str(temp_tess_dir / "tesseract")]
@@ -262,15 +268,24 @@ def patch_info_plist(app_path: Path) -> None:
 
 
 def sign_app(app_path: Path) -> None:
-    """Ad-hoc sign the .app bundle (helps macOS permission APIs work correctly)."""
+    """Ad-hoc sign the .app bundle (helps macOS permission APIs work correctly).
+
+    Removes resource forks and Apple Double files that cause codesign to fail.
+    """
     try:
+        # Remove Apple Double files (carry resource forks from copy operations)
+        subprocess.run(
+            ["find", str(app_path), "-name", "._*", "-delete"],
+            capture_output=True, check=False,
+        )
+        # Strip extended attributes (com.apple.provenance etc.)
         subprocess.run(
             ["xattr", "-cr", str(app_path)],
             capture_output=True, check=False,
         )
         subprocess.run(
             ["codesign", "--force", "--deep", "--sign", "-", str(app_path)],
-            check=True, capture_output=True, text=True, timeout=30,
+            check=True, capture_output=True, text=True, timeout=60,
         )
         print("[OK] 签名完成")
     except subprocess.CalledProcessError as e:
