@@ -113,6 +113,18 @@ def _copy_without_fork(src: str, dst: str | Path) -> None:
     subprocess.run(["cp", "-f", src, str(dst)], check=True, capture_output=True, env=env)
 
 
+def _resolve_rpath(path: str) -> str | None:
+    """Resolve @rpath/@loader_path references to actual filesystem paths."""
+    if not path.startswith("@"):
+        return path if os.path.exists(path) else None
+    base = os.path.basename(path)
+    for lib_dir in ["/opt/homebrew/lib", "/usr/local/lib", "/usr/lib"]:
+        candidate = os.path.join(lib_dir, base)
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
 def _collect_dylibs(binary_path: str, bundle_dir: Path) -> set:
     """Recursively collect Homebrew dylib dependencies into bundle_dir."""
     processed: set[str] = set()
@@ -123,12 +135,20 @@ def _collect_dylibs(binary_path: str, bundle_dir: Path) -> set:
         path = queue.popleft()
         if path in processed:
             continue
+        resolved = _resolve_rpath(path)
+        if resolved is None:
+            # skip unresolvable @rpath entries
+            processed.add(path)
+            continue
+        path = resolved
+        if path in processed:
+            continue
         processed.add(path)
         if any(path.startswith(p) for p in SYSTEM_PREFIXES):
             continue
 
         dest = bundle_dir / os.path.basename(path)
-        if not dest.exists() and not any(path.startswith(p) for p in SYSTEM_PREFIXES):
+        if not dest.exists():
             try:
                 _copy_without_fork(path, dest)
                 os.chmod(dest, 0o755)

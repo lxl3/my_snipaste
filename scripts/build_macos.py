@@ -42,6 +42,7 @@ def build_app() -> bool:
         "--windowed",
         "--onedir",
         "--osx-bundle-identifier", "com.mysnipaste.app",
+        "--no-codesign",
     ]
 
     icon = PROJECT_DIR / "icon.icns"
