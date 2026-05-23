@@ -32,10 +32,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
     copy_requested = Signal(object)
     save_requested = Signal(object)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-        self.total_geometry = QRect()
+        self.total_geometry: QRect = QRect()
         for screen in QApplication.screens():
             self.total_geometry = self.total_geometry.united(screen.geometry())
 
@@ -49,42 +49,42 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.setCursor(Qt.CrossCursor)
         self.grabKeyboard()
 
-        self.is_selecting = False
-        self.start_point = QPoint()
-        self.end_point = QPoint()
-        self.selection_rect = QRect()
-        self.current_mouse_pos = QPoint()
+        self.is_selecting: bool = False
+        self.start_point: QPoint = QPoint()
+        self.end_point: QPoint = QPoint()
+        self.selection_rect: QRect = QRect()
+        self.current_mouse_pos: QPoint = QPoint()
 
-        self._drag_mode = None
-        self._drag_start_pos = QPointF()
-        self._drag_start_rect = QRect()
+        self._drag_mode: tuple | None = None
+        self._drag_start_pos: QPointF = QPointF()
+        self._drag_start_rect: QRect = QRect()
 
-        self.current_tool = "select"
-        self.current_color = QColor(DEFAULT_ANNOTATION_COLOR)
-        self.current_width = DEFAULT_LINE_WIDTH
-        self.annotations = []
-        self._redo_stack = []
-        self._drawing = False
-        self._draw_start = QPointF()
-        self._draw_points = []
-        self._preview_annotation = None
+        self.current_tool: str = "select"
+        self.current_color: QColor = QColor(DEFAULT_ANNOTATION_COLOR)
+        self.current_width: int = DEFAULT_LINE_WIDTH
+        self.annotations: list[dict] = []
+        self._redo_stack: list[dict] = []
+        self._drawing: bool = False
+        self._draw_start: QPointF = QPointF()
+        self._draw_points: list[QPointF] = []
+        self._preview_annotation: dict | None = None
 
-        self.eraser_size = 20
-        self._eraser_target_size = 20
-        self._eraser_size_animating = False
-        self._erasing = False
+        self.eraser_size: int = 20
+        self._eraser_target_size: int = 20
+        self._eraser_size_animating: bool = False
+        self._erasing: bool = False
 
-        self._erase_fill_rect_start = None
-        self._erase_fill_rect_current = None
+        self._erase_fill_rect_start: QPoint | None = None
+        self._erase_fill_rect_current: QPoint | None = None
 
-        self._text_editor = None
-        self._text_editor_pos = None
+        self._text_editor: QLineEdit | None = None
+        self._text_editor_pos: QPointF | None = None
 
-        self.text_font_family = DEFAULT_FONT_FAMILY
-        self.text_font_size = DEFAULT_FONT_SIZE
-        self.text_bold = False
-        self.text_italic = False
-        self.text_color = QColor(DEFAULT_ANNOTATION_COLOR)
+        self.text_font_family: str = DEFAULT_FONT_FAMILY
+        self.text_font_size: int = DEFAULT_FONT_SIZE
+        self.text_bold: bool = False
+        self.text_italic: bool = False
+        self.text_color: QColor = QColor(DEFAULT_ANNOTATION_COLOR)
 
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
@@ -94,13 +94,13 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     # ─── Selection helpers ───
 
-    def _capture_pos(self):
+    def _capture_pos(self) -> QPoint:
         return self.total_geometry.topLeft() + self.selection_rect.topLeft()
 
-    def _sel_to_local(self, pos):
+    def _sel_to_local(self, pos: QPoint) -> QPointF:
         return QPointF(pos - self.selection_rect.topLeft())
 
-    def _get_all_handles(self, rect):
+    def _get_all_handles(self, rect: QRect) -> list[QRect]:
         half = HANDLE_SIZE // 2
         r = rect
         return [
@@ -114,7 +114,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             QRect(r.right() - half, r.center().y() - half, HANDLE_SIZE, HANDLE_SIZE),
         ]
 
-    def _handle_at_pos(self, pos):
+    def _handle_at_pos(self, pos: QPoint) -> str | None:
         handles = self._get_all_handles(self.selection_rect)
         names = ["top-left", "top-right", "bottom-left", "bottom-right",
                  "top-center", "bottom-center", "left-center", "right-center"]
@@ -123,7 +123,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 return name
         return None
 
-    def _cursor_for_handle(self, handle_name):
+    def _cursor_for_handle(self, handle_name: str | None) -> Qt.CursorShape:
         if not handle_name:
             inside = self.selection_rect.contains(self.current_mouse_pos)
             if self.current_tool == "select" and inside:
@@ -139,7 +139,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     # ─── Toolbar positioning ───
 
-    def _position_toolbar(self):
+    def _position_toolbar(self) -> None:
         rect = self.selection_rect
         if rect.isNull():
             self.toolbar.toolbar.hide()
@@ -161,7 +161,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     # ─── Painting ───
 
-    def paintEvent(self, event):
+    def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self.full_screenshot)
 
@@ -210,14 +210,14 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     # ─── Event handling ───
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj, event) -> bool:
         if event.type() == QEvent.Enter:
             self.setCursor(Qt.ArrowCursor)
         elif event.type() == QEvent.Leave:
             self.setCursor(Qt.ArrowCursor if not self.selection_rect.isNull() else Qt.CrossCursor)
         return super().eventFilter(obj, event)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         # ensure text editor is cleaned up
         if self._text_editor:
             self._text_editor.hide()
@@ -231,13 +231,13 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.deleteLater()
         super().closeEvent(event)
 
-    def _begin_drag(self, mode, event):
+    def _begin_drag(self, mode, event) -> None:
         self._drag_mode = mode
         self._drag_start_pos = event.position()
         self._drag_start_rect = QRect(self.selection_rect)
         self.toolbar.toolbar.hide()
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event) -> None:
         if self._text_editor and not self._text_editor.geometry().contains(event.position().toPoint()):
             self._finish_text_input()
 
@@ -284,7 +284,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                     return
             self._start_selection(pos)
 
-    def _start_drawing(self, pos):
+    def _start_drawing(self, pos: QPoint) -> None:
         local = self._sel_to_local(QPointF(pos))
         self._drawing = True
         self._draw_start = local
@@ -318,7 +318,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._text_editor.editingFinished.connect(self._finish_text_input)
             self._drawing = False
 
-    def _start_selection(self, pos):
+    def _start_selection(self, pos: QPoint) -> None:
         # safety: keep annotations when eraser is active
         if self.current_tool in ("eraser_dot", "eraser_fill") and self.annotations:
             logger.warning(f"_start_selection called during eraser mode (annotations={len(self.annotations)}), ignoring")
@@ -337,7 +337,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             select_btn.setChecked(True)
         self.update()
 
-    def _on_tool_selected(self, tool_id):
+    def _on_tool_selected(self, tool_id: str) -> None:
         logger.debug(f"tool selected: {tool_id}")
         self.current_tool = tool_id
         for tid, btn in self.toolbar._tool_btns.items():
@@ -348,7 +348,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         elif tool_id == "select":
             self.setCursor(Qt.SizeAllCursor if not self.selection_rect.isNull() else Qt.CrossCursor)
 
-    def _on_color_changed(self, color):
+    def _on_color_changed(self, color: QColor) -> None:
         self.current_color = color
         self.toolbar._color_picker_btn.setStyleSheet(f"""
             QToolButton {{
@@ -360,24 +360,24 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if self.current_tool == "mosaic":
             QTimer.singleShot(50, self.update)
 
-    def _on_width_changed(self, width):
+    def _on_width_changed(self, width: int) -> None:
         self.current_width = width
         if self.current_tool == "mosaic":
             QTimer.singleShot(50, self.update)
 
-    def _on_font_family_changed(self, family):
+    def _on_font_family_changed(self, family: str) -> None:
         self.text_font_family = family
 
-    def _on_font_size_changed(self, size):
+    def _on_font_size_changed(self, size: int) -> None:
         self.text_font_size = size
 
-    def _on_bold_toggled(self, bold):
+    def _on_bold_toggled(self, bold: bool) -> None:
         self.text_bold = bold
 
-    def _on_italic_toggled(self, italic):
+    def _on_italic_toggled(self, italic: bool) -> None:
         self.text_italic = italic
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event) -> None:
         self.current_mouse_pos = event.position().toPoint()
         # eraser drag
         if self._erasing:
@@ -404,7 +404,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.setCursor(self._cursor_for_handle(handle))
             self.update()
 
-    def _update_drawing(self):
+    def _update_drawing(self) -> None:
         local = self._sel_to_local(QPointF(self.current_mouse_pos))
         if self.current_tool == "freehand":
             self._draw_points.append(local)
@@ -436,7 +436,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                     self._preview_annotation = {"type": "mosaic", "rect": r}
         self.update()
 
-    def _update_drag(self, current_pos):
+    def _update_drag(self, current_pos: QPointF) -> None:
         delta = current_pos - self._drag_start_pos
         mode = self._drag_mode[0]
         if mode == "move":
@@ -458,7 +458,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.selection_rect = r.normalized()
         self.update()
 
-    def mouseReleaseEvent(self, event):
+    def mouseReleaseEvent(self, event) -> None:
         if event.button() != Qt.LeftButton:
             return
         # end eraser drag
@@ -486,7 +486,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             else:
                 self.selection_rect = QRect()
 
-    def _finish_drawing(self):
+    def _finish_drawing(self) -> None:
         self._drawing = False
         if self._preview_annotation and self._preview_annotation["type"] != "freehand":
             ann = self._preview_annotation
@@ -507,7 +507,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._preview_annotation = None
         self.update()
 
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key_Escape:
             if self._text_editor:
                 self._text_editor.hide()
@@ -525,7 +525,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     # ─── Size info ───
 
-    def _draw_size_info(self, painter, rect):
+    def _draw_size_info(self, painter: QPainter, rect: QRect) -> None:
         text = f"{rect.width()} × {rect.height()}"
         painter.setPen(QPen(QColor(255, 255, 255, 200), 1))
         font = QFont("Segoe UI", 12)
@@ -548,7 +548,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     # ─── Coord tooltip ───
 
-    def _draw_coord_tooltip(self, painter):
+    def _draw_coord_tooltip(self, painter: QPainter) -> None:
         pos = self.current_mouse_pos
         text = f"X:{pos.x()} Y:{pos.y()}"
         painter.setPen(Qt.white)
@@ -567,7 +567,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         painter.fillRect(x, y, tw, th, QColor(0, 0, 0, 100))
         painter.drawText(x + margin, y + margin + fm.ascent(), text)
 
-    def _execute_erase_fill(self):
+    def _execute_erase_fill(self) -> None:
         """Fill erase: delete all annotations inside the selection rect."""
         if self._erase_fill_rect_start is None or self._erase_fill_rect_current is None:
             return

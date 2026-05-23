@@ -28,6 +28,12 @@ src/logs/
 # Brainstorming session files
 .superpowers/
 
-# Claude Code
+# Claude Code / OpenCode
 .claude/
 .omo/
+.agents/
+skills-lock.json
+
+# Build artifacts
+*.spec
+icon.icns

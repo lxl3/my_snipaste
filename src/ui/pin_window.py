@@ -12,11 +12,11 @@ class PinWindow(QWidget):
 
     SHADOW_SIZE = 6  # shadow width in pixels
 
-    def __init__(self, pixmap: QPixmap, pos):
+    def __init__(self, pixmap: QPixmap, pos) -> None:
         super().__init__()
         self.pixmap = pixmap
-        self._dragging = False
-        self._drag_pos = None
+        self._dragging: bool = False
+        self._drag_pos: QPoint | None = None
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
@@ -31,7 +31,7 @@ class PinWindow(QWidget):
         if pos is not None:
             self.move(pos.x(), pos.y())
 
-    def paintEvent(self, event):
+    def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
@@ -64,20 +64,20 @@ class PinWindow(QWidget):
         )
         painter.drawPixmap(content_rect, self.pixmap, src)
 
-    def mouseDoubleClickEvent(self, event):
+    def mouseDoubleClickEvent(self, event) -> None:
         self.close()
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
             self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
             self._dragging = True
             event.accept()
 
-    def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.LeftButton and hasattr(self, "_dragging") and self._dragging:
+    def mouseMoveEvent(self, event) -> None:
+        if event.buttons() == Qt.LeftButton and self._dragging:
             self.move(event.globalPosition().toPoint() - self._drag_pos)
             event.accept()
 
-    def mouseReleaseEvent(self, event):
+    def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
             self._dragging = False

@@ -11,12 +11,12 @@ logger = setup_logger("tray")
 
 
 class TrayManager:
-    def __init__(self, app):
+    def __init__(self, app) -> None:
         self.app = app
-        self.tray_icon = None
+        self.tray_icon: QSystemTrayIcon | None = None
         self._menubar = None
 
-    def setup(self, have_hotkey=True):
+    def setup(self, have_hotkey: bool = True) -> None:
         if not QSystemTrayIcon.isSystemTrayAvailable():
             return
 
@@ -72,7 +72,7 @@ class TrayManager:
 
         self.tray_icon.show()
 
-    def _open_log_dir(self):
+    def _open_log_dir(self) -> None:
         log_dir = get_log_dir()
         try:
             subprocess.run(["open", log_dir], check=True)
@@ -80,7 +80,7 @@ class TrayManager:
         except Exception as e:
             logger.error(f"打开日志目录失败: {e}")
 
-    def _show_log_viewer(self):
+    def _show_log_viewer(self) -> None:
         path = get_current_log_path()
         if not path:
             from PySide6.QtWidgets import QMessageBox
@@ -116,11 +116,11 @@ class TrayManager:
 
         dialog.exec()
 
-    def _on_tray_activated(self, reason):
+    def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.app.start_capture()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         if self.tray_icon:
             self.tray_icon.hide()
             self.tray_icon = None

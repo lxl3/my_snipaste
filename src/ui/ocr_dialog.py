@@ -10,12 +10,12 @@ from PySide6.QtWidgets import (
 class OcrResultDialog(QDialog):
     """Minimal OCR result dialog with smart layout."""
 
-    def __init__(self, text: str, parent=None):
+    def __init__(self, text: str, parent=None) -> None:
         super().__init__(parent)
         self._setup_window()
         self._build_ui(text)
         self._drag_pos = None
-        self._last_selected_text = ""
+        self._last_selected_text: str = ""
 
     def _setup_window(self) -> None:
         self.setWindowTitle("OCR 识别结果")
@@ -131,39 +131,34 @@ class OcrResultDialog(QDialog):
         footer_layout.addWidget(self.copy_btn)
         return footer
 
-    def showEvent(self, event):
-        """对话框显示时自动聚焦到文本编辑区"""
+    def showEvent(self, event) -> None:
         super().showEvent(event)
         QTimer.singleShot(100, self.text_edit.setFocus)
 
-    def close_dialog_only(self):
-        """只关闭对话框，不关闭截图编辑器"""
+    def close_dialog_only(self) -> None:
         # save selected text before closing
         cursor = self.text_edit.textCursor()
         if cursor.hasSelection():
             QApplication.clipboard().setText(cursor.selectedText())
         self.accept()
 
-    def mousePressEvent(self, event):
-        # do not accept; let event propagate to child QTextEdit
+    def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
             self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
         super().mousePressEvent(event)
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event) -> None:
         if event.buttons() == Qt.LeftButton and self._drag_pos:
             self.move(event.globalPosition().toPoint() - self._drag_pos)
             event.accept()
 
-    def keyPressEvent(self, event):
-        """处理键盘事件：Esc关闭"""
+    def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key_Escape:
             self.accept()
             return
         super().keyPressEvent(event)
 
-    def _adjust_text_edit_size(self, text: str):
-        """根据文本内容调整文本编辑区域大小"""
+    def _adjust_text_edit_size(self, text: str) -> None:
         if not text:
             self.text_edit.setFixedHeight(80)
             return
@@ -189,8 +184,7 @@ class OcrResultDialog(QDialog):
             self.text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
             self.text_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
-    def _update_char_count(self, text: str):
-        """更新字符数统计"""
+    def _update_char_count(self, text: str) -> None:
         if not text:
             self.char_count_label.setText("0 字符")
             return
@@ -203,20 +197,17 @@ class OcrResultDialog(QDialog):
         else:
             self.char_count_label.setText(f"{char_count / 1000:.1f}K 字符 · {line_count} 行")
 
-    def _on_text_changed(self):
-        """文本变化时的处理"""
+    def _on_text_changed(self) -> None:
         text = self.text_edit.toPlainText()
         self._update_char_count(text)
 
-    def _on_selection_changed(self):
-        """保存选中文本，防止失去焦点时选区丢失"""
+    def _on_selection_changed(self) -> None:
         cursor = self.text_edit.textCursor()
         if cursor.hasSelection():
             self._last_selected_text = cursor.selectedText()
         # do NOT clear; keep selected text when focus is lost
 
-    def _copy_and_close_editor(self):
-        """复制文本（优先选中内容），然后关闭截图编辑器"""
+    def _copy_and_close_editor(self) -> None:
         text = self._last_selected_text
         if not text:
             text = self.text_edit.toPlainText()
@@ -229,8 +220,7 @@ class OcrResultDialog(QDialog):
             QTimer.singleShot(300, self.parent().close)
         QTimer.singleShot(300, self.accept)
 
-    def _show_copy_feedback(self, message: str):
-        """显示复制成功的微交互反馈"""
+    def _show_copy_feedback(self, message: str) -> None:
         original_text = self.copy_btn.text()
         self.copy_btn.setText(f"[OK] {message}")
         self.copy_btn.setEnabled(False)

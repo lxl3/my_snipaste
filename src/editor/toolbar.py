@@ -11,13 +11,13 @@ from ..core.constants import TOOLBAR_HEIGHT, PRESET_COLORS
 
 
 class EditorToolbar:
-    def __init__(self, editor):
+    def __init__(self, editor) -> None:
         self.editor = editor
-        self.toolbar = None
-        self.tool_buttons = {}
-        self._tool_group_map = {}
+        self.toolbar: QFrame | None = None
+        self.tool_buttons: dict[str, QToolButton] = {}
+        self._tool_group_map: dict = {}
 
-    def setup(self):
+    def setup(self) -> None:
         self.toolbar = QFrame()
         self.toolbar.setObjectName("floatingToolbar")
         self.toolbar.setFixedHeight(TOOLBAR_HEIGHT)
@@ -88,11 +88,11 @@ class EditorToolbar:
         btn.setEnabled(False)
         return btn
 
-    def _on_tool_clicked(self, tool_id, btn):
+    def _on_tool_clicked(self, tool_id: str, btn) -> None:
         for tid, b in self.tool_buttons.items():
             b.setChecked(tid == tool_id)
 
-    def update_undo_redo_state(self):
+    def update_undo_redo_state(self) -> None:
         if hasattr(self, 'undo_btn') and self.undo_btn:
             self.undo_btn.setEnabled(bool(self.editor.undo_stack))
         if hasattr(self, 'redo_btn') and self.redo_btn:

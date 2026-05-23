@@ -22,12 +22,19 @@ class OverlayRenderingMixin:
     Mixin expects host QWidget methods: rect(), height(), width()
     """
 
+    def _draw_annotations(self, painter: QPainter, sel_size, offset) -> None:
+        """Draw annotations + preview on painter."""
+        for ann in self.annotations:
+            self._draw_one_annotation(painter, ann, offset)
+        if self._preview_annotation:
+            self._draw_one_annotation(painter, self._preview_annotation, offset)
+
     def _render_annotated_pixmap(self) -> QPixmap:
         """Crop selection from screenshot and draw annotations.
 
         High DPI note: coordinate conversion is manual.
         - selection_rect is in logical (screen) coords
-        - full_screenshot physical size = logical size × devicePixelRatio
+        - full_screenshot physical size = logical size x devicePixelRatio
         - must copy from full_screenshot in physical coords
         """
         logical_rect = self.selection_rect
@@ -53,14 +60,7 @@ class OverlayRenderingMixin:
 
         return result
 
-    def _draw_annotations(self, painter, sel_size, offset):
-        """Draw annotations + preview on painter."""
-        for ann in self.annotations:
-            self._draw_one_annotation(painter, ann, offset)
-        if self._preview_annotation:
-            self._draw_one_annotation(painter, self._preview_annotation, offset)
-
-    def _draw_one_annotation(self, painter, ann, offset):
+    def _draw_one_annotation(self, painter: QPainter, ann: dict, offset) -> None:
         t = ann["type"]
         if t == "rect":
             self._draw_rect(painter, ann, offset)
@@ -77,19 +77,19 @@ class OverlayRenderingMixin:
         elif t == "text":
             self._draw_text(painter, ann, offset)
 
-    def _draw_rect(self, painter, ann, offset):
+    def _draw_rect(self, painter: QPainter, ann: dict, offset) -> None:
         r = ann["rect"].translated(offset)
         painter.setPen(QPen(QColor(ann["color"]), ann["width"]))
         painter.setBrush(Qt.NoBrush)
         painter.drawRect(r)
 
-    def _draw_ellipse(self, painter, ann, offset):
+    def _draw_ellipse(self, painter: QPainter, ann: dict, offset) -> None:
         r = ann["rect"].translated(offset)
         painter.setPen(QPen(QColor(ann["color"]), ann["width"]))
         painter.setBrush(Qt.NoBrush)
         painter.drawEllipse(r)
 
-    def _draw_arrow(self, painter, ann, offset):
+    def _draw_arrow(self, painter: QPainter, ann: dict, offset) -> None:
         start = ann["start"] + offset
         end = ann["end"] + offset
         width = ann["width"]
@@ -115,13 +115,13 @@ class OverlayRenderingMixin:
         painter.setBrush(QColor(ann["color"]))
         painter.drawPath(path)
 
-    def _draw_line(self, painter, ann, offset):
+    def _draw_line(self, painter: QPainter, ann: dict, offset) -> None:
         start = ann["start"] + offset
         end = ann["end"] + offset
         painter.setPen(QPen(QColor(ann["color"]), ann["width"], Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         painter.drawLine(start, end)
 
-    def _draw_freehand(self, painter, ann, offset):
+    def _draw_freehand(self, painter: QPainter, ann: dict, offset) -> None:
         pts = ann["points"]
         if len(pts) < 2:
             return
@@ -133,7 +133,7 @@ class OverlayRenderingMixin:
             path.lineTo(pts[i] + offset)
         painter.drawPath(path)
 
-    def _draw_mosaic(self, painter, ann, offset):
+    def _draw_mosaic(self, painter: QPainter, ann: dict, offset) -> None:
         r = QRectF(ann["rect"]).translated(offset).toRect()
         if r.isEmpty():
             return
@@ -160,7 +160,7 @@ class OverlayRenderingMixin:
         pixelated = small.scaled(r.width(), r.height(), Qt.IgnoreAspectRatio, Qt.FastTransformation)
         painter.drawPixmap(r.topLeft(), pixelated)
 
-    def _draw_text(self, painter, ann, offset):
+    def _draw_text(self, painter: QPainter, ann: dict, offset) -> None:
         pos = ann["pos"] + offset
         painter.setFont(QFont(ann["font_family"], ann["font_size"]))
         font = painter.font()

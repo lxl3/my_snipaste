@@ -22,10 +22,10 @@ logger = setup_logger("editor")
 
 
 class EditorWindow(QWidget, OcrMixin):
-    def __init__(self, pixmap, capture_pos=None):
+    def __init__(self, pixmap: QPixmap, capture_pos=None) -> None:
         super().__init__()
         self.captured_pixmap = pixmap
-        self.ocr_text = ""
+        self.ocr_text: str = ""
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -64,9 +64,9 @@ class EditorWindow(QWidget, OcrMixin):
         self.view.current_color = QColor(DEFAULT_ANNOTATION_COLOR)
         self.view.current_width = DEFAULT_LINE_WIDTH
 
-        self.undo_stack = []
-        self.redo_stack = []
-        self._window_dragging = False
+        self.undo_stack: list = []
+        self.redo_stack: list = []
+        self._window_dragging: bool = False
         self._press_pos = None
         self._drag_start_global = None
         self._drag_start_window = None
@@ -77,7 +77,7 @@ class EditorWindow(QWidget, OcrMixin):
         self.toolbar = EditorToolbar(self)
         self.toolbar.setup()
 
-    def _undo(self):
+    def _undo(self) -> None:
         if self.undo_stack:
             self.redo_stack.append(self.undo_stack.pop())
             self.toolbar.update_undo_redo_state()
@@ -85,7 +85,7 @@ class EditorWindow(QWidget, OcrMixin):
                 item = self.view._items.pop()
                 self.scene.removeItem(item)
 
-    def _redo(self):
+    def _redo(self) -> None:
         if self.redo_stack:
             self.undo_stack.append(self.redo_stack.pop())
             self.toolbar.update_undo_redo_state()
@@ -103,7 +103,7 @@ class EditorWindow(QWidget, OcrMixin):
         pixmap.setDevicePixelRatio(dpr)
         return pixmap
 
-    def _do_ocr(self):
+    def _do_ocr(self) -> None:
         from ..ocr.engine import OcrWorker
         from ..core.utils import qpixmap_to_pil
         self._show_ocr_progress(self._cancel_ocr)
@@ -112,23 +112,23 @@ class EditorWindow(QWidget, OcrMixin):
         self._ocr_worker.error.connect(self._on_ocr_error)
         self._ocr_worker.start()
 
-    def _on_ocr_finished(self, text):
+    def _on_ocr_finished(self, text: str) -> None:
         self._cleanup_ocr()
         self.ocr_text = text
         from ..ui.ocr_dialog import OcrResultDialog
         OcrResultDialog(text if text else "(未检测到文字)", self).exec()
 
-    def _on_ocr_error(self, error_msg):
+    def _on_ocr_error(self, error_msg: str) -> None:
         self._cleanup_ocr()
         QMessageBox.critical(self, "OCR 错误", f"文字识别失败：\n{error_msg}")
 
-    def pin(self):
+    def pin(self) -> None:
         self.toolbar.toolbar.hide()
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.show()
         pixmap = self._render_pixmap()
         logger.info("Editor pinned")
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         self._cleanup_ocr()
         super().closeEvent(event)

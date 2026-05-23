@@ -4,7 +4,7 @@ import math
 
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor, QFont
-from PySide6.QtCore import QRectF, QPointF, QRect
+from PySide6.QtCore import QRectF, QPointF, QRect, QPoint
 from ..core.logger import setup_logger
 
 logger = setup_logger("overlay_actions")
@@ -27,7 +27,7 @@ class OverlayActionsMixin:
 
     # ─── OCR ───
 
-    def _on_ocr(self):
+    def _on_ocr(self) -> None:
         if self.selection_rect.isNull():
             return
         captured = self._render_annotated_pixmap()
@@ -40,7 +40,7 @@ class OverlayActionsMixin:
         self._ocr_worker.start()
         self._show_ocr_progress(self._cancel_ocr)
 
-    def _on_ocr_finished(self, text):
+    def _on_ocr_finished(self, text: str) -> None:
         self._cleanup_ocr()
         if text:
             from ..ui.ocr_dialog import OcrResultDialog
@@ -48,38 +48,38 @@ class OverlayActionsMixin:
         else:
             QMessageBox.warning(self, "OCR 结果", "未识别到文字")
 
-    def _on_ocr_error(self, error_msg):
+    def _on_ocr_error(self, error_msg: str) -> None:
         self._cleanup_ocr()
         QMessageBox.critical(self, "OCR 错误", f"文字识别失败：\n{error_msg}")
 
     # ─── Pin / Copy / Save ───
 
-    def on_pin(self):
+    def on_pin(self) -> None:
         if self.selection_rect.isNull():
             return
         self.pin_requested.emit(self._render_annotated_pixmap(), self._capture_pos())
         self.close()
 
-    def on_copy(self):
+    def on_copy(self) -> None:
         if self.selection_rect.isNull():
             return
         self.copy_requested.emit(self._render_annotated_pixmap())
         self.close()
 
-    def on_save(self):
+    def on_save(self) -> None:
         if self.selection_rect.isNull():
             return
         self.save_requested.emit(self._render_annotated_pixmap())
 
     # ─── Undo / Redo ───
 
-    def _undo(self):
+    def _undo(self) -> None:
         if self.annotations:
             self._redo_stack.append(self.annotations.pop())
             self.toolbar.update_undo_redo_state()
             self.update()
 
-    def _redo(self):
+    def _redo(self) -> None:
         if self._redo_stack:
             self.annotations.append(self._redo_stack.pop())
             self.toolbar.update_undo_redo_state()
@@ -87,7 +87,7 @@ class OverlayActionsMixin:
 
     # ─── Erase ───
 
-    def _try_erase_annotation(self, pos):
+    def _try_erase_annotation(self, pos: QPoint) -> None:
         local = self._sel_to_local(QPointF(pos))
         r = self.eraser_size
         logger.debug(f"擦除检测: local=({local.x():.0f},{local.y():.0f}), r={r}, annotations={len(self.annotations)}")
@@ -135,13 +135,13 @@ class OverlayActionsMixin:
         logger.debug("  → 未命中任何标注")
 
     @staticmethod
-    def _point_to_rect_distance(point, rect):
+    def _point_to_rect_distance(point: QPointF, rect: QRectF) -> float:
         cx = max(rect.left(), min(point.x(), rect.right()))
         cy = max(rect.top(), min(point.y(), rect.bottom()))
         return math.hypot(point.x() - cx, point.y() - cy)
 
     @staticmethod
-    def _point_to_segment_distance(point, p1, p2):
+    def _point_to_segment_distance(point: QPointF, p1: QPointF, p2: QPointF) -> float:
         dx = p2.x() - p1.x()
         dy = p2.y() - p1.y()
         length_sq = dx * dx + dy * dy
@@ -152,8 +152,7 @@ class OverlayActionsMixin:
         proj_y = p1.y() + t * dy
         return math.hypot(point.x() - proj_x, point.y() - proj_y)
 
-    def _erase_all_in_selection(self):
-        """Fill erase: delete all annotations inside the current selection."""
+    def _erase_all_in_selection(self) -> None:
         if self.selection_rect.isNull():
             return
         sel_rect = QRectF(self.selection_rect)
@@ -192,12 +191,7 @@ class OverlayActionsMixin:
             self.toolbar.update_undo_redo_state()
             self.update()
 
-    def _erase_in_rect(self, erase_rect):
-        """Delete all annotations inside a rectangle (global coords).
-
-        Args:
-            erase_rect: QRect in global coordinates
-        """
+    def _erase_in_rect(self, erase_rect: QRect) -> None:
         if self.selection_rect.isNull() or erase_rect.isNull():
             return
 
@@ -241,7 +235,7 @@ class OverlayActionsMixin:
 
     # ─── Text editing ───
 
-    def _adjust_text_editor_size(self):
+    def _adjust_text_editor_size(self) -> None:
         if not self._text_editor:
             return
         text = self._text_editor.text()
@@ -252,7 +246,7 @@ class OverlayActionsMixin:
         self._text_editor.setFixedSize(max(width, 10), height)
         self._text_editor.move(current_pos)
 
-    def _finish_text_input(self):
+    def _finish_text_input(self) -> None:
         if not self._text_editor or self._text_editor_pos is None:
             return
         text = self._text_editor.text().strip()

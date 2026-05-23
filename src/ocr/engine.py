@@ -12,10 +12,10 @@ from ..core.logger import setup_logger
 
 logger = setup_logger("ocr")
 
-_tesseract_initialized = False
+_tesseract_initialized: bool = False
 
 
-def ensure_tesseract_ready():
+def ensure_tesseract_ready() -> bool:
     global _tesseract_initialized
     if _tesseract_initialized:
         return True
@@ -23,7 +23,7 @@ def ensure_tesseract_ready():
     return setup_bundled_tesseract()
 
 
-def setup_bundled_tesseract():
+def setup_bundled_tesseract() -> bool:
     if getattr(sys, 'frozen', False):
         if hasattr(sys, '_MEIPASS'):
             base_dir = sys._MEIPASS
@@ -60,7 +60,7 @@ def setup_bundled_tesseract():
         return _try_system_tesseract()
 
 
-def _try_system_tesseract():
+def _try_system_tesseract() -> bool:
     try:
         version = pytesseract.get_tesseract_version()
         logger.info(f"使用系统 Tesseract v{version}")
@@ -71,6 +71,7 @@ def _try_system_tesseract():
 
 
 def extract_text(pixmap_or_qimage) -> str:
+    """Run OCR on a QPixmap or QImage and return the recognized text."""
     if not ensure_tesseract_ready():
         return ""
 
@@ -92,18 +93,18 @@ class OcrWorker(QThread):
     finished = Signal(str)
     error = Signal(str)
 
-    def __init__(self, pil_image):
+    def __init__(self, pil_image: Image.Image) -> None:
         super().__init__()
         self.pil_image = pil_image
-        self._proc = None
-        self._cancelled = False
+        self._proc: subprocess.Popen | None = None
+        self._cancelled: bool = False
 
-    def cancel(self):
+    def cancel(self) -> None:
         self._cancelled = True
         if self._proc:
             self._proc.kill()
 
-    def run(self):
+    def run(self) -> None:
         tmp_dir = None
         try:
             if not ensure_tesseract_ready():

@@ -1,4 +1,4 @@
-"""OCR 进度对话框和清理逻辑的共享 Mixin。"""
+"""Shared OCR progress dialog and cleanup logic mixin."""
 
 from typing import Callable
 from PySide6.QtWidgets import QMessageBox
@@ -6,18 +6,18 @@ from PySide6.QtCore import Qt
 
 
 class OcrMixin:
-    """提供 OCR 进度对话框、取消、清理的共享实现。
+    """Shared OCR progress dialog, cancellation, and cleanup.
 
-    子类必须提供:
-    - self._ocr_progress (QMessageBox)
-    - self._ocr_worker (QThread worker with finished/error signals)
+    Subclass must provide:
+    - self._ocr_progress (QMessageBox | None)
+    - self._ocr_worker (QThread worker with finished/error signals | None)
     """
 
     def _show_ocr_progress(self, cancel_callback: Callable[[], None]) -> None:
-        """显示非模态的 OCR 进度对话框。"""
+        """Show non-modal OCR progress dialog."""
         self._ocr_progress = QMessageBox(self)
-        self._ocr_progress.setWindowTitle("OCR 识别中")
-        self._ocr_progress.setText("正在识别文字，请稍候...")
+        self._ocr_progress.setWindowTitle("OCR in progress")
+        self._ocr_progress.setText("Recognizing text, please wait...")
         self._ocr_progress.setStandardButtons(QMessageBox.Cancel)
         self._ocr_progress.setWindowModality(Qt.NonModal)
         self._ocr_progress.rejected.connect(cancel_callback)

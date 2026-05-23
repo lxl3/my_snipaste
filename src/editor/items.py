@@ -1,14 +1,14 @@
 import math
 
 from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsItem
-from PySide6.QtGui import QPen, QPolygonF, QColor
+from PySide6.QtGui import QPen, QPolygonF, QColor, QPixmap
 from PySide6.QtCore import Qt, QRectF, QRect, QPointF
 
 from ..core.constants import ARROWHEAD_SIZE_BASE, ARROW_SPREAD_ANGLE, MIN_DRAW_THRESHOLD
 
 
 class ArrowItem(QGraphicsItem):
-    def __init__(self, start, end, color=QColor(255, 0, 0), width=3):
+    def __init__(self, start: QPointF, end: QPointF, color: QColor = QColor(255, 0, 0), width: int = 3) -> None:
         super().__init__()
         self.start = start
         self.end = end
@@ -17,11 +17,11 @@ class ArrowItem(QGraphicsItem):
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIsMovable, True)
 
-    def boundingRect(self):
+    def boundingRect(self) -> QRectF:
         extra = ARROWHEAD_SIZE_BASE + self.arrow_width * 2
         return QRectF(self.start, self.end).normalized().adjusted(-extra, -extra, extra, extra)
 
-    def paint(self, painter, option, widget):
+    def paint(self, painter, option, widget) -> None:
         painter.setPen(QPen(self.arrow_color, self.arrow_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         painter.drawLine(self.start, self.end)
 
@@ -48,11 +48,11 @@ class ArrowItem(QGraphicsItem):
 
 
 class MosaicItem(QGraphicsRectItem):
-    def __init__(self, rect, pixmap):
+    def __init__(self, rect: QRectF, pixmap: QPixmap) -> None:
         super().__init__(rect)
         self.mosaic_pixmap = pixmap
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIsMovable, True)
 
-    def paint(self, painter, option, widget):
+    def paint(self, painter, option, widget) -> None:
         painter.drawPixmap(self.rect().topLeft(), self.mosaic_pixmap)
