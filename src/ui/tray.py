@@ -1,7 +1,7 @@
 import platform
 import subprocess
 
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QAction, QIcon, QCursor
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QDialog, QTextEdit, QVBoxLayout, QPushButton, QHBoxLayout
 
@@ -17,6 +17,7 @@ class TrayManager(QObject):
         super().__init__()
         self.app = app
         self.tray_icon: QSystemTrayIcon | None = None
+        self._menu: QMenu | None = None
 
     def setup(self, have_hotkey: bool = True) -> None:
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -62,14 +63,15 @@ class TrayManager(QObject):
         menu.addAction(quit_action)
 
         self.tray_icon.setContextMenu(menu)
+        self._menu = menu
 
         if platform.system() == "Darwin":
-            # macOS: left-click → capture, right-click → context menu
-            self.tray_icon.activated.connect(self._on_tray_activated_mac)
-            logger.info(f"macOS tray ready — left-click captures, right-click for menu")
+            # macOS: left-click shows menu (standard tray behavior)
+            self.tray_icon.activated.connect(self._on_tray_mac)
         else:
+            # Other platforms: double-click captures
             self.tray_icon.activated.connect(self._on_tray_activated)
-            logger.info("Tray menu configured")
+        logger.info("Tray menu configured")
 
         self.tray_icon.show()
 
@@ -121,13 +123,12 @@ class TrayManager(QObject):
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.app.start_capture()
 
-    def _on_tray_activated_mac(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        # macOS: left-click (Trigger) → capture, right-click (Context) → menu handled by OS
-        if reason in (
-            QSystemTrayIcon.ActivationReason.Trigger,
-            QSystemTrayIcon.ActivationReason.DoubleClick,
-        ):
-            self.app.start_capture()
+    def _on_tray_mac(self, reason: QSystemTrayIcon.ActivationReason) -> None:
+        if reason == QSystemTrayIcon.ActivationReason.Context:
+            return  # right-click: context menu handled by OS
+        # left-click or double-click: show menu (Capture is the first item)
+        if self._menu:
+            self._menu.popup(QCursor.pos())
 
     def _open_settings(self) -> None:
         self.settings_requested.emit()
