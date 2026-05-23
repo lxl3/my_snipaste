@@ -15,7 +15,7 @@ DEFAULT_HOTKEY = {
 }
 
 
-def get_default_hotkey():
+def get_default_hotkey() -> str:
     return DEFAULT_HOTKEY.get(sys.platform, 'f12')
 
 
@@ -23,14 +23,14 @@ class HotkeyListener(QObject):
     """全局快捷键监听器"""
     capture_signal = Signal()
 
-    def __init__(self, hotkey=None):
+    def __init__(self, hotkey: str | None = None) -> None:
         super().__init__()
-        self.hotkey = hotkey or get_default_hotkey()
-        self.running = False
-        self._listener = None
+        self.hotkey: str = hotkey or get_default_hotkey()
+        self.running: bool = False
+        self._listener: _PynputListener | None = None
         logger.info(f"快捷键设置为: {self.hotkey} (平台: {sys.platform})")
 
-    def start(self):
+    def start(self) -> None:
         if self.running:
             return
         self._listener = _PynputListener(self.hotkey)
@@ -40,12 +40,12 @@ class HotkeyListener(QObject):
         self._listener.start()
         self.running = True
 
-    def stop(self):
+    def stop(self) -> None:
         self.running = False
         if self._listener:
             self._listener.stop()
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.stop()
 
 
@@ -53,14 +53,14 @@ class _PynputListener(QObject):
     """pynput 全局快捷键监听（Windows/Linux，macOS 备用）"""
     capture_signal = Signal()
 
-    def __init__(self, hotkey):
+    def __init__(self, hotkey: str) -> None:
         super().__init__()
         self.hotkey = hotkey
         self.listener = None
-        self.running = False
-        self._current_keys = set()
+        self.running: bool = False
+        self._current_keys: set = set()
 
-    def start(self):
+    def start(self) -> None:
         logger.debug("PynputListener 启动中...")
         if sys.platform == 'darwin':
             try:
@@ -79,11 +79,11 @@ class _PynputListener(QObject):
         self.thread = Thread(target=self._listen, daemon=True)
         self.thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         logger.debug("PynputListener 停止")
         self.running = False
 
-    def _parse_hotkey(self):
+    def _parse_hotkey(self) -> set:  # set[keyboard.Key | keyboard.KeyCode]
         from pynput import keyboard
         parts = self.hotkey.lower().split('+')
         keys = set()
@@ -106,7 +106,7 @@ class _PynputListener(QObject):
         logger.debug(f"PynputListener 热键解析完成: {self.hotkey} → {len(keys)} keys")
         return keys
 
-    def _listen(self):
+    def _listen(self) -> None:
         logger.debug("PynputListener 监听线程已启动")
         try:
             from pynput import keyboard
@@ -121,7 +121,6 @@ class _PynputListener(QObject):
                     self._current_keys.add(normalized)
                     logger.debug(f"按键按下: {key} normalized={normalized}")
                     if required_keys.issubset(self._current_keys):
-                        logger.debug(f"快捷键触发: {self.hotkey}")
                         logger.debug(f"快捷键触发: {self.hotkey}")
                         self.capture_signal.emit()
                         self._current_keys.clear()
@@ -148,7 +147,7 @@ class _PynputListener(QObject):
             logger.debug(f"pynput 监听失败: {e}")
             logger.error(f"pynput 监听失败: {e}")
 
-    def _normalize(self, key):
+    def _normalize(self, key) -> object:
         from pynput import keyboard
         if key in (keyboard.Key.ctrl_l, keyboard.Key.ctrl_r):
             return keyboard.Key.ctrl_l
@@ -160,7 +159,7 @@ class _PynputListener(QObject):
             return keyboard.Key.cmd
         return key
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.stop()
 
 

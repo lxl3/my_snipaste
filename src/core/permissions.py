@@ -24,7 +24,7 @@ def check_macos_accessibility() -> bool:
     return True
 
 
-def check_screen_recording_permission():
+def check_screen_recording_permission() -> bool | None:
     """Check Screen Recording permission (tri-state).
 
     Returns:
@@ -57,11 +57,8 @@ def check_screen_recording_permission():
         return None
 
 
-def request_screen_recording_permission():
-    """Request Screen Recording permission.
-
-    Returns True if granted, False if denied/unavailable.
-    """
+def request_screen_recording_permission() -> bool:
+    """Request Screen Recording permission."""
     if platform.system() != "Darwin":
         return True
 
@@ -112,7 +109,7 @@ def request_input_monitoring_permission() -> bool:
         return False
 
 
-def open_screen_recording_settings():
+def open_screen_recording_settings() -> None:
     """Open System Settings → Privacy & Security → Screen Recording."""
     try:
         subprocess.run(["open", SETTINGS_URL_SCREEN], check=True, timeout=5,
@@ -122,7 +119,7 @@ def open_screen_recording_settings():
         logger.warning(f"open screen recording settings failed: {e}")
 
 
-def open_input_monitoring_settings():
+def open_input_monitoring_settings() -> None:
     """Open System Settings → Privacy & Security → Input Monitoring."""
     try:
         subprocess.run(["open", SETTINGS_URL_INPUT], check=True, timeout=5,
@@ -132,7 +129,7 @@ def open_input_monitoring_settings():
         logger.warning(f"open input monitoring settings failed: {e}")
 
 
-def show_permission_guide():
+def show_permission_guide() -> None:
     """Log permission guidance (once)."""
     global _SCREEN_CAPTURE_WARNED
     if _SCREEN_CAPTURE_WARNED:
@@ -145,7 +142,7 @@ def show_permission_guide():
     logger.warning("=" * 60)
 
 
-def _log_permission_status():
+def _log_permission_status() -> None:
     trusted = _check_ax_trusted()
     has_input = _check_input_monitoring()
     if not trusted:

@@ -26,7 +26,7 @@ logger = setup_logger("app")
 
 
 
-def _show_dialog(icon, title, text):
+def _show_dialog(icon: QMessageBox.Icon, title: str, text: str) -> None:
     """Show an always-on-top dialog to ensure visibility."""
     _mac_activate_app()
     msg = QMessageBox()
@@ -38,7 +38,7 @@ def _show_dialog(icon, title, text):
     msg.exec()
 
 
-def _mac_activate_app():
+def _mac_activate_app() -> None:
     """macOS: bring app to foreground (needed for tray app)."""
     if sys.platform != 'darwin':
         return
@@ -53,7 +53,7 @@ def _mac_activate_app():
 
 
 class SnipasteApp(QApplication):
-    def __init__(self, argv):
+    def __init__(self, argv: list[str]) -> None:
         super().__init__(argv)
         self.setApplicationName("MySnipaste")
         self.setOrganizationName("MySnipaste")
@@ -63,8 +63,8 @@ class SnipasteApp(QApplication):
         if not app_icon.isNull():
             self.setWindowIcon(app_icon)
 
-        self.overlay = None
-        self.pin_windows = []
+        self.overlay: CaptureOverlay | None = None
+        self.pin_windows: list = []
 
         self.setup_focused_hotkey()
 
@@ -83,11 +83,11 @@ class SnipasteApp(QApplication):
         logger.info("MySnipaste 应用初始化完成")
         QTimer.singleShot(500, self._show_startup_notification)
 
-    def setup_focused_hotkey(self):
+    def setup_focused_hotkey(self) -> None:
         self.f12_shortcut = QShortcut(QKeySequence("F12"), self)
         self.f12_shortcut.activated.connect(self.start_capture)
 
-    def _show_startup_notification(self):
+    def _show_startup_notification(self) -> None:
         from .core.hotkeys import get_default_hotkey
         hotkey_display = get_default_hotkey().upper().replace('+', ' + ')
 
@@ -102,7 +102,7 @@ class SnipasteApp(QApplication):
         msg.exec()
         logger.info("启动提示框已关闭")
 
-    def start_capture(self):
+    def start_capture(self) -> None:
         logger.debug("start_capture 被调用")
         logger.info("start_capture() 被调用")
         _mac_activate_app()
@@ -159,16 +159,16 @@ class SnipasteApp(QApplication):
         self.overlay.raise_()
         self.overlay.activateWindow()
 
-    def _on_pin(self, pixmap: QPixmap, pos):
+    def _on_pin(self, pixmap: QPixmap, pos) -> None:
         win = PinWindow(pixmap, pos)
         win.destroyed.connect(lambda: self.pin_windows.remove(win) if win in self.pin_windows else None)
         self.pin_windows.append(win)
         win.show()
 
-    def _on_copy(self, pixmap: QPixmap):
+    def _on_copy(self, pixmap: QPixmap) -> None:
         self.clipboard().setPixmap(pixmap)
 
-    def _on_save(self, pixmap: QPixmap):
+    def _on_save(self, pixmap: QPixmap) -> None:
         file_path, _ = QFileDialog.getSaveFileName(
             None, "保存截图", "截图.png",
             "PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg);;所有文件 (*)",
@@ -178,7 +178,7 @@ class SnipasteApp(QApplication):
             if self.overlay:
                 self.overlay.close()
 
-    def ocr_clipboard(self):
+    def ocr_clipboard(self) -> None:
         logger.info("开始 OCR 剪贴板图片")
         clipboard = self.clipboard()
         pixmap = clipboard.pixmap()
@@ -201,13 +201,13 @@ class SnipasteApp(QApplication):
         else:
             logger.warning("OCR 识别结果为空")
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         if hasattr(self, 'hotkey_listener'):
             self.hotkey_listener.stop()
         if hasattr(self, 'tray'):
             self.tray.cleanup()
 
-    def quit(self):
+    def quit(self) -> None:
         logger.info("用户请求退出应用")
         self.cleanup()
         QTimer.singleShot(300, super().quit)

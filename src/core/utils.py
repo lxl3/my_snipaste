@@ -4,7 +4,7 @@ import os
 from typing import TYPE_CHECKING
 
 from PIL import Image
-from PySide6.QtCore import Qt, QRect, QBuffer, QIODevice
+from PySide6.QtCore import Qt, QRect, QRectF, QSize, QBuffer, QIODevice
 from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen, QScreen
 from PySide6.QtWidgets import QApplication
 from PySide6.QtSvg import QSvgRenderer
@@ -39,7 +39,7 @@ def load_icon_from_svg(svg_content: str, color: str = "#333333", size: int = ICO
 
 
 def capture_all_screens() -> QPixmap:
-    screens = QApplication.screens()
+    screens: list[QScreen] = QApplication.screens()
     if len(screens) == 1:
         return _grab_and_fit(screens[0])
 
@@ -49,7 +49,7 @@ def capture_all_screens() -> QPixmap:
         total_rect = total_rect.united(screen.geometry())
         max_dpr = max(max_dpr, screen.devicePixelRatio())
 
-    combined = QPixmap(QSize(total_rect.width() * max_dpr, total_rect.height() * max_dpr))
+    combined = QPixmap(QSize(int(total_rect.width() * max_dpr), int(total_rect.height() * max_dpr)))
     combined.setDevicePixelRatio(max_dpr)
     combined.fill(Qt.transparent)
     painter = QPainter(combined)
@@ -67,7 +67,7 @@ def capture_all_screens() -> QPixmap:
 
 
 class ScreenCaptureError(RuntimeError):
-    pass
+    """Raised when screen capture fails (e.g. missing permission)."""
 
 
 def _grab_and_fit(screen: "QScreen") -> QPixmap:
@@ -145,6 +145,7 @@ def create_app_icon() -> QIcon:
 
 
 def _get_app_dir() -> str:
+    """Return the application root directory (works in dev and packaged mode)."""
     if hasattr(sys, "_MEIPASS"):
         return sys._MEIPASS
     import builtins
