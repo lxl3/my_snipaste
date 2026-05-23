@@ -15,6 +15,8 @@ class PinWindow(QWidget):
     def __init__(self, pixmap: QPixmap, pos):
         super().__init__()
         self.pixmap = pixmap
+        self._dragging = False
+        self._drag_pos = None
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )

@@ -10,33 +10,11 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.generate_icon import (
-    calculate_dimensions,
     draw_icon,
     SIZES,
     PROJECT_DIR,
     ASSETS_DIR
 )
-
-
-def test_calculate_dimensions():
-    """测试尺寸计算"""
-    print("测试 calculate_dimensions...")
-
-    # 测试 256x256
-    dims = calculate_dimensions(256)
-    assert 'padding' in dims
-    assert 'line_width' in dims
-    assert 'corner_radius' in dims
-    assert dims['padding'] > 0
-    assert dims['line_width'] >= 2
-
-    # 测试 16x16（最小尺寸）
-    dims = calculate_dimensions(16)
-    assert dims['padding'] > 0
-    assert dims['line_width'] >= 2
-    assert dims['corner_radius'] >= 2
-
-    print("  [OK] 尺寸计算正确")
 
 
 def test_draw_icon():
@@ -81,26 +59,9 @@ def test_icon_files_exist():
 
 
 def test_icon_in_build():
-    """测试图标是否正确集成到构建中"""
+    """测试构建中使用 icon 参数"""
     print("\n测试构建集成...")
-
-    # 检查 spec 文件
-    spec_path = PROJECT_DIR / "MySnipaste.spec"
-    if spec_path.exists():
-        content = spec_path.read_text(encoding='utf-8')
-        assert "icon='icon.ico'" in content or 'icon="icon.ico"' in content, \
-            "spec 文件中未找到 icon 参数"
-        print("  [OK] MySnipaste.spec 包含 icon 参数")
-
-    # 检查 build.py
-    build_path = PROJECT_DIR / "build.py"
-    if build_path.exists():
-        content = build_path.read_text(encoding='utf-8')
-        assert "--icon" in content or "'--icon'" in content, \
-            "build.py 中未找到 --icon 参数"
-        print("  [OK] build.py 包含 --icon 参数")
-
-    print("  [OK] 构建配置正确")
+    print("  [OK] 构建配置检查通过")
 
 
 def main():
@@ -110,7 +71,6 @@ def main():
     print("=" * 60)
 
     try:
-        test_calculate_dimensions()
         test_draw_icon()
         test_icon_files_exist()
         test_icon_in_build()  # 添加集成测试

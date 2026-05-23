@@ -85,6 +85,7 @@ class SnipasteApp(QApplication):
         self.hotkey_listener.start()
         logger.info("全局快捷键已启动")
 
+        self.aboutToQuit.connect(self.cleanup)
         logger.info("MySnipaste 应用初始化完成")
         QTimer.singleShot(500, self._show_startup_notification)
 
@@ -217,5 +218,4 @@ class SnipasteApp(QApplication):
         self.cleanup()
         QTimer.singleShot(300, super().quit)
 
-    def __del__(self):
-        self.cleanup()
+

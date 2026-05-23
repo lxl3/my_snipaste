@@ -1,12 +1,32 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+import sys
+
+PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
+BUILD_DIR = os.path.join(PROJECT_DIR, 'build')
+TESSERACT_BUNDLE = os.path.join(BUILD_DIR, 'tesseract_bundle')
+
+_tess_bin = []
+_tess_data = []
+if os.path.isdir(TESSERACT_BUNDLE):
+    _tess_bin = [(os.path.join(TESSERACT_BUNDLE, f), 'tesseract')
+                 for f in os.listdir(TESSERACT_BUNDLE)
+                 if f != 'tessdata' and os.path.isfile(os.path.join(TESSERACT_BUNDLE, f))]
+    _tessdata_dir = os.path.join(TESSERACT_BUNDLE, 'tessdata')
+    if os.path.isdir(_tessdata_dir):
+        _tess_data = [(_tessdata_dir, 'tesseract/tessdata')]
 
 a = Analysis(
-    ['/Users/a60036901/Desktop/project/AI/my_snipaste/main.py'],
+    [os.path.join(PROJECT_DIR, 'main.py')],
     pathex=[],
-    binaries=[('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/tesseract', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libopenjp2.7.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libpng16.16.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libgif.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libwebp.7.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libtesseract.5.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libwebpmux.3.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/liblz4.1.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libarchive.13.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/liblzma.5.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libzstd.1.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libjpeg.8.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libleptonica.6.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libb2.1.dylib', 'tesseract'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/libtiff.6.dylib', 'tesseract')],
-    datas=[('/Users/a60036901/Desktop/project/AI/my_snipaste/assets/icons', 'assets/icons'), ('/Users/a60036901/Desktop/project/AI/my_snipaste/build/tesseract_bundle/tessdata', 'tesseract/tessdata')],
-    hiddenimports=['PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets', 'pytesseract', 'PIL._tkinter_finder', 'pynput', 'pynput._util.darwin', 'pynput.keyboard._darwin'],
+    binaries=_tess_bin,
+    datas=[(os.path.join(PROJECT_DIR, 'assets', 'icons'), 'assets/icons'), *_tess_data],
+    hiddenimports=[
+        'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets', 'PySide6.QtSvg',
+        'pytesseract', 'PIL._tkinter_finder',
+        'pynput', 'pynput._util.darwin', 'pynput.keyboard._darwin',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -32,7 +52,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['/Users/a60036901/Desktop/project/AI/my_snipaste/icon.icns'],
+    icon=[os.path.join(PROJECT_DIR, 'icon.icns')],
 )
 coll = COLLECT(
     exe,
@@ -46,6 +66,12 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='MySnipaste.app',
-    icon='/Users/a60036901/Desktop/project/AI/my_snipaste/icon.icns',
+    icon=os.path.join(PROJECT_DIR, 'icon.icns'),
     bundle_identifier='com.mysnipaste.app',
+    info_plist={
+        'NSScreenCaptureUsageDescription':
+            'MySnipaste needs screen recording permission to capture screenshots.',
+        'NSInputMonitoringUsageDescription':
+            'MySnipaste needs input monitoring permission to detect global hotkeys.',
+    },
 )
