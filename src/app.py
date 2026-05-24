@@ -4,7 +4,7 @@ from datetime import datetime
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence, QPixmap, QAction
 from PySide6.QtWidgets import (
-    QApplication, QMessageBox, QFileDialog, QMainWindow,
+    QApplication, QMessageBox, QFileDialog, QWidget, QMenuBar, QMainWindow,
 )
 
 from .overlay.widget import CaptureOverlay
@@ -26,7 +26,6 @@ from .ui.tray import TrayManager
 from .ui.settings_dialog import SettingsDialog
 
 logger = setup_logger("app")
-
 
 
 def _show_dialog(icon: QMessageBox.Icon, title: str, text: str) -> None:
@@ -101,11 +100,10 @@ class SnipasteApp(QApplication):
         self.settings_shortcut.activated.connect(self._open_settings)
 
     def _setup_macos_menu(self) -> None:
-        self._settings_win = QMainWindow()
-        self._settings_win.setWindowFlags(Qt.Tool)
-        self._settings_win.setAttribute(Qt.WA_DontShowOnScreen, True)
-        mb = self._settings_win.menuBar()
-        app_menu = mb.addMenu("MySnipaste")
+        self._menu_widget = QWidget()
+        self._menu_widget.setAttribute(Qt.WA_DontShowOnScreen, True)
+        self._menubar = QMenuBar(self._menu_widget)
+        app_menu = self._menubar.addMenu("MySnipaste")
         pref = app_menu.addAction(_("Preferences..."))
         pref.setMenuRole(QAction.PreferencesRole)
         pref.triggered.connect(self._open_settings)
@@ -248,9 +246,11 @@ class SnipasteApp(QApplication):
             self.hotkey_listener.stop()
         if hasattr(self, 'tray'):
             self.tray.cleanup()
-        if hasattr(self, '_settings_win'):
-            self._settings_win.close()
-            self._settings_win = None
+        if hasattr(self, '_menu_widget'):
+            self._menu_widget.deleteLater()
+            self._menu_widget = None
+        if hasattr(self, '_menubar'):
+            self._menubar = None
 
     def quit(self) -> None:
         logger.info("用户请求退出应用")
