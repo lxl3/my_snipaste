@@ -201,7 +201,7 @@ class SnipasteApp(QApplication):
         if not s.auto_save_dir and last_save_dir:
             default_path = os.path.join(last_save_dir, default_name) if last_save_dir else default_name
 
-        file_path, _ = QFileDialog.getSaveFileName(
+        file_path, _selected_filter = QFileDialog.getSaveFileName(
             None, _("Save Screenshot"), default_path,
             _("PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;All Files (*)"),
         )
