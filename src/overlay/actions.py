@@ -5,6 +5,7 @@ import math
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtCore import QRectF, QPointF, QRect, QPoint
+from ..core.i18n import _
 from ..core.logger import setup_logger
 
 logger = setup_logger("overlay_actions")
@@ -44,13 +45,15 @@ class OverlayActionsMixin:
         self._cleanup_ocr()
         if text:
             from ..ui.ocr_dialog import OcrResultDialog
+            self.releaseKeyboard()
             OcrResultDialog(text, self).exec()
+            self.grabKeyboard()
         else:
-            QMessageBox.warning(self, "OCR 结果", "未识别到文字")
+            QMessageBox.warning(self, _("OCR Result"), _("No text recognized"))
 
     def _on_ocr_error(self, error_msg: str) -> None:
         self._cleanup_ocr()
-        QMessageBox.critical(self, "OCR 错误", f"文字识别失败：\n{error_msg}")
+        QMessageBox.critical(self, _("OCR Error"), _("Text recognition failed:\n{error}").format(error=error_msg))
 
     # ─── Pin / Copy / Save ───
 

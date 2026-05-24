@@ -21,6 +21,7 @@ from ..core.constants import (
     HANDLE_SIZE, MIN_SELECTION_SIZE, MIN_DRAW_THRESHOLD,
     DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, DEFAULT_LINE_WIDTH,
 )
+from ..core.i18n import _
 from ..core.logger import setup_logger
 
 logger = setup_logger("overlay")
@@ -530,7 +531,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
     # ─── Size info ───
 
     def _draw_size_info(self, painter: QPainter, rect: QRect) -> None:
-        text = f"{rect.width()} × {rect.height()}"
+        text = _("{width} × {height}").format(width=rect.width(), height=rect.height())
         painter.setPen(QPen(QColor(255, 255, 255, 200), 1))
         font = QFont("Segoe UI", 12)
         painter.setFont(font)
@@ -554,7 +555,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def _draw_coord_tooltip(self, painter: QPainter) -> None:
         pos = self.current_mouse_pos
-        text = f"X:{pos.x()} Y:{pos.y()}"
+        text = _("X:{x} Y:{y}").format(x=pos.x(), y=pos.y())
         painter.setPen(Qt.white)
         font = QFont("Segoe UI", 11)
         painter.setFont(font)

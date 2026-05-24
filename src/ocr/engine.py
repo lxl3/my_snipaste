@@ -7,6 +7,7 @@ import pytesseract
 from PIL import Image
 from PySide6.QtCore import QThread, Signal
 
+from ..core.i18n import _
 from ..core.utils import qpixmap_to_pil, qimage_to_pil
 from ..core.logger import setup_logger
 from ..core.settings import get_settings
@@ -111,7 +112,7 @@ class OcrWorker(QThread):
         tmp_dir = None
         try:
             if not ensure_tesseract_ready():
-                self.error.emit("Tesseract OCR 引擎未就绪")
+                self.error.emit(_("Tesseract OCR engine is not ready"))
                 return
 
             tmp_dir = tempfile.mkdtemp(prefix="mysnipaste_ocr_")
@@ -132,7 +133,7 @@ class OcrWorker(QThread):
                 self._proc.wait()
                 self._proc = None
                 if not self._cancelled:
-                    self.error.emit("OCR 超时")
+                    self.error.emit(_("OCR timed out"))
                 return
 
             output_path = output_base + ".txt"

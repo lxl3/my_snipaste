@@ -7,6 +7,7 @@ from PySide6.QtGui import QColor, QIcon
 from PySide6.QtCore import Qt, QPoint, QSize
 
 from ..resources.icons.toolbar_icons import TOOLBAR_ICONS
+from ..core.i18n import _
 from ..core.utils import load_icon_from_svg
 from ..core.constants import (
     PRESET_COLORS, TEXT_PRESET_COLORS, ICON_SIZE_SMALL, ICON_SIZE_MENU,
@@ -155,7 +156,7 @@ class OverlayToolbar:
         layout.addWidget(btn)
 
     def _build_shape_menu(self, toolbar_layout) -> None:
-        shape_btn, shape_menu = self._make_submenu_btn("rectangle", "形状（矩形/圆形）", toolbar_layout, ["rect", "ellipse"])
+        shape_btn, shape_menu = self._make_submenu_btn("rectangle", _("Shape (Rectangle / Ellipse)"), toolbar_layout, ["rect", "ellipse"])
         shape_action = QWidgetAction(shape_menu)
         shape_container = QWidget()
         shape_layout = QHBoxLayout(shape_container)
@@ -180,7 +181,7 @@ class OverlayToolbar:
         self._tool_btns["ellipse"] = shape_btn
 
     def _build_arrow_menu(self, toolbar_layout) -> None:
-        arrow_btn, arrow_menu = self._make_submenu_btn("arrow", "箭头（有箭头/无箭头）", toolbar_layout, ["arrow", "line"])
+        arrow_btn, arrow_menu = self._make_submenu_btn("arrow", _("Arrow (Arrow / Line)"), toolbar_layout, ["arrow", "line"])
         arrow_action = QWidgetAction(arrow_menu)
         arrow_container = QWidget()
         arrow_layout = QHBoxLayout(arrow_container)
@@ -205,7 +206,7 @@ class OverlayToolbar:
         self._tool_btns["line"] = arrow_btn
 
     def _build_pen_menu(self, toolbar_layout) -> None:
-        pen_btn, pen_menu = self._make_submenu_btn("pen", "画笔", toolbar_layout, ["freehand"])
+        pen_btn, pen_menu = self._make_submenu_btn("pen", _("Pen"), toolbar_layout, ["freehand"])
         pen_action = QWidgetAction(pen_menu)
         pen_container = QWidget()
         container_layout = QHBoxLayout(pen_container)
@@ -236,14 +237,14 @@ class OverlayToolbar:
         mosaic_btn = QToolButton()
         mosaic_btn.setIcon(self._load_icon("mosaic"))
         mosaic_btn.setIconSize(QSize(16, 16))
-        mosaic_btn.setToolTip("马赛克")
+        mosaic_btn.setToolTip(_("Mosaic"))
         mosaic_btn.setCheckable(True)
         mosaic_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("mosaic")))
         toolbar_layout.addWidget(mosaic_btn)
         self._tool_btns["mosaic"] = mosaic_btn
 
     def _build_text_menu(self, toolbar_layout) -> None:
-        text_btn, text_menu = self._make_submenu_btn("text", "文字", toolbar_layout, ["text"])
+        text_btn, text_menu = self._make_submenu_btn("text", _("Text"), toolbar_layout, ["text"])
         text_action = QWidgetAction(text_menu)
         text_container = QWidget()
         text_main_layout = QHBoxLayout(text_container)
@@ -323,7 +324,7 @@ class OverlayToolbar:
         self._tool_btns["text"] = text_btn
 
     def _build_eraser_menu(self, toolbar_layout) -> None:
-        eraser_btn, eraser_menu = self._make_submenu_btn("eraser", "橡皮擦（点擦除/填充擦除）", toolbar_layout, ["eraser_dot", "eraser_fill"])
+        eraser_btn, eraser_menu = self._make_submenu_btn("eraser", _("Eraser (Dot Erase / Fill Erase)"), toolbar_layout, ["eraser_dot", "eraser_fill"])
         eraser_action = QWidgetAction(eraser_menu)
         eraser_container = QWidget()
         eraser_layout = QHBoxLayout(eraser_container)
@@ -331,8 +332,8 @@ class OverlayToolbar:
         eraser_layout.setSpacing(6)
 
         for icon_key, tool_id, tooltip in [
-            ("eraser_dot", "eraser_dot", "点擦除"),
-            ("eraser_fill", "eraser_fill", "填充擦除"),
+            ("eraser_dot", "eraser_dot", _("Dot Erase")),
+            ("eraser_fill", "eraser_fill", _("Fill Erase")),
         ]:
             tool_btn = QToolButton()
             tool_btn.setIcon(self._load_icon(icon_key))
@@ -368,7 +369,7 @@ class OverlayToolbar:
         ocr_btn = QToolButton()
         ocr_btn.setIcon(self._load_icon("OCR"))
         ocr_btn.setIconSize(QSize(16, 16))
-        ocr_btn.setToolTip("文字识别")
+        ocr_btn.setToolTip(_("Text Recognition"))
         ocr_btn.clicked.connect(lambda: (self._close_current_menu(), self.overlay._on_ocr()))
         toolbar_layout.addWidget(ocr_btn)
 
@@ -376,7 +377,7 @@ class OverlayToolbar:
         self._undo_btn = QToolButton()
         self._undo_btn.setIcon(self._load_icon("undo"))
         self._undo_btn.setIconSize(QSize(16, 16))
-        self._undo_btn.setToolTip("撤销")
+        self._undo_btn.setToolTip(_("Undo"))
         self._undo_btn.clicked.connect(self.overlay._undo)
         self._undo_btn.setEnabled(False)
         self._undo_btn.setStyleSheet("QToolButton:enabled { opacity: 1.0; } QToolButton:disabled { opacity: 0.3; }")
@@ -386,7 +387,7 @@ class OverlayToolbar:
         self._redo_btn = QToolButton()
         self._redo_btn.setIcon(self._load_icon("redo"))
         self._redo_btn.setIconSize(QSize(16, 16))
-        self._redo_btn.setToolTip("重做")
+        self._redo_btn.setToolTip(_("Redo"))
         self._redo_btn.clicked.connect(self.overlay._redo)
         self._redo_btn.setEnabled(False)
         self._redo_btn.setStyleSheet("QToolButton:enabled { opacity: 1.0; } QToolButton:disabled { opacity: 0.3; }")
@@ -394,10 +395,10 @@ class OverlayToolbar:
 
     def _build_action_btns(self, toolbar_layout) -> None:
         for icon, tooltip, fn in [
-            ("close", "关闭（退出截图）", self.overlay.close),
-            ("pin", "悬浮（钉在桌面上）", self.overlay.on_pin),
-            ("save", "保存到文件", self.overlay.on_save),
-            ("copy", "复制到剪贴板", self.overlay.on_copy),
+            ("close", _("Close (Exit)"), self.overlay.close),
+            ("pin", _("Pin (Stick to desktop)"), self.overlay.on_pin),
+            ("save", _("Save to file"), self.overlay.on_save),
+            ("copy", _("Copy to clipboard"), self.overlay.on_copy),
         ]:
             btn = QToolButton()
             btn.setIcon(self._load_icon(icon))
@@ -505,7 +506,7 @@ class OverlayToolbar:
                 btn.setStyleSheet(f"background: {c}; border: {border}; ")
 
     def _open_shape_color_picker(self) -> None:
-        color = QColorDialog.getColor(self.overlay.current_color, self.overlay, "选择颜色")
+        color = QColorDialog.getColor(self.overlay.current_color, self.overlay, _("Select Color"))
         if color.isValid():
             self._set_shape_color(color.name())
 
@@ -531,7 +532,7 @@ class OverlayToolbar:
                 btn.setStyleSheet(f"background: {c}; border: {border}; ")
 
     def _open_color_picker(self) -> None:
-        color = QColorDialog.getColor(self.overlay.text_color, self.overlay, "选择文字颜色")
+        color = QColorDialog.getColor(self.overlay.text_color, self.overlay, _("Select Text Color"))
         if color.isValid():
             self._set_text_color(color.name())
 

@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QCheckBox, QSlider, QFileDialog, QMessageBox, QGroupBox,
     QFormLayout,
 )
+from ..core.i18n import _, available_languages, load_translations
 from ..core.settings import AppSettings, get_settings
 from ..core.constants import PRESET_COLORS
 from ..core.logger import setup_logger
@@ -26,24 +27,24 @@ class SettingsDialog(QDialog):
         self._load_settings()
 
     def _build_ui(self) -> None:
-        self.setWindowTitle("MySnipaste Settings")
-        self.setMinimumSize(480, 380)
+        self.setWindowTitle(_("MySnipaste Settings"))
+        self.setMinimumSize(520, 420)
         self.setAttribute(Qt.WA_DeleteOnClose)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
 
         self._tabs = QTabWidget()
-        self._tabs.addTab(self._build_general_tab(), "General")
-        self._tabs.addTab(self._build_ocr_tab(), "OCR")
-        self._tabs.addTab(self._build_annotation_tab(), "Annotation")
+        self._tabs.addTab(self._build_general_tab(), _("General"))
+        self._tabs.addTab(self._build_ocr_tab(), _("OCR"))
+        self._tabs.addTab(self._build_annotation_tab(), _("Annotation"))
         layout.addWidget(self._tabs)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        save_btn = QPushButton("Save")
+        save_btn = QPushButton(_("Save"))
         save_btn.clicked.connect(self._save_and_close)
-        cancel_btn = QPushButton("Cancel")
+        cancel_btn = QPushButton(_("Cancel"))
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(save_btn)
         btn_layout.addWidget(cancel_btn)
@@ -71,43 +72,52 @@ class SettingsDialog(QDialog):
         layout.setSpacing(8)
 
         # Hotkey
-        hotkey_group = QGroupBox("Global Hotkey")
+        hotkey_group = QGroupBox(_("Global Hotkey"))
         hotkey_layout = QFormLayout(hotkey_group)
         self._hotkey_input = QLineEdit()
         self._hotkey_input.setPlaceholderText("e.g. cmd+shift+x, f12, ctrl+alt+s")
-        hotkey_layout.addRow("Shortcut:", self._hotkey_input)
-        hint = QLabel("Use + between keys. Supported: ctrl, shift, alt, cmd, f1-f12, a-z")
+        hotkey_layout.addRow(_("Shortcut:"), self._hotkey_input)
+        hint = QLabel(_("Use + between keys. Supported: ctrl, shift, alt, cmd, f1-f12, a-z"))
         hint.setStyleSheet("color: #888; font-size: 11px;")
         hotkey_layout.addRow("", hint)
         layout.addWidget(hotkey_group)
 
+        # Language
+        lang_group = QGroupBox(_("Language"))
+        lang_layout = QFormLayout(lang_group)
+        self._lang_combo = QComboBox()
+        for code, label in available_languages():
+            self._lang_combo.addItem(label, code)
+        lang_layout.addRow(self._lang_combo)
+        layout.addWidget(lang_group)
+
         # Launch at startup (macOS only)
         if sys.platform == "darwin":
-            startup_group = QGroupBox("Startup")
+            startup_group = QGroupBox(_("Startup"))
             startup_layout = QVBoxLayout(startup_group)
-            self._launch_checkbox = QCheckBox("Launch MySnipaste at login")
+            self._launch_checkbox = QCheckBox(_("Launch MySnipaste at login"))
             startup_layout.addWidget(self._launch_checkbox)
             layout.addWidget(startup_group)
 
         # Auto-save
-        save_group = QGroupBox("Auto Save")
+        save_group = QGroupBox(_("Auto Save"))
         save_layout = QFormLayout(save_group)
-        self._auto_save_checkbox = QCheckBox("Auto save to directory")
+        self._auto_save_checkbox = QCheckBox(_("Auto save to directory"))
         save_layout.addRow(self._auto_save_checkbox)
 
         dir_row = QHBoxLayout()
         self._save_dir_input = QLineEdit()
         self._save_dir_input.setReadOnly(True)
-        self._save_dir_input.setPlaceholderText("Select default save directory...")
-        browse_btn = QPushButton("Browse...")
+        self._save_dir_input.setPlaceholderText(_("Select default save directory..."))
+        browse_btn = QPushButton(_("Browse..."))
         browse_btn.clicked.connect(self._browse_save_dir)
         dir_row.addWidget(self._save_dir_input)
         dir_row.addWidget(browse_btn)
-        save_layout.addRow("Directory:", dir_row)
+        save_layout.addRow(_("Directory:"), dir_row)
 
         self._format_combo = QComboBox()
         self._format_combo.addItems(["PNG", "JPEG"])
-        save_layout.addRow("Format:", self._format_combo)
+        save_layout.addRow(_("Format:"), self._format_combo)
 
         self._auto_save_checkbox.toggled.connect(self._on_auto_save_toggle)
         layout.addWidget(save_group)
@@ -119,7 +129,7 @@ class SettingsDialog(QDialog):
         self._save_dir_input.setEnabled(checked)
 
     def _browse_save_dir(self) -> None:
-        path = QFileDialog.getExistingDirectory(self, "Select Save Directory")
+        path = QFileDialog.getExistingDirectory(self, _("Select Save Directory"))
         if path:
             self._save_dir_input.setText(path)
 
@@ -130,25 +140,25 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(tab)
         layout.setSpacing(8)
 
-        group = QGroupBox("OCR Engine")
+        group = QGroupBox(_("OCR Engine"))
         form = QFormLayout(group)
 
         self._ocr_lang_input = QLineEdit()
         self._ocr_lang_input.setPlaceholderText("e.g. eng, chi_sim, eng+chi_sim")
         lang_hint = QLabel(
-            "Language codes separated by +.\n"
-            "Common: eng, chi_sim, jpn, fra, deu, spa\n"
-            "Run 'tesseract --list-langs' to see installed."
+            _("Language codes separated by +.\n"
+              "Common: eng, chi_sim, jpn, fra, deu, spa\n"
+              "Run 'tesseract --list-langs' to see installed.")
         )
         lang_hint.setStyleSheet("color: #888; font-size: 11px;")
-        form.addRow("Languages:", self._ocr_lang_input)
+        form.addRow(_("Languages:"), self._ocr_lang_input)
         form.addRow("", lang_hint)
         layout.addWidget(group)
 
         # Test button
         test_layout = QHBoxLayout()
         test_layout.addStretch()
-        test_btn = QPushButton("Test OCR")
+        test_btn = QPushButton(_("Test OCR"))
         test_btn.clicked.connect(self._test_ocr)
         test_layout.addWidget(test_btn)
         layout.addLayout(test_layout)
@@ -157,15 +167,14 @@ class SettingsDialog(QDialog):
         return tab
 
     def _test_ocr(self) -> None:
-        """Quick OCR test: check tesseract works with current language."""
         try:
             import pytesseract
             version = pytesseract.get_tesseract_version()
-            QMessageBox.information(self, "OCR Test",
-                                    f"Tesseract v{version} is ready.\n"
-                                    f"Language: {self._ocr_lang_input.text() or 'eng+chi_sim'}")
+            QMessageBox.information(self, _("OCR Test"),
+                                    _("Tesseract v{version} is ready.\nLanguage: {lang}").format(
+                                        version=version, lang=self._ocr_lang_input.text() or 'eng+chi_sim'))
         except Exception as e:
-            QMessageBox.warning(self, "OCR Test", f"Tesseract not available:\n{e}")
+            QMessageBox.warning(self, _("OCR Test"), _("Tesseract not available:\n{error}").format(error=e))
 
     # ─── Annotation Tab ───
 
@@ -174,7 +183,7 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(tab)
         layout.setSpacing(8)
 
-        group = QGroupBox("Default Annotation Style")
+        group = QGroupBox(_("Default Annotation Style"))
         form = QFormLayout(group)
 
         self._color_combo = QComboBox()
@@ -183,25 +192,25 @@ class SettingsDialog(QDialog):
             pix.fill(QColor(c))
             self._color_combo.addItem(f"  {c}", c)
             self._color_combo.setItemIcon(self._color_combo.count() - 1, QIcon(pix))
-        form.addRow("Color:", self._color_combo)
+        form.addRow(_("Color:"), self._color_combo)
 
         self._width_spin = QSpinBox()
         self._width_spin.setRange(1, 20)
-        form.addRow("Line Width:", self._width_spin)
+        form.addRow(_("Line Width:"), self._width_spin)
 
         self._font_combo = QComboBox()
         self._font_combo.addItems(["Segoe UI", "Arial", "Helvetica", "PingFang SC", "Microsoft YaHei"])
         self._font_combo.setEditable(True)
-        form.addRow("Font:", self._font_combo)
+        form.addRow(_("Font:"), self._font_combo)
 
         self._font_size_spin = QSpinBox()
         self._font_size_spin.setRange(8, 72)
-        form.addRow("Font Size:", self._font_size_spin)
+        form.addRow(_("Font Size:"), self._font_size_spin)
 
         layout.addWidget(group)
 
         # Pin window
-        pin_group = QGroupBox("Pin Window")
+        pin_group = QGroupBox(_("Pin Window"))
         pin_layout = QFormLayout(pin_group)
         self._opacity_slider = QSlider(Qt.Horizontal)
         self._opacity_slider.setRange(30, 100)
@@ -212,15 +221,15 @@ class SettingsDialog(QDialog):
         slider_row = QHBoxLayout()
         slider_row.addWidget(self._opacity_slider)
         slider_row.addWidget(self._opacity_label)
-        pin_layout.addRow("Opacity:", slider_row)
+        pin_layout.addRow(_("Opacity:"), slider_row)
         layout.addWidget(pin_group)
 
         # Log level
-        adv_group = QGroupBox("Advanced")
+        adv_group = QGroupBox(_("Advanced"))
         adv_form = QFormLayout(adv_group)
         self._log_level_combo = QComboBox()
         self._log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR"])
-        adv_form.addRow("Log Level:", self._log_level_combo)
+        adv_form.addRow(_("Log Level:"), self._log_level_combo)
         layout.addWidget(adv_group)
 
         layout.addStretch()
@@ -246,6 +255,10 @@ class SettingsDialog(QDialog):
             self._format_combo.setCurrentIndex(fmt_idx)
         self._auto_save_checkbox.setChecked(bool(s.auto_save_dir))
 
+        lang_idx = self._lang_combo.findData(s.language)
+        if lang_idx >= 0:
+            self._lang_combo.setCurrentIndex(lang_idx)
+
         if hasattr(self, '_launch_checkbox'):
             self._launch_checkbox.setChecked(s.launch_at_startup)
 
@@ -269,6 +282,8 @@ class SettingsDialog(QDialog):
         else:
             s.auto_save_dir = ""
         s.auto_save_format = self._format_combo.currentText().lower()
+
+        s.language = self._lang_combo.currentData() or "zh_CN"
 
         if hasattr(self, '_launch_checkbox'):
             s.launch_at_startup = self._launch_checkbox.isChecked()
@@ -304,7 +319,9 @@ class SettingsDialog(QDialog):
         dialog = SettingsDialog(parent)
         result = dialog.exec()
         if result == QDialog.Accepted:
-            return AppSettings.reload()
+            s = AppSettings.reload()
+            load_translations(s.language)
+            return s
         return None
 
 

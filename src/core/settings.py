@@ -43,6 +43,7 @@ class AppSettings:
     log_level: str = "DEBUG"
     save_window_position: bool = True
     pin_window_opacity: int = 100
+    language: str = "zh_CN"
 
     def save(self) -> None:
         path = _get_settings_path()

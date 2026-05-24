@@ -5,6 +5,7 @@ from PySide6.QtGui import QAction, QCursor
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QDialog, QTextEdit, QVBoxLayout, QPushButton, QHBoxLayout
 
+from ..core.i18n import _
 from ..core.utils import create_app_icon
 from ..core.logger import setup_logger, get_current_log_path, get_log_dir
 
@@ -29,36 +30,36 @@ class TrayManager(QObject):
         icon = create_app_icon()
         self.tray_icon = QSystemTrayIcon(icon)
         if have_hotkey:
-            self.tray_icon.setToolTip(f"MySnipaste - 按 {hotkey_display} 截屏")
+            self.tray_icon.setToolTip(_("MySnipaste - Press {hotkey} to capture").format(hotkey=hotkey_display))
         else:
-            self.tray_icon.setToolTip("MySnipaste - 点击托盘图标截屏")
+            self.tray_icon.setToolTip(_("MySnipaste - Click tray icon to capture"))
 
         menu = QMenu()
-        capture_action = QAction(f"Capture ({hotkey_display})", self.app)
+        capture_action = QAction(_("Capture ({hotkey})").format(hotkey=hotkey_display), self.app)
         capture_action.triggered.connect(self.app.start_capture)
         menu.addAction(capture_action)
         menu.addSeparator()
 
-        ocr_menu_action = QAction("OCR Clipboard Image", self.app)
+        ocr_menu_action = QAction(_("OCR Clipboard Image"), self.app)
         ocr_menu_action.triggered.connect(self.app.ocr_clipboard)
         menu.addAction(ocr_menu_action)
         menu.addSeparator()
 
-        settings_action = QAction("Settings...", self.app)
+        settings_action = QAction(_("Settings..."), self.app)
         settings_action.triggered.connect(self._open_settings)
         menu.addAction(settings_action)
         menu.addSeparator()
 
-        log_dir_action = QAction("Open Log Directory", self.app)
+        log_dir_action = QAction(_("Open Log Directory"), self.app)
         log_dir_action.triggered.connect(self._open_log_dir)
         menu.addAction(log_dir_action)
 
-        view_log_action = QAction("View Log", self.app)
+        view_log_action = QAction(_("View Log"), self.app)
         view_log_action.triggered.connect(self._show_log_viewer)
         menu.addAction(view_log_action)
         menu.addSeparator()
 
-        quit_action = QAction("Quit", self.app)
+        quit_action = QAction(_("Quit"), self.app)
         quit_action.triggered.connect(self.app.quit)
         menu.addAction(quit_action)
 
@@ -87,11 +88,11 @@ class TrayManager(QObject):
         path = get_current_log_path()
         if not path:
             from PySide6.QtWidgets import QMessageBox
-            QMessageBox.information(None, "日志", "暂无日志文件")
+            QMessageBox.information(None, _("Log"), _("No log files yet"))
             return
 
         dialog = QDialog(None)
-        dialog.setWindowTitle("MySnipaste 日志")
+        dialog.setWindowTitle(_("MySnipaste Log"))
         dialog.resize(700, 500)
 
         layout = QVBoxLayout(dialog)
@@ -101,18 +102,18 @@ class TrayManager(QObject):
         try:
             with open(path, encoding="utf-8") as f:
                 content = f.read()
-            text_edit.setPlainText(content if content else "(空)")
+            text_edit.setPlainText(content if content else _("(empty)"))
         except Exception as e:
-            text_edit.setPlainText(f"读取日志失败: {e}")
+            text_edit.setPlainText(_("Failed to read log: {error}").format(error=e))
 
         layout.addWidget(text_edit)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        open_btn = QPushButton("在 Finder 中打开", dialog)
+        open_btn = QPushButton(_("Open in Finder"), dialog)
         open_btn.clicked.connect(lambda: subprocess.run(["open", get_log_dir()]))
         btn_layout.addWidget(open_btn)
-        close_btn = QPushButton("关闭", dialog)
+        close_btn = QPushButton(_("Close"), dialog)
         close_btn.clicked.connect(dialog.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)

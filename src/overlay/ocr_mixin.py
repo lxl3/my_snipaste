@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Qt
+from ..core.i18n import _
 
 
 class OcrMixin:
@@ -16,8 +17,8 @@ class OcrMixin:
     def _show_ocr_progress(self, cancel_callback: Callable[[], None]) -> None:
         """Show non-modal OCR progress dialog."""
         self._ocr_progress = QMessageBox(self)
-        self._ocr_progress.setWindowTitle("OCR in progress")
-        self._ocr_progress.setText("Recognizing text, please wait...")
+        self._ocr_progress.setWindowTitle(_("OCR in progress"))
+        self._ocr_progress.setText(_("Recognizing text, please wait..."))
         self._ocr_progress.setStandardButtons(QMessageBox.Cancel)
         self._ocr_progress.setWindowModality(Qt.WindowModal)
         self._ocr_progress.rejected.connect(cancel_callback)

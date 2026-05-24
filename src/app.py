@@ -2,13 +2,14 @@ import os
 import sys
 from datetime import datetime
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QShortcut, QKeySequence, QPixmap
+from PySide6.QtGui import QShortcut, QKeySequence, QPixmap, QAction
 from PySide6.QtWidgets import (
-    QApplication, QMessageBox, QFileDialog,
+    QApplication, QMessageBox, QFileDialog, QMainWindow,
 )
 
 from .overlay.widget import CaptureOverlay
 from .ocr.engine import extract_text
+from .core.i18n import _, load_translations
 from .core.utils import create_app_icon, ScreenCaptureError
 from .core.logger import setup_logger, apply_log_level
 from .core.settings import AppSettings, get_settings
@@ -68,6 +69,7 @@ class SnipasteApp(QApplication):
         self.overlay: CaptureOverlay | None = None
         self.pin_windows: list = []
         self.settings: AppSettings = get_settings()
+        load_translations(self.settings.language)
 
         apply_log_level(self.settings.log_level)
 
@@ -87,11 +89,30 @@ class SnipasteApp(QApplication):
 
         self.aboutToQuit.connect(self.cleanup)
         logger.info("MySnipaste 应用初始化完成")
+        if sys.platform == "darwin":
+            self._setup_macos_menu()
         QTimer.singleShot(500, self._show_startup_notification)
 
     def setup_focused_hotkey(self) -> None:
         self.f12_shortcut = QShortcut(QKeySequence("F12"), self)
         self.f12_shortcut.activated.connect(self.start_capture)
+        self.settings_shortcut = QShortcut(QKeySequence("Ctrl+,"), self)
+        self.settings_shortcut.setContext(Qt.ApplicationShortcut)
+        self.settings_shortcut.activated.connect(self._open_settings)
+
+    def _setup_macos_menu(self) -> None:
+        self._settings_win = QMainWindow()
+        self._settings_win.setWindowFlags(Qt.Tool)
+        self._settings_win.setAttribute(Qt.WA_DontShowOnScreen, True)
+        mb = self._settings_win.menuBar()
+        app_menu = mb.addMenu("MySnipaste")
+        pref = app_menu.addAction(_("Preferences..."))
+        pref.setMenuRole(QAction.PreferencesRole)
+        pref.triggered.connect(self._open_settings)
+        app_menu.addSeparator()
+        quit_act = app_menu.addAction(_("Quit"))
+        quit_act.setMenuRole(QAction.QuitRole)
+        quit_act.triggered.connect(self.quit)
 
     def _show_startup_notification(self) -> None:
         from .core.hotkeys import get_default_hotkey
@@ -99,8 +120,8 @@ class SnipasteApp(QApplication):
 
         msg = QMessageBox()
         msg.setWindowTitle("MySnipaste")
-        msg.setText("MySnipaste 已启动")
-        msg.setInformativeText(f"按 {hotkey_display} 开始截图\n点击托盘图标也可启动")
+        msg.setText(_("MySnipaste Started"))
+        msg.setInformativeText(_("Press {hotkey} to capture\n⌘, to open Settings").format(hotkey=hotkey_display))
         msg.setIcon(QMessageBox.Information)
         msg.setStandardButtons(QMessageBox.Ok)
         msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
@@ -124,13 +145,13 @@ class SnipasteApp(QApplication):
                 show_permission_guide()
                 open_screen_recording_settings()
                 _show_dialog(
-                    QMessageBox.Warning, "权限不足",
-                    "MySnipaste 需要「屏幕录制」权限才能截图。\n\n"
-                    "请在弹出的系统设置中：\n"
-                    "  1. 点击锁图标解锁\n"
-                    "  2. 点击 ＋ 添加 MySnipaste\n"
-                    "  3. 勾选授权\n\n"
-                    "授权后请重新打开应用。"
+                    QMessageBox.Warning, _("Permission Required"),
+                    _("Screen Recording permission is required for MySnipaste.\n\n"
+                      "In System Settings:\n"
+                      "  1. Click the lock to unlock\n"
+                      "  2. Click + and add MySnipaste\n"
+                      "  3. Check the permission\n\n"
+                      "Restart the app after granting permission.")
                 )
                 return
 
@@ -142,13 +163,13 @@ class SnipasteApp(QApplication):
             show_permission_guide()
             open_screen_recording_settings()
             _show_dialog(
-                QMessageBox.Critical, "截图失败",
-                f"{e}\n\n"
-                "请在系统设置中：\n"
-                "  1. 点击锁图标解锁\n"
-                "  2. 点击 ＋ 添加 MySnipaste\n"
-                "  3. 勾选授权\n\n"
-                "授权后重新打开应用。"
+                QMessageBox.Critical, _("Capture Failed"),
+                _("{error}\n\n"
+                  "In System Settings:\n"
+                  "  1. Click the lock to unlock\n"
+                  "  2. Click + and add MySnipaste\n"
+                  "  3. Check the permission\n\n"
+                  "Restart the app after granting permission.").format(error=e)
             )
             return
         except Exception as e:
@@ -173,13 +194,13 @@ class SnipasteApp(QApplication):
 
     def _on_save(self, pixmap: QPixmap) -> None:
         s = self.settings
-        default_name = f"截图_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{s.auto_save_format}"
+        default_name = _("Screenshot_{time}.{fmt}").format(time=datetime.now().strftime('%Y%m%d_%H%M%S'), fmt=s.auto_save_format)
         default_dir = s.auto_save_dir or ""
         default_path = os.path.join(default_dir, default_name) if default_dir else default_name
 
         file_path, _ = QFileDialog.getSaveFileName(
-            None, "保存截图", default_path,
-            "PNG 图片 (*.png);;JPEG 图片 (*.jpg *.jpeg);;所有文件 (*)",
+            None, _("Save Screenshot"), default_path,
+            _("PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;All Files (*)"),
         )
         if file_path:
             pixmap.save(file_path)
@@ -193,8 +214,8 @@ class SnipasteApp(QApplication):
         if pixmap is None or pixmap.isNull():
             logger.warning("剪贴板中没有图片")
             QMessageBox.information(
-                None, "OCR 剪贴板",
-                "剪贴板中没有图片。\n请先复制一张图片，然后再试。"
+                None, _("OCR Clipboard"),
+                _("No image in clipboard.\nPlease copy an image first.")
             )
             return
 
@@ -203,8 +224,8 @@ class SnipasteApp(QApplication):
             clipboard.setText(text)
             logger.info(f"OCR 识别成功，{len(text)} 个字符已复制到剪贴板")
             QMessageBox.information(
-                None, "OCR 结果",
-                f"文本已提取并复制到剪贴板：\n\n{text[:500]}"
+                None, _("OCR Result"),
+                _("Text extracted and copied to clipboard:\n\n{text}").format(text=text[:500])
             )
         else:
             logger.warning("OCR 识别结果为空")
@@ -227,6 +248,9 @@ class SnipasteApp(QApplication):
             self.hotkey_listener.stop()
         if hasattr(self, 'tray'):
             self.tray.cleanup()
+        if hasattr(self, '_settings_win'):
+            self._settings_win.close()
+            self._settings_win = None
 
     def quit(self) -> None:
         logger.info("用户请求退出应用")
