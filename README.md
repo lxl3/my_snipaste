@@ -66,8 +66,12 @@ python main.py
 | 快捷键 | 功能 |
 |--------|------|
 | `F12` | 启动截图 |
-| `Esc` | 取消截图 |
-| `Ctrl + 滚轮` | 编辑器中缩放截图 |
+| `Esc` | 取消截图 / 退出文字编辑 |
+| `Ctrl + Z` | 撤销标注 |
+| `Ctrl + Y` | 重做标注 |
+| `Ctrl + C` | 复制截图到剪贴板 |
+| `Ctrl + S` | 保存截图 |
+| `Ctrl + P` | 贴图（钉到桌面） |
 | `双击` | 关闭贴图窗口 |
 
 ## 构建打包
@@ -101,34 +105,54 @@ dist/MySnipaste.exe
 
 ```
 my_snipaste/
-├── main.py              # 入口文件
-├── scripts/build_windows.py  # Windows 构建脚本（自动下载 Tesseract 并打包）
-├── icon.ico             # 应用图标（多尺寸）
-├── requirements.txt     # Python 依赖
+├── main.py                    # 入口文件
+├── pyproject.toml             # 项目配置（版本、pytest、ruff）
+├── requirements.txt           # Python 依赖
+├── requirements-dev.txt       # 开发依赖（pytest, ruff）
+├── icon.icns                  # macOS 应用图标
+├── icon.ico                   # Windows 应用图标
 ├── assets/
-│   └── icons/           # 图标资源
-│       ├── icon-16.png
-│       ├── icon-32.png
-│       ├── icon-48.png
-│       ├── icon-128.png
-│       └── icon-256.png
-├── scripts/
-│   └── generate_icon.py # 图标生成脚本
+│   └── icons/                 # 多尺寸 PNG 图标
 ├── src/
-│   ├── __init__.py      # 包初始化，版本定义
-│   ├── app.py           # 主应用：托盘、快捷键、贴图窗口
-│   ├── overlay.py       # 截图覆盖层：选区、标注工具栏
-│   ├── editor.py        # 截图编辑器：高级标注、撤销/重做
-│   ├── ocr_engine.py    # OCR 引擎：Tesseract 集成、异步识别
-│   ├── utils.py         # 工具函数：截图、图像格式转换
-│   └── resources/
-│       └── icons/       # SVG 工具栏图标
-└── tesseract_bundle/    # Tesseract 打包文件（构建用）
-    ├── tesseract.exe
-    ├── *.dll
-    └── tessdata/
-        ├── eng.traineddata
-        └── chi_sim.traineddata
+│   ├── __init__.py            # 包初始化，版本定义
+│   ├── app.py                 # 主应用：托盘、快捷键、截图流程
+│   ├── core/                  # 基础层
+│   │   ├── settings.py        # JSON 持久化设置
+│   │   ├── hotkeys.py         # 全局快捷键监听
+│   │   ├── permissions.py     # macOS 权限管理
+│   │   ├── utils.py           # 图标加载、截图、PIL-Qt 转换
+│   │   ├── constants.py       # 设计常量
+│   │   └── logger.py          # 彩色日志 + 文件轮转
+│   ├── overlay/               # 截图覆盖层
+│   │   ├── widget.py          # 全屏覆盖层 + 选区
+│   │   ├── toolbar.py         # 标注工具栏
+│   │   ├── actions.py         # OCR / 钉/复制/保存 / 撤销重做
+│   │   ├── rendering.py       # 标注渲染
+│   │   └── ocr_mixin.py       # OCR 进度弹窗
+│   ├── ocr/
+│   │   └── engine.py          # Tesseract OCR 引擎
+│   └── ui/
+│       ├── tray.py            # 系统托盘
+│       ├── pin_window.py      # 贴图窗口
+│       ├── settings_dialog.py # 设置对话框
+│       └── ocr_dialog.py      # OCR 结果查看
+├── scripts/
+│   ├── build_common.py        # 共享构建逻辑
+│   ├── build_macos.py         # macOS PyInstaller 构建
+│   ├── build_windows.py       # Windows 构建（自动下载 Tesseract）
+│   ├── build_nuitka_macos.py  # macOS Nuitka 构建（实验）
+│   └── generate_icon.py       # 图标生成
+├── tests/
+│   ├── test_settings.py       # 设置测试
+│   ├── test_hotkeys.py        # 热键测试
+│   ├── test_constants.py      # 常量测试
+│   ├── test_utils.py          # 工具函数测试
+│   ├── test_permissions.py    # 权限测试
+│   ├── test_ocr_engine.py     # OCR 引擎测试
+│   └── test_icon_generation.py# 图标生成测试
+├── tesseract_bundle/          # Windows Tesseract 打包文件
+├── docs/                      # 文档
+└── .github/workflows/         # GitHub Actions CI
 ```
 
 ## 技术栈
@@ -138,7 +162,6 @@ my_snipaste/
 - **Pillow** - 图像处理
 - **pytesseract** - Tesseract OCR 的 Python 接口
 - **pynput** - 全局快捷键监听
-- **mss** - 跨平台屏幕截图
 - **PyInstaller** - 打包为独立 exe
 
 ## 应用图标

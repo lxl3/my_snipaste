@@ -412,7 +412,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self._redo_stack.clear()
                 self.toolbar.update_undo_redo_state()
             elif len(self._draw_points) > 2 and self.annotations and self.annotations[-1]["type"] == "freehand":
-                self.annotations[-1]["points"] = list(self._draw_points)
+                ann = self.annotations[-1]
+                ann["points"] = list(self._draw_points)
+                ann.pop("_path", None)
         else:
             dx = local.x() - self._draw_start.x()
             dy = local.y() - self._draw_start.y()
@@ -517,6 +519,12 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._undo()
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Y:
             self._redo()
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_C:
+            self.on_copy()
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_S:
+            self.on_save()
+        elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_P:
+            self.on_pin()
         super().keyPressEvent(event)
 
     # ─── Size info ───

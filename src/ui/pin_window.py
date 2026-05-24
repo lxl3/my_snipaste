@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QPoint, QRect
+from PySide6.QtCore import Qt, QPoint, QRect, QSize
 from PySide6.QtGui import QPixmap, QPainter, QColor, QPen
 from PySide6.QtWidgets import QWidget
 
@@ -9,9 +9,9 @@ logger = setup_logger("pin_window")
 
 
 class PinWindow(QWidget):
-    """Floating pinned window with centered drop shadow."""
+    """Floating pinned window with pre-rendered shadow."""
 
-    SHADOW_SIZE = 6  # shadow width in pixels
+    SHADOW_SIZE = 6
 
     def __init__(self, pixmap: QPixmap, pos) -> None:
         super().__init__()
@@ -29,19 +29,22 @@ class PinWindow(QWidget):
         bh = int(pixmap.height() / pixmap.devicePixelRatio()) + padding * 2
         self.setFixedSize(bw, bh)
 
+        self._shadow_pixmap = self._render_shadow(bw, bh)
+
         opacity = get_settings().pin_window_opacity
         self.setWindowOpacity(opacity / 100.0)
 
         if pos is not None:
             self.move(pos.x(), pos.y())
 
-    def paintEvent(self, event) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-
+    def _render_shadow(self, w: int, h: int) -> QPixmap:
+        pm = QPixmap(QSize(w, h))
+        pm.fill(Qt.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.Antialiasing)
         padding = self.SHADOW_SIZE
         margin = 1
-        content_rect = self.rect().adjusted(padding, padding, -padding, -padding)
+        content_rect = pm.rect().adjusted(padding, padding, -padding, -padding)
         shadow_color = QColor(40, 120, 255)
 
         for i in range(padding):
@@ -49,17 +52,25 @@ class PinWindow(QWidget):
             if alpha <= 0:
                 break
             offset = padding - margin - i
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(shadow_color.red(), shadow_color.green(), shadow_color.blue(), alpha))
-            painter.drawRoundedRect(
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(shadow_color.red(), shadow_color.green(), shadow_color.blue(), alpha))
+            p.drawRoundedRect(
                 content_rect.adjusted(-offset, -offset, offset, offset),
                 4 + i, 4 + i,
             )
 
-        painter.setPen(QPen(QColor(0, 0, 0, 30), 1))
-        painter.setBrush(Qt.white)
-        painter.drawRoundedRect(content_rect, 4, 4)
+        p.setPen(QPen(QColor(0, 0, 0, 30), 1))
+        p.setBrush(Qt.white)
+        p.drawRoundedRect(content_rect, 4, 4)
+        p.end()
+        return pm
 
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.drawPixmap(0, 0, self._shadow_pixmap)
+
+        padding = self.SHADOW_SIZE
+        content_rect = self.rect().adjusted(padding, padding, -padding, -padding)
         dpr = self.pixmap.devicePixelRatio()
         src = QRect(
             0, 0,

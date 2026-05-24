@@ -127,38 +127,45 @@ class OverlayRenderingMixin:
             return
         painter.setPen(QPen(QColor(ann["color"]), ann["width"], Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         painter.setBrush(Qt.NoBrush)
-        path = QPainterPath()
-        path.moveTo(pts[0] + offset)
-        for i in range(1, len(pts)):
-            path.lineTo(pts[i] + offset)
-        painter.drawPath(path)
+        path = ann.get("_path")
+        if path is None:
+            path = QPainterPath()
+            path.moveTo(pts[0])
+            for i in range(1, len(pts)):
+                path.lineTo(pts[i])
+            ann["_path"] = QPainterPath(path)
+        painter.drawPath(path.translated(offset))
 
     def _draw_mosaic(self, painter: QPainter, ann: dict, offset) -> None:
         r = QRectF(ann["rect"]).translated(offset).toRect()
         if r.isEmpty():
             return
-        dpr = self.full_screenshot.devicePixelRatio()
-        scale = MOSAIC_SCALE_FACTOR
 
-        # ann["rect"] is local to selection top-left → global = local + offset
-        local_rect = QRectF(ann["rect"])
-        global_x = round((local_rect.x() + self.selection_rect.x()) * dpr)
-        global_y = round((local_rect.y() + self.selection_rect.y()) * dpr)
+        cached = ann.get("_cached")
+        if cached is None:
+            dpr = self.full_screenshot.devicePixelRatio()
+            scale = MOSAIC_SCALE_FACTOR
 
-        px = QPixmap(r.size())
-        px.fill(Qt.transparent)
-        p2 = QPainter(px)
-        src = QRect(
-            global_x, global_y,
-            round(r.width() * dpr),
-            round(r.height() * dpr),
-        )
-        p2.drawPixmap(px.rect(), self.full_screenshot, src)
-        p2.end()
-        small = px.scaled(max(1, r.width() // scale), max(1, r.height() // scale),
-                          Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-        pixelated = small.scaled(r.width(), r.height(), Qt.IgnoreAspectRatio, Qt.FastTransformation)
-        painter.drawPixmap(r.topLeft(), pixelated)
+            local_rect = QRectF(ann["rect"])
+            global_x = round((local_rect.x() + self.selection_rect.x()) * dpr)
+            global_y = round((local_rect.y() + self.selection_rect.y()) * dpr)
+
+            px = QPixmap(r.size())
+            px.fill(Qt.transparent)
+            p2 = QPainter(px)
+            src = QRect(
+                global_x, global_y,
+                round(r.width() * dpr),
+                round(r.height() * dpr),
+            )
+            p2.drawPixmap(px.rect(), self.full_screenshot, src)
+            p2.end()
+            small = px.scaled(max(1, r.width() // scale), max(1, r.height() // scale),
+                              Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+            cached = small.scaled(r.width(), r.height(), Qt.IgnoreAspectRatio, Qt.FastTransformation)
+            ann["_cached"] = cached
+
+        painter.drawPixmap(r.topLeft(), cached)
 
     def _draw_text(self, painter: QPainter, ann: dict, offset) -> None:
         pos = ann["pos"] + offset

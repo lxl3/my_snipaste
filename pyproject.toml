@@ -1,3 +1,8 @@
+[project]
+name = "MySnipaste"
+version = "1.0.1"
+description = "A cross-platform screenshot tool inspired by Snipaste"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

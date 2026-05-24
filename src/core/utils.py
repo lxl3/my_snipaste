@@ -93,7 +93,8 @@ def qpixmap_to_pil(pixmap: QPixmap) -> "PILImage":
 def qimage_to_pil(qimage: QImage) -> "PILImage":
     qimage = qimage.convertToFormat(QImage.Format_RGBA8888)
     ptr = qimage.constBits()
-    ptr.setsize(qimage.sizeInBytes())
+    if not isinstance(ptr, memoryview):
+        ptr.setsize(qimage.sizeInBytes())
     return Image.frombuffer("RGBA", (qimage.width(), qimage.height()), bytes(ptr))
 
 

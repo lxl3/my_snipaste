@@ -1,3 +1,8 @@
+import importlib.metadata
+
 from .app import SnipasteApp
 
-__version__ = "1.0.1"
+try:
+    __version__ = importlib.metadata.version("MySnipaste")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "1.0.1"

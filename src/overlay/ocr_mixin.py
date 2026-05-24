@@ -1,6 +1,6 @@
 """Shared OCR progress dialog and cleanup logic mixin."""
 
-from typing import Callable
+from collections.abc import Callable
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Qt
 
@@ -19,7 +19,7 @@ class OcrMixin:
         self._ocr_progress.setWindowTitle("OCR in progress")
         self._ocr_progress.setText("Recognizing text, please wait...")
         self._ocr_progress.setStandardButtons(QMessageBox.Cancel)
-        self._ocr_progress.setWindowModality(Qt.NonModal)
+        self._ocr_progress.setWindowModality(Qt.WindowModal)
         self._ocr_progress.rejected.connect(cancel_callback)
         self._ocr_progress.show()
 

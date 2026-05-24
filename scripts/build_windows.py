@@ -120,6 +120,7 @@ def setup_tesseract_bundle() -> bool:
         )
         if tesseract_exe.exists():
             (BUNDLE_DIR / "tessdata").mkdir(exist_ok=True)
+            installer.unlink(missing_ok=True)
             return True
     except Exception as e:
         print(f"静默安装失败: {e}")

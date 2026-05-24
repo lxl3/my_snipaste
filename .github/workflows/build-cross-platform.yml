@@ -79,6 +79,8 @@ jobs:
       run: python scripts/build_macos.py
 
     - name: Create DMG
+      id: create_dmg
+      continue-on-error: true
       run: |
         brew install create-dmg
         create-dmg \
@@ -90,7 +92,7 @@ jobs:
           --hide-extension "MySnipaste.app" \
           --app-drop-link 425 120 \
           "dist/MySnipaste-macOS.dmg" \
-          "dist/MySnipaste.app" || true
+          "dist/MySnipaste.app"
 
     - name: Create ZIP fallback
       if: always()
