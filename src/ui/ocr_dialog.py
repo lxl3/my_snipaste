@@ -221,6 +221,5 @@ class OcrResultDialog(QDialog):
         QTimer.singleShot(300, self.accept)
 
     def _show_copy_feedback(self, message: str) -> None:
-        original_text = self.copy_btn.text()
         self.copy_btn.setText(f"[OK] {message}")
         self.copy_btn.setEnabled(False)

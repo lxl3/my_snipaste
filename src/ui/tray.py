@@ -1,7 +1,7 @@
 import platform
 import subprocess
 
-from PySide6.QtGui import QAction, QIcon, QCursor
+from PySide6.QtGui import QAction, QCursor
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QDialog, QTextEdit, QVBoxLayout, QPushButton, QHBoxLayout
 
@@ -99,7 +99,7 @@ class TrayManager(QObject):
         text_edit.setReadOnly(True)
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 content = f.read()
             text_edit.setPlainText(content if content else "(空)")
         except Exception as e:

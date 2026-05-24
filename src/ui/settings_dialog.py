@@ -1,7 +1,7 @@
 import sys
 import subprocess
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPixmap, QIcon
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
@@ -92,8 +92,7 @@ class SettingsDialog(QDialog):
         # Auto-save
         save_group = QGroupBox("Auto Save")
         save_layout = QFormLayout(save_group)
-        self._auto_save_checkbox = QCheckBox("Always prompt for save location")
-        self._auto_save_checkbox.setChecked(True)
+        self._auto_save_checkbox = QCheckBox("Auto save to directory")
         save_layout.addRow(self._auto_save_checkbox)
 
         dir_row = QHBoxLayout()
@@ -117,7 +116,7 @@ class SettingsDialog(QDialog):
         return tab
 
     def _on_auto_save_toggle(self, checked: bool) -> None:
-        self._save_dir_input.setEnabled(not checked)
+        self._save_dir_input.setEnabled(checked)
 
     def _browse_save_dir(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "Select Save Directory")
@@ -245,7 +244,7 @@ class SettingsDialog(QDialog):
         fmt_idx = self._format_combo.findText(s.auto_save_format.upper())
         if fmt_idx >= 0:
             self._format_combo.setCurrentIndex(fmt_idx)
-        self._auto_save_checkbox.setChecked(not bool(s.auto_save_dir))
+        self._auto_save_checkbox.setChecked(bool(s.auto_save_dir))
 
         if hasattr(self, '_launch_checkbox'):
             self._launch_checkbox.setChecked(s.launch_at_startup)
@@ -265,7 +264,7 @@ class SettingsDialog(QDialog):
         s.default_font_family = self._font_combo.currentText()
         s.default_font_size = self._font_size_spin.value()
 
-        if not self._auto_save_checkbox.isChecked():
+        if self._auto_save_checkbox.isChecked():
             s.auto_save_dir = self._save_dir_input.text().strip()
         else:
             s.auto_save_dir = ""
@@ -285,7 +284,6 @@ class SettingsDialog(QDialog):
     def _apply_launch_at_startup(self, enable: bool) -> None:
         if sys.platform != "darwin":
             return
-        bundle_id = "com.mysnipaste.app"
         try:
             if enable:
                 subprocess.run([
@@ -296,7 +294,7 @@ class SettingsDialog(QDialog):
             else:
                 subprocess.run([
                     "osascript", "-e",
-                    f'tell application "System Events" to delete login item "MySnipaste"'
+                    'tell application "System Events" to delete login item "MySnipaste"'
                 ], capture_output=True, timeout=5)
         except Exception as e:
             logger.warning(f"Failed to update login item: {e}")

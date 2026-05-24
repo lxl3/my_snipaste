@@ -48,7 +48,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setGeometry(self.total_geometry)
         self.setCursor(Qt.CrossCursor)
-        self.grabKeyboard()
 
         self.is_selecting: bool = False
         self.start_point: QPoint = QPoint()
@@ -94,6 +93,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         self.toolbar = OverlayToolbar(self)
         self.toolbar.setup()
+        self.grabKeyboard()
 
     # ─── Selection helpers ───
 

@@ -138,7 +138,7 @@ class OcrWorker(QThread):
             output_path = output_base + ".txt"
             text = ""
             if os.path.exists(output_path):
-                with open(output_path, "r", encoding="utf-8") as f:
+                with open(output_path, encoding="utf-8") as f:
                     text = f.read().strip()
 
             if not self._cancelled:

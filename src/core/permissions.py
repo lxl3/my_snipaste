@@ -1,3 +1,4 @@
+import os
 import platform
 import subprocess
 import sys
@@ -24,6 +25,17 @@ def check_macos_accessibility() -> bool:
     return True
 
 
+def _macos_version() -> tuple[int, int] | None:
+    try:
+        v = platform.mac_ver()[0]
+        parts = v.split(".")
+        if len(parts) >= 2:
+            return (int(parts[0]), int(parts[1]))
+    except Exception:
+        pass
+    return None
+
+
 def check_screen_recording_permission() -> bool | None:
     """Check Screen Recording permission (tri-state).
 
@@ -34,6 +46,11 @@ def check_screen_recording_permission() -> bool | None:
     """
     if platform.system() != "Darwin":
         return True
+
+    mac_ver = _macos_version()
+    if mac_ver and mac_ver < (14, 0):
+        logger.info(f"macOS {mac_ver[0]}.{mac_ver[1]} detected — Screen Recording permission API requires macOS 14+; will attempt capture directly")
+        return None
 
     try:
         import ctypes

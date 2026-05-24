@@ -3,6 +3,7 @@ from PySide6.QtGui import QPixmap, QPainter, QColor, QPen
 from PySide6.QtWidgets import QWidget
 
 from ..core.logger import setup_logger
+from ..core.settings import get_settings
 
 logger = setup_logger("pin_window")
 
@@ -27,6 +28,9 @@ class PinWindow(QWidget):
         bw = int(pixmap.width() / pixmap.devicePixelRatio()) + padding * 2
         bh = int(pixmap.height() / pixmap.devicePixelRatio()) + padding * 2
         self.setFixedSize(bw, bh)
+
+        opacity = get_settings().pin_window_opacity
+        self.setWindowOpacity(opacity / 100.0)
 
         if pos is not None:
             self.move(pos.x(), pos.y())

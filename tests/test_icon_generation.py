@@ -1,20 +1,15 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """图标生成脚本测试"""
 
 import sys
 from pathlib import Path
+
 from PIL import Image
 
 # 添加项目根目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scripts.generate_icon import (
-    draw_icon,
-    SIZES,
-    PROJECT_DIR,
-    ASSETS_DIR
-)
+from scripts.generate_icon import ASSETS_DIR, PROJECT_DIR, SIZES, draw_icon
 
 
 def test_draw_icon():
@@ -26,7 +21,7 @@ def test_draw_icon():
 
         # 检查图像属性
         assert img.size == (size, size), f"图标尺寸不匹配: {img.size} != ({size}, {size})"
-        assert img.mode == 'RGBA', f"图像模式应为 RGBA，实际为 {img.mode}"
+        assert img.mode == "RGBA", f"图像模式应为 RGBA，实际为 {img.mode}"
 
         # 检查不是全透明（应该有内容）
         pixels = list(img.getdata())
@@ -53,9 +48,9 @@ def test_icon_files_exist():
     # 检查 ICO 文件
     ico_path = PROJECT_DIR / "icon.ico"
     if ico_path.exists():
-        print(f"  [OK] icon.ico 存在")
+        print("  [OK] icon.ico 存在")
     else:
-        print(f"  [WARN] icon.ico 不存在（运行 generate_icon.py 生成）")
+        print("  [WARN] icon.ico 不存在（运行 generate_icon.py 生成）")
 
 
 def test_icon_in_build():
@@ -85,6 +80,7 @@ def main():
     except Exception as e:
         print(f"\n[ERROR] 测试错误: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
