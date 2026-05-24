@@ -196,12 +196,20 @@ class SnipasteApp(QApplication):
         default_dir = s.auto_save_dir or ""
         default_path = os.path.join(default_dir, default_name) if default_dir else default_name
 
+        # 记住最后使用的目录（仅在未配置自动保存目录时）
+        last_save_dir = getattr(self, '_last_save_dir', "")
+        if not s.auto_save_dir and last_save_dir:
+            default_path = os.path.join(last_save_dir, default_name) if last_save_dir else default_name
+
         file_path, _ = QFileDialog.getSaveFileName(
             None, _("Save Screenshot"), default_path,
             _("PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;All Files (*)"),
         )
         if file_path:
             pixmap.save(file_path)
+            # 记住最后使用的目录（仅在未配置自动保存目录时）
+            if not s.auto_save_dir:
+                self._last_save_dir = os.path.dirname(file_path) or ""
             if self.overlay:
                 self.overlay.close()
 
