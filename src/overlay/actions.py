@@ -38,8 +38,8 @@ class OverlayActionsMixin:
         self._ocr_worker = OcrWorker(pil_image)
         self._ocr_worker.finished.connect(self._on_ocr_finished)
         self._ocr_worker.error.connect(self._on_ocr_error)
-        self._ocr_worker.start()
         self._show_ocr_progress(self._cancel_ocr)
+        self._ocr_worker.start()
 
     def _on_ocr_finished(self, text: str) -> None:
         self._cleanup_ocr()

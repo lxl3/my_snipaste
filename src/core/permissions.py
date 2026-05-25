@@ -18,11 +18,19 @@ SETTINGS_URL_INPUT = (
 
 
 def check_macos_accessibility() -> bool:
-    """Log macOS permission status (informational only)."""
+    """Check macOS permissions and return if Input Monitoring is granted.
+
+    Returns:
+        bool: True if on non-macOS or Input Monitoring granted, False otherwise
+    """
     if platform.system() != "Darwin":
         return True
-    _log_permission_status()
-    return True
+
+    status = get_permission_status()
+    _log_permission_status_detailed(status)
+
+    # Input Monitoring is critical for global hotkeys
+    return status.get("input_monitoring", False)
 
 
 def _macos_version() -> tuple[int, int] | None:
@@ -159,15 +167,51 @@ def show_permission_guide() -> None:
     logger.warning("=" * 60)
 
 
+def get_permission_status() -> dict[str, bool]:
+    """Get current permission status for all required permissions.
+
+    Returns:
+        dict: {"accessibility": bool, "input_monitoring": bool, "screen_recording": bool}
+    """
+    if platform.system() != "Darwin":
+        return {
+            "accessibility": True,
+            "input_monitoring": True,
+            "screen_recording": True,
+        }
+
+    return {
+        "accessibility": _check_ax_trusted(),
+        "input_monitoring": _check_input_monitoring(),
+        "screen_recording": check_screen_recording_permission() or False,
+    }
+
+
 def _log_permission_status() -> None:
-    trusted = _check_ax_trusted()
-    has_input = _check_input_monitoring()
-    if not trusted:
-        logger.info("accessibility: not granted (not required by current impl)")
-    if not has_input:
-        logger.info("input monitoring: not granted (not required by current impl)")
-    if trusted and has_input:
-        logger.info("macOS permissions all set")
+    """Deprecated: use _log_permission_status_detailed() instead."""
+    status = get_permission_status()
+    _log_permission_status_detailed(status)
+
+
+def _log_permission_status_detailed(status: dict[str, bool]) -> None:
+    """Log detailed permission status."""
+    if status["input_monitoring"]:
+        logger.info("✓ Input Monitoring 权限已授予（全局快捷键可用）")
+    else:
+        logger.warning("✗ Input Monitoring 权限未授予（全局快捷键不可用）")
+
+    if status["screen_recording"]:
+        logger.info("✓ Screen Recording 权限已授予")
+    elif status["screen_recording"] is None:
+        logger.info("• Screen Recording 权限状态未知（macOS 13-）")
+    else:
+        logger.warning("✗ Screen Recording 权限未授予")
+
+    if not status["accessibility"]:
+        logger.debug("• Accessibility 权限未授予（当前实现不需要）")
+
+    if status["input_monitoring"] and status["screen_recording"]:
+        logger.info("🎉 所有必需权限已就绪")
 
 
 def _check_ax_trusted() -> bool:
@@ -207,3 +251,69 @@ def _find_framework(name: str) -> str | None:
         return path
     fallback = f"/System/Library/Frameworks/{name}.framework/{name}"
     return fallback if os.path.exists(fallback) else None
+
+
+def show_permission_dialog(parent=None) -> None:
+    """Show a user-friendly permission status dialog with action buttons.
+
+    Args:
+        parent: Parent widget for the dialog (optional)
+    """
+    if platform.system() != "Darwin":
+        return
+
+    try:
+        from PySide6.QtWidgets import QMessageBox, QPushButton
+        from PySide6.QtCore import Qt
+
+        status = get_permission_status()
+
+        # Build status message
+        lines = ["MySnipaste 需要以下权限才能正常工作：\n"]
+
+        if status["input_monitoring"]:
+            lines.append("✓ Input Monitoring（输入监控）- 已授予")
+        else:
+            lines.append("✗ Input Monitoring（输入监控）- 未授予")
+            lines.append("  → 全局快捷键需要此权限")
+
+        lines.append("")
+
+        if status["screen_recording"]:
+            lines.append("✓ Screen Recording（屏幕录制）- 已授予")
+        elif status["screen_recording"] is None:
+            lines.append("• Screen Recording（屏幕录制）- 状态未知")
+        else:
+            lines.append("✗ Screen Recording（屏幕录制）- 未授予")
+
+        msg = QMessageBox(parent)
+        msg.setWindowTitle("权限检查")
+        msg.setText("\n".join(lines))
+
+        if not status["input_monitoring"]:
+            msg.setIcon(QMessageBox.Warning)
+            msg.setInformativeText(
+                "\n如何授予权限：\n"
+                "1. 点击下方「打开系统设置」按钮\n"
+                "2. 在「输入监控」中勾选 MySnipaste\n"
+                "3. 完全退出并重启应用\n\n"
+                "注意：直接点击窗口关闭按钮不会完全退出，\n"
+                "请从托盘菜单选择「退出」。"
+            )
+
+            # Add "Open Settings" button
+            open_btn = msg.addButton("打开系统设置", QMessageBox.ActionRole)
+            open_btn.clicked.connect(open_input_monitoring_settings)
+            msg.addButton("稍后处理", QMessageBox.RejectRole)
+        else:
+            msg.setIcon(QMessageBox.Information)
+            msg.setInformativeText("\n所有必需权限已就绪 ✓")
+            msg.addButton(QMessageBox.Ok)
+
+        msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
+        msg.exec()
+
+    except ImportError:
+        logger.warning("无法显示权限对话框：PySide6 未导入")
+    except Exception as e:
+        logger.error(f"显示权限对话框失败: {e}")

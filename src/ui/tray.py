@@ -1,3 +1,4 @@
+import os
 import platform
 import subprocess
 
@@ -50,6 +51,13 @@ class TrayManager(QObject):
         menu.addAction(settings_action)
         menu.addSeparator()
 
+        # macOS only: Check Permissions menu item
+        if platform.system() == "Darwin":
+            check_perm_action = QAction(_("Check Permissions"), self.app)
+            check_perm_action.triggered.connect(self._check_permissions)
+            menu.addAction(check_perm_action)
+            menu.addSeparator()
+
         log_dir_action = QAction(_("Open Log Directory"), self.app)
         log_dir_action.triggered.connect(self._open_log_dir)
         menu.addAction(log_dir_action)
@@ -79,7 +87,12 @@ class TrayManager(QObject):
     def _open_log_dir(self) -> None:
         log_dir = get_log_dir()
         try:
-            subprocess.run(["open", log_dir], check=True)
+            if platform.system() == "Darwin":
+                subprocess.run(["open", log_dir], check=True)
+            elif platform.system() == "Windows":
+                os.startfile(log_dir)
+            else:
+                subprocess.run(["xdg-open", log_dir], check=True)
             logger.info(f"已打开日志目录: {log_dir}")
         except Exception as e:
             logger.error(f"打开日志目录失败: {e}")
@@ -110,8 +123,9 @@ class TrayManager(QObject):
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        open_btn = QPushButton(_("Open in Finder"), dialog)
-        open_btn.clicked.connect(lambda: subprocess.run(["open", get_log_dir()]))
+        open_label = _("Open in Explorer") if platform.system() == "Windows" else _("Open in Finder")
+        open_btn = QPushButton(open_label, dialog)
+        open_btn.clicked.connect(lambda: self._open_log_dir())
         btn_layout.addWidget(open_btn)
         close_btn = QPushButton(_("Close"), dialog)
         close_btn.clicked.connect(dialog.accept)
@@ -133,6 +147,11 @@ class TrayManager(QObject):
 
     def _open_settings(self) -> None:
         self.settings_requested.emit()
+
+    def _check_permissions(self) -> None:
+        """Show permission status dialog (macOS only)."""
+        from ..core.permissions import show_permission_dialog
+        show_permission_dialog()
 
     def cleanup(self) -> None:
         if self.tray_icon:

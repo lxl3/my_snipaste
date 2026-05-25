@@ -20,6 +20,7 @@ from .core.permissions import (
     open_screen_recording_settings,
     request_screen_recording_permission,
     show_permission_guide,
+    show_permission_dialog,
 )
 from .ui.pin_window import PinWindow
 from .ui.tray import TrayManager
@@ -77,20 +78,27 @@ class SnipasteApp(QApplication):
         self.hotkey_listener = HotkeyListener(self.settings.hotkey)
         self.hotkey_listener.capture_signal.connect(self.start_capture)
 
-        check_macos_accessibility()
+        have_hotkey = check_macos_accessibility()
 
         self.tray = TrayManager(self)
-        self.tray.setup(True)
+        self.tray.setup(have_hotkey)
         self.tray.settings_requested.connect(self._open_settings)
 
-        self.hotkey_listener.start()
-        logger.info("全局快捷键已启动")
+        if have_hotkey:
+            self.hotkey_listener.start()
+            logger.info("全局快捷键已启动")
+        else:
+            logger.warning("Input Monitoring 权限未授予，全局快捷键不可用")
 
         self.aboutToQuit.connect(self.cleanup)
         logger.info("MySnipaste 应用初始化完成")
         if sys.platform == "darwin":
             self._setup_macos_menu()
-        QTimer.singleShot(500, self._show_startup_notification)
+
+        if have_hotkey:
+            QTimer.singleShot(500, self._show_startup_notification)
+        else:
+            QTimer.singleShot(500, self._show_permission_required_notification)
 
     def setup_focused_hotkey(self) -> None:
         self.f12_shortcut = QShortcut(QKeySequence("F12"), self)
@@ -126,6 +134,11 @@ class SnipasteApp(QApplication):
         QTimer.singleShot(3000, msg.close)
         msg.exec()
         logger.info("启动提示框已关闭")
+
+    def _show_permission_required_notification(self) -> None:
+        """Show permission dialog when Input Monitoring permission is not granted."""
+        _mac_activate_app()
+        show_permission_dialog()
 
     def start_capture(self) -> None:
         logger.info("start_capture() 被调用")

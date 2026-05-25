@@ -97,7 +97,7 @@ class OcrMixin:
             self._ocr_progress.close()
             self._ocr_progress = None
         # Cleanup timer
-        if hasattr(self, '_ocr_timer'):
+        if hasattr(self, '_ocr_timer') and self._ocr_timer:
             self._ocr_timer.stop()
             self._ocr_timer = None
         if hasattr(self, '_ocr_start_time'):
@@ -108,7 +108,7 @@ class OcrMixin:
             self._ocr_progress.close()
             self._ocr_progress = None
         # Cleanup timer
-        if hasattr(self, '_ocr_timer'):
+        if hasattr(self, '_ocr_timer') and self._ocr_timer:
             self._ocr_timer.stop()
             self._ocr_timer = None
         if hasattr(self, '_ocr_start_time'):

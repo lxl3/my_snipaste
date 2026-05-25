@@ -4,6 +4,8 @@ import sys
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
+from .hotkeys import get_default_hotkey
+
 _SETTINGS_DIR: str = ""
 _SETTINGS_PATH: str = ""
 _loaded: "AppSettings | None" = None
@@ -31,7 +33,7 @@ def _get_settings_path() -> str:
 
 @dataclass
 class AppSettings:
-    hotkey: str = "cmd+shift+x"
+    hotkey: str = field(default_factory=get_default_hotkey)
     ocr_language: str = "eng+chi_sim"
     default_color: str = "#ff3232"
     default_line_width: int = 3
