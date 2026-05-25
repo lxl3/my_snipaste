@@ -82,6 +82,12 @@ class _PynputListener(QObject):
     def stop(self) -> None:
         logger.debug("PynputListener 停止")
         self.running = False
+        if self.listener is not None:
+            try:
+                self.listener.stop()
+                logger.debug("pynput Listener 已停止")
+            except Exception as e:
+                logger.debug(f"停止 pynput Listener 时异常: {e}")
 
     def _parse_hotkey(self) -> set:  # set[keyboard.Key | keyboard.KeyCode]
         from pynput import keyboard

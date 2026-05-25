@@ -265,13 +265,15 @@ class SnipasteApp(QApplication):
         if result is not None:
             self.settings = result
             self.hotkey_listener.stop()
-            QTimer.singleShot(200, self._restart_hotkey)
+            # Wait longer to ensure the old listener thread has fully stopped
+            QTimer.singleShot(500, self._restart_hotkey)
 
     def _restart_hotkey(self) -> None:
+        logger.info(f"重启快捷键监听器，新快捷键: {self.settings.hotkey}")
         self.hotkey_listener = HotkeyListener(self.settings.hotkey)
         self.hotkey_listener.capture_signal.connect(self.start_capture)
         self.hotkey_listener.start()
-        logger.info(f"Settings applied, hotkey: {self.settings.hotkey}")
+        logger.info(f"快捷键监听器已重启: {self.settings.hotkey}")
 
     def cleanup(self) -> None:
         if hasattr(self, 'hotkey_listener'):
