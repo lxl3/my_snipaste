@@ -163,6 +163,7 @@ class _PynputListener(QObject):
 
     def _normalize(self, key) -> object:
         from pynput import keyboard
+        # Normalize modifier keys
         if key in (keyboard.Key.ctrl_l, keyboard.Key.ctrl_r):
             return keyboard.Key.ctrl_l
         elif key in (keyboard.Key.shift_l, keyboard.Key.shift_r):
@@ -171,6 +172,10 @@ class _PynputListener(QObject):
             return keyboard.Key.alt_l
         elif key in (keyboard.Key.cmd, keyboard.Key.cmd_r):
             return keyboard.Key.cmd
+        # Normalize letter/number keys by their character
+        elif hasattr(key, 'char') and key.char:
+            # Convert to lowercase for consistent comparison
+            return keyboard.KeyCode.from_char(key.char.lower())
         return key
 
     def __del__(self) -> None:
