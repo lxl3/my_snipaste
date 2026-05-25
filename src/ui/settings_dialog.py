@@ -34,6 +34,21 @@ class HotkeyRecorderWidget(QWidget):
         self._display = QLineEdit()
         self._display.setReadOnly(True)
         self._display.setPlaceholderText(_("Click 'Record' and press keys..."))
+        self._display.setStyleSheet("""
+            QLineEdit {
+                padding: 4px 8px;
+                border: 1px solid palette(mid);
+                border-radius: 4px;
+                background: palette(base);
+                color: palette(text);
+            }
+            QLineEdit:focus {
+                border-color: palette(highlight);
+            }
+            QLineEdit::placeholder {
+                color: rgba(0, 0, 0, 0.5);
+            }
+        """)
         layout.addWidget(self._display, 1)
 
         self._record_btn = QPushButton(_("Record"))
@@ -58,7 +73,14 @@ class HotkeyRecorderWidget(QWidget):
         self._recording = not self._recording
         if self._recording:
             self._record_btn.setText(_("Stop"))
-            self._record_btn.setStyleSheet("background-color: #ff4444; color: white;")
+            self._record_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: palette(highlight);
+                    color: palette(highlighted-text);
+                    border-radius: 4px;
+                    padding: 6px 20px;
+                }
+            """)
             self._display.setText(_("Press keys..."))
             self._current_keys.clear()
             self.setFocus()
@@ -211,7 +233,7 @@ class SettingsDialog(QDialog):
         # Reset to defaults button
         reset_btn = QPushButton(_("Reset to Defaults"))
         reset_btn.clicked.connect(self._reset_to_defaults)
-        reset_btn.setStyleSheet("color: #dc3545;")
+        reset_btn.setStyleSheet("color: palette(dark);")
         btn_layout.addWidget(reset_btn)
 
         btn_layout.addStretch()
@@ -224,17 +246,25 @@ class SettingsDialog(QDialog):
         layout.addLayout(btn_layout)
 
         self.setStyleSheet("""
-            QTabWidget::pane { border: 1px solid #d0d0d0; border-radius: 4px; padding: 8px; }
+            QTabWidget::pane { border: 1px solid palette(mid); border-radius: 4px; padding: 8px; }
             QTabBar::tab { padding: 6px 16px; margin: 1px; }
-            QTabBar::tab:selected { background: #f0f0f0; border-bottom: 2px solid #0078d4; }
-            QGroupBox { font-weight: 600; border: 1px solid #e0e0e0; border-radius: 6px; margin-top: 12px; padding: 16px 12px 12px; }
+            QTabBar::tab:selected { background: palette(highlight); color: palette(highlighted-text); border-bottom: 2px solid palette(highlight); }
+            QTabBar::tab:!selected { color: palette(text); }
+            QGroupBox { font-weight: 600; border: 1px solid palette(mid); border-radius: 6px; margin-top: 12px; padding: 16px 12px 12px; }
             QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; }
-            QLineEdit { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; }
-            QLineEdit:focus { border-color: #0078d4; }
-            QSpinBox { padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
-            QPushButton { padding: 6px 20px; border: 1px solid #ccc; border-radius: 4px; background: #fafafa; }
-            QPushButton:hover { background: #e8e8e8; }
-            QPushButton:pressed { background: #d0d0d0; }
+            QLineEdit { padding: 4px 8px; border: 1px solid palette(mid); border-radius: 4px; background: palette(base); color: palette(text); }
+            QLineEdit:focus { border-color: palette(highlight); }
+            QSpinBox { padding: 4px; border: 1px solid palette(mid); border-radius: 4px; background: palette(base); color: palette(text); }
+            QPushButton { padding: 6px 20px; border: 1px solid palette(mid); border-radius: 4px; background: palette(button); color: palette(button-text); }
+            QPushButton:hover { background: palette(midlight); }
+            QPushButton:pressed { background: palette(middark); }
+            QCheckBox::indicator { width: 16px; height: 16px; }
+            QCheckBox::indicator:unchecked { border: 1px solid palette(mid); border-radius: 3px; background: palette(base); }
+            QCheckBox::indicator:checked { border: 1px solid palette(highlight); border-radius: 3px; background: palette(highlight); }
+            QComboBox { padding: 4px 8px; border: 1px solid palette(mid); border-radius: 4px; background: palette(base); color: palette(text); }
+            QComboBox::drop-down { border: none; }
+            QComboBox::down-arrow { image: none; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid palette(text); margin-right: 5px; }
+            QLabel { color: palette(text); }
         """)
 
     # ─── General Tab ───
@@ -250,7 +280,7 @@ class SettingsDialog(QDialog):
         self._hotkey_recorder = HotkeyRecorderWidget()
         hotkey_layout.addRow(_("Shortcut:"), self._hotkey_recorder)
         hint = QLabel(_("Click 'Record' and press your desired key combination"))
-        hint.setStyleSheet("color: #888; font-size: 11px;")
+        hint.setStyleSheet("color: palette(mid); font-size: 11px;")
         hotkey_layout.addRow("", hint)
         layout.addWidget(hotkey_group)
 
@@ -277,23 +307,23 @@ class SettingsDialog(QDialog):
             input_label = QLabel()
             if status["input_monitoring"]:
                 input_label.setText("✓ " + _("Input Monitoring: Granted"))
-                input_label.setStyleSheet("color: #28a745; font-weight: 600;")
+                input_label.setStyleSheet("color: palette(dark-green); font-weight: 600;")
             else:
                 input_label.setText("✗ " + _("Input Monitoring: Not Granted"))
-                input_label.setStyleSheet("color: #dc3545; font-weight: 600;")
+                input_label.setStyleSheet("color: palette(red); font-weight: 600;")
             perm_layout.addWidget(input_label)
 
             # Screen Recording
             screen_label = QLabel()
             if status["screen_recording"]:
                 screen_label.setText("✓ " + _("Screen Recording: Granted"))
-                screen_label.setStyleSheet("color: #28a745;")
+                screen_label.setStyleSheet("color: palette(dark-green);")
             elif status["screen_recording"] is None:
                 screen_label.setText("• " + _("Screen Recording: Unknown"))
-                screen_label.setStyleSheet("color: #888;")
+                screen_label.setStyleSheet("color: palette(mid);")
             else:
                 screen_label.setText("✗ " + _("Screen Recording: Not Granted"))
-                screen_label.setStyleSheet("color: #dc3545;")
+                screen_label.setStyleSheet("color: palette(red);")
             perm_layout.addWidget(screen_label)
 
             # Open settings button

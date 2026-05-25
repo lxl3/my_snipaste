@@ -287,6 +287,14 @@ class SnipasteApp(QApplication):
         if result is not None:
             self.settings = result
             logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
+            # Load translations for new language
+            load_translations(self.settings.language)
+            # Update tray to reflect new language settings
+            self.tray.cleanup()
+            self.tray = TrayManager(self)
+            have_hotkey = check_macos_accessibility()  # Re-check permission status
+            self.tray.setup(have_hotkey)
+            self.tray.settings_requested.connect(self._open_settings)
             # Stop the old listener (now waits for thread to exit)
             self.hotkey_listener.stop()
             # Small delay to ensure clean transition

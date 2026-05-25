@@ -16,7 +16,7 @@ class _TitleBar(QWidget):
         layout.setContentsMargins(16, 0, 8, 0)
 
         title = QLabel(_("Recognition Result"))
-        title.setStyleSheet("font-size: 14px; font-weight: 600; color: #111827;")
+        title.setStyleSheet("font-size: 14px; font-weight: 600; color: palette(text);")
 
         close_btn = QPushButton("✕")
         close_btn.setFixedSize(28, 28)
@@ -24,10 +24,10 @@ class _TitleBar(QWidget):
         close_btn.clicked.connect(lambda: self.window().close())
         close_btn.setStyleSheet("""
             QPushButton {
-                background: transparent; color: #9CA3AF; border: none; border-radius: 14px; font-size: 14px;
+                background: transparent; color: palette(mid); border: none; border-radius: 14px; font-size: 14px;
             }
-            QPushButton:hover { background: #F3F4F6; color: #374151; }
-            QPushButton:pressed { background: #E5E7EB; }
+            QPushButton:hover { background: palette(alternate-base); color: palette(text); }
+            QPushButton:pressed { background: palette(midlight); }
         """)
 
         layout.addWidget(title)
@@ -70,7 +70,7 @@ class OcrResultDialog(QDialog):
         card.setObjectName("card")
         card.setStyleSheet("""
             #card {
-                background: #FFFFFF;
+                background: palette(base);
                 border-radius: 12px;
             }
         """)
@@ -95,18 +95,18 @@ class OcrResultDialog(QDialog):
         self.text_edit.setStyleSheet("""
             QTextEdit {
                 border: none;
-                border-top: 1px solid #F3F4F6;
-                border-bottom: 1px solid #F3F4F6;
+                border-top: 1px solid palette(mid);
+                border-bottom: 1px solid palette(mid);
                 padding: 16px 20px;
                 font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
                 font-size: 14px;
-                color: #111827;
-                background: #FFFFFF;
-                selection-background-color: #DBEAFE;
-                selection-color: #1E40AF;
+                color: palette(text);
+                background: palette(base);
+                selection-background-color: palette(highlight);
+                selection-color: palette(highlighted-text);
             }
             QTextEdit:focus {
-                background: #FAFBFC;
+                background: palette(alternate-base);
             }
         """)
         self._adjust_text_edit_size(text)
@@ -118,7 +118,7 @@ class OcrResultDialog(QDialog):
         footer.setSpacing(12)
 
         self.char_count_label = QLabel()
-        self.char_count_label.setStyleSheet("font-size: 12px; color: #9CA3AF;")
+        self.char_count_label.setStyleSheet("font-size: 12px; color: palette(mid);")
         footer.addWidget(self.char_count_label)
         footer.addStretch()
 
@@ -126,16 +126,16 @@ class OcrResultDialog(QDialog):
         self.copy_btn.setCursor(Qt.PointingHandCursor)
         self.copy_btn.setStyleSheet("""
             QPushButton {
-                background: #2563EB;
-                color: #FFFFFF;
+                background: palette(highlight);
+                color: palette(highlighted-text);
                 border: none;
                 border-radius: 6px;
                 padding: 7px 22px;
                 font-size: 13px;
                 font-weight: 500;
             }
-            QPushButton:hover { background: #1D4ED8; }
-            QPushButton:pressed { background: #1E40AF; }
+            QPushButton:hover { background: palette(midlight); }
+            QPushButton:pressed { background: palette(middark); }
         """)
         self.copy_btn.clicked.connect(self._copy_and_close)
         footer.addWidget(self.copy_btn)
