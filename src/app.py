@@ -264,9 +264,11 @@ class SnipasteApp(QApplication):
         result = SettingsDialog.open(None)
         if result is not None:
             self.settings = result
+            logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
+            # Stop the old listener (now waits for thread to exit)
             self.hotkey_listener.stop()
-            # Wait longer to ensure the old listener thread has fully stopped
-            QTimer.singleShot(500, self._restart_hotkey)
+            # Small delay to ensure clean transition
+            QTimer.singleShot(100, self._restart_hotkey)
 
     def _restart_hotkey(self) -> None:
         logger.info(f"重启快捷键监听器，新快捷键: {self.settings.hotkey}")

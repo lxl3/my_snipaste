@@ -85,9 +85,18 @@ class _PynputListener(QObject):
         if self.listener is not None:
             try:
                 self.listener.stop()
-                logger.debug("pynput Listener 已停止")
+                logger.debug("pynput Listener.stop() 已调用")
             except Exception as e:
                 logger.debug(f"停止 pynput Listener 时异常: {e}")
+
+        # Wait for the thread to actually terminate
+        if hasattr(self, 'thread') and self.thread is not None and self.thread.is_alive():
+            logger.debug("等待监听线程退出...")
+            self.thread.join(timeout=1.0)  # Wait up to 1 second
+            if self.thread.is_alive():
+                logger.warning("监听线程在 1 秒后仍未退出")
+            else:
+                logger.debug("监听线程已完全退出")
 
     def _parse_hotkey(self) -> set:  # set[keyboard.Key | keyboard.KeyCode]
         from pynput import keyboard
