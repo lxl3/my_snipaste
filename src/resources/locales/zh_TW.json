@@ -111,5 +111,17 @@
   "Tesseract OCR engine is not ready": "Tesseract OCR 引擎未就緒",
   "OCR timed out": "OCR 逾時",
   "{width} × {height}": "{width} × {height}",
-  "X:{x} Y:{y}": "X:{x} Y:{y}"
+  "X:{x} Y:{y}": "X:{x} Y:{y}",
+  "Capture": "截圖",
+  "Capture Behavior": "截圖行為",
+  "Play sound when capturing": "截圖時播放聲音",
+  "Include mouse cursor": "包含滑鼠游標",
+  "Capture delay:": "截圖延遲：",
+  " seconds": " 秒",
+  "After capture:": "截圖後操作：",
+  "None (show editor)": "無（顯示編輯器）",
+  "Auto copy to clipboard": "自動複製到剪貼簿",
+  "Auto save to file": "自動儲存到檔案",
+  "Logging": "日誌",
+  "Language": "語言"
 }

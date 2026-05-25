@@ -3,8 +3,8 @@ import os
 from typing import TYPE_CHECKING
 
 from PIL import Image
-from PySide6.QtCore import Qt, QRect, QRectF, QSize
-from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen, QScreen
+from PySide6.QtCore import Qt, QRect, QRectF, QSize, QPoint
+from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen, QScreen, QCursor
 from PySide6.QtWidgets import QApplication
 from PySide6.QtSvg import QSvgRenderer
 from .logger import setup_logger
@@ -37,10 +37,15 @@ def load_icon_from_svg(svg_content: str, color: str = "#333333", size: int = ICO
     return QIcon(pm)
 
 
-def capture_all_screens() -> QPixmap:
+def capture_all_screens(include_cursor: bool = False) -> QPixmap:
     screens: list[QScreen] = QApplication.screens()
+    cursor_pos = QCursor.pos() if include_cursor else None
+
     if len(screens) == 1:
-        return _grab_and_fit(screens[0])
+        pixmap = _grab_and_fit(screens[0])
+        if include_cursor and cursor_pos is not None:
+            _draw_cursor(pixmap, cursor_pos, screens[0].geometry().topLeft())
+        return pixmap
 
     total_rect = QRect()
     max_dpr = 1.0
@@ -62,6 +67,10 @@ def capture_all_screens() -> QPixmap:
             )
         painter.drawPixmap(geo.topLeft() - total_rect.topLeft(), pixmap)
     painter.end()
+
+    if include_cursor and cursor_pos is not None:
+        _draw_cursor(combined, cursor_pos, total_rect.topLeft())
+
     return combined
 
 
@@ -83,6 +92,47 @@ def _grab_and_fit(screen: "QScreen") -> QPixmap:
     dpr = screen.devicePixelRatio()
     pixmap.setDevicePixelRatio(dpr)
     return pixmap
+
+
+def _draw_cursor(pixmap: QPixmap, cursor_pos: QPoint, offset: QPoint = QPoint(0, 0)) -> None:
+    """Draw a cursor icon on the pixmap at the given position."""
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.Antialiasing)
+
+    # Calculate cursor position relative to pixmap
+    dpr = pixmap.devicePixelRatio()
+    local_pos = (cursor_pos - offset) * dpr
+
+    # Draw a simple arrow cursor (white with black outline)
+    # Arrow points: (0,0) -> (0,16) -> (6,12) -> (10,20) -> (12,19) -> (8,11) -> (16,11) -> (0,0)
+    arrow_points = [
+        QPoint(0, 0),
+        QPoint(0, 16),
+        QPoint(6, 12),
+        QPoint(10, 20),
+        QPoint(12, 19),
+        QPoint(8, 11),
+        QPoint(16, 11),
+    ]
+
+    # Offset points to cursor position
+    translated_points = [local_pos + p for p in arrow_points]
+
+    # Draw black outline
+    painter.setPen(QPen(QColor(0, 0, 0), 2))
+    painter.setBrush(Qt.NoBrush)
+    for i in range(len(translated_points)):
+        p1 = translated_points[i]
+        p2 = translated_points[(i + 1) % len(translated_points)]
+        painter.drawLine(p1, p2)
+
+    # Fill with white
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor(255, 255, 255))
+    from PySide6.QtGui import QPolygon
+    painter.drawPolygon(QPolygon(translated_points))
+
+    painter.end()
 
 
 

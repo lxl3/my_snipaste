@@ -47,6 +47,12 @@ class AppSettings:
     pin_window_opacity: int = 100
     language: str = "zh_CN"
 
+    # Capture behavior settings
+    capture_sound: bool = False
+    capture_delay: int = 0  # seconds, 0-10
+    capture_cursor: bool = False
+    capture_after_action: str = "none"  # none, copy, save
+
     def save(self) -> None:
         path = _get_settings_path()
         os.makedirs(os.path.dirname(path), exist_ok=True)

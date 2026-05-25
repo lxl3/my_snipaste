@@ -6,6 +6,7 @@ Composed of CaptureOverlay (main class) + 3 mixins:
 - OverlayActionsMixin   — actions / text editing
 """
 
+import os
 from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, QTimer
@@ -42,7 +43,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.total_geometry = self.total_geometry.united(screen.geometry())
 
         logger.info(f"init overlay, screen: {self.total_geometry}")
-        self.full_screenshot = capture_all_screens()
+        # Check if cursor should be included
+        s = get_settings()
+        include_cursor = s.capture_cursor
+        self.full_screenshot = capture_all_screens(include_cursor=include_cursor)
         logger.debug(f"screenshot size: {self.full_screenshot.width()}x{self.full_screenshot.height()}")
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
@@ -485,6 +489,51 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             else:
                 self.selection_rect = QRect()
 
+    def mouseDoubleClickEvent(self, event) -> None:
+        """Handle double-click to auto-finish capture based on settings."""
+        if event.button() != Qt.LeftButton:
+            return
+
+        # Only auto-finish if we have a valid selection
+        if not self.selection_rect.isNull() and self.selection_rect.contains(event.pos()):
+            self._auto_finish()
+
+    def _auto_finish(self) -> None:
+        """Execute auto action based on capture_after_action setting."""
+        s = get_settings()
+        action = s.capture_after_action
+
+        if action == "copy":
+            logger.info("Auto-finishing: copy to clipboard")
+            self.on_copy()
+        elif action == "save":
+            logger.info("Auto-finishing: save to file")
+            self._auto_save()
+        # else: action == "none", do nothing (stay in editor)
+
+    def _auto_save(self) -> None:
+        """Automatically save to configured directory."""
+        if self.selection_rect.isNull():
+            return
+
+        s = get_settings()
+        if not s.auto_save_dir:
+            # Fallback to manual save dialog if no directory configured
+            logger.warning("Auto-save requested but no directory configured")
+            self.on_save()
+            return
+
+        # Generate filename
+        from datetime import datetime
+        filename = f"Screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{s.auto_save_format}"
+        filepath = os.path.join(s.auto_save_dir, filename)
+
+        # Save the annotated pixmap
+        pixmap = self._render_annotated_pixmap()
+        pixmap.save(filepath)
+        logger.info(f"Auto-saved to {filepath}")
+        self.close()
+
     def _finish_drawing(self) -> None:
         self._drawing = False
         if self._preview_annotation and self._preview_annotation["type"] != "freehand":
@@ -508,6 +557,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key_Escape:
+            # First ESC: Cancel current operation (text editing, drawing, etc.)
             if self._text_editor:
                 self._text_editor.hide()
                 self._text_editor.deleteLater()
@@ -515,7 +565,31 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self._text_editor_pos = None
                 self.grabKeyboard()
                 return
+
+            # Cancel any active operation
+            if self._drawing or self._erasing or self._erase_fill_rect_start is not None:
+                self._drawing = False
+                self._erasing = False
+                self._erase_fill_rect_start = None
+                self._erase_fill_rect_current = None
+                self._preview_annotation = None
+                self.update()
+                return
+
+            # Cancel selection in progress
+            if self.is_selecting:
+                self.is_selecting = False
+                self.selection_rect = QRect()
+                self.update()
+                return
+
+            # Any other ESC: Close immediately
             self.close()
+            return
+        elif event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            # Enter key: auto-finish if selection exists
+            if not self.selection_rect.isNull():
+                self._auto_finish()
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Z:
             self._undo()
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Y:

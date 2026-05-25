@@ -200,8 +200,10 @@ class SettingsDialog(QDialog):
 
         self._tabs = QTabWidget()
         self._tabs.addTab(self._build_general_tab(), _("General"))
-        self._tabs.addTab(self._build_ocr_tab(), _("OCR"))
+        self._tabs.addTab(self._build_capture_tab(), _("Capture"))
         self._tabs.addTab(self._build_annotation_tab(), _("Annotation"))
+        self._tabs.addTab(self._build_ocr_tab(), _("OCR"))
+        self._tabs.addTab(self._build_advanced_tab(), _("Advanced"))
         layout.addWidget(self._tabs)
 
         btn_layout = QHBoxLayout()
@@ -311,7 +313,17 @@ class SettingsDialog(QDialog):
             startup_layout.addWidget(self._launch_checkbox)
             layout.addWidget(startup_group)
 
-        # Auto-save
+        layout.addStretch()
+        return tab
+
+    # ─── Capture Tab ───
+
+    def _build_capture_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(8)
+
+        # Auto-save group
         save_group = QGroupBox(_("Auto Save"))
         save_layout = QFormLayout(save_group)
         self._auto_save_checkbox = QCheckBox(_("Auto save to directory"))
@@ -334,16 +346,47 @@ class SettingsDialog(QDialog):
         self._auto_save_checkbox.toggled.connect(self._on_auto_save_toggle)
         layout.addWidget(save_group)
 
+        # Capture behavior group
+        behavior_group = QGroupBox(_("Capture Behavior"))
+        behavior_layout = QFormLayout(behavior_group)
+
+        self._sound_checkbox = QCheckBox(_("Play sound when capturing"))
+        behavior_layout.addRow(self._sound_checkbox)
+
+        self._cursor_checkbox = QCheckBox(_("Include mouse cursor"))
+        behavior_layout.addRow(self._cursor_checkbox)
+
+        self._delay_spin = QSpinBox()
+        self._delay_spin.setRange(0, 10)
+        self._delay_spin.setSuffix(_(" seconds"))
+        behavior_layout.addRow(_("Capture delay:"), self._delay_spin)
+
+        self._after_action_combo = QComboBox()
+        self._after_action_combo.addItem(_("None (show editor)"), "none")
+        self._after_action_combo.addItem(_("Auto copy to clipboard"), "copy")
+        self._after_action_combo.addItem(_("Auto save to file"), "save")
+        behavior_layout.addRow(_("After capture:"), self._after_action_combo)
+
+        layout.addWidget(behavior_group)
+
         layout.addStretch()
         return tab
 
-    def _on_auto_save_toggle(self, checked: bool) -> None:
-        self._save_dir_input.setEnabled(checked)
-
     def _browse_save_dir(self) -> None:
-        path = QFileDialog.getExistingDirectory(self, _("Select Save Directory"))
-        if path:
-            self._save_dir_input.setText(path)
+        """Open directory browser for auto-save location."""
+        current_dir = self._save_dir_input.text() or ""
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            _("Select Save Directory"),
+            current_dir
+        )
+        if directory:
+            self._save_dir_input.setText(directory)
+            self._auto_save_checkbox.setChecked(True)
+
+    def _on_auto_save_toggle(self, checked: bool) -> None:
+        """Enable/disable save directory input based on checkbox."""
+        self._save_dir_input.setEnabled(checked)
 
     # ─── OCR Tab ───
 
@@ -455,6 +498,14 @@ class SettingsDialog(QDialog):
             if fmt_idx >= 0:
                 self._format_combo.setCurrentIndex(fmt_idx)
 
+            # Capture behavior settings
+            self._sound_checkbox.setChecked(defaults.capture_sound)
+            self._cursor_checkbox.setChecked(defaults.capture_cursor)
+            self._delay_spin.setValue(defaults.capture_delay)
+            after_idx = self._after_action_combo.findData(defaults.capture_after_action)
+            if after_idx >= 0:
+                self._after_action_combo.setCurrentIndex(after_idx)
+
             lang_idx = self._lang_combo.findData(defaults.language)
             if lang_idx >= 0:
                 self._lang_combo.setCurrentIndex(lang_idx)
@@ -510,6 +561,15 @@ class SettingsDialog(QDialog):
         form.addRow(_("Font Size:"), self._font_size_spin)
 
         layout.addWidget(group)
+        layout.addStretch()
+        return tab
+
+    # ─── Advanced Tab ───
+
+    def _build_advanced_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(8)
 
         # Pin window
         pin_group = QGroupBox(_("Pin Window"))
@@ -527,12 +587,12 @@ class SettingsDialog(QDialog):
         layout.addWidget(pin_group)
 
         # Log level
-        adv_group = QGroupBox(_("Advanced"))
-        adv_form = QFormLayout(adv_group)
+        log_group = QGroupBox(_("Logging"))
+        log_form = QFormLayout(log_group)
         self._log_level_combo = QComboBox()
         self._log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR"])
-        adv_form.addRow(_("Log Level:"), self._log_level_combo)
-        layout.addWidget(adv_group)
+        log_form.addRow(_("Log Level:"), self._log_level_combo)
+        layout.addWidget(log_group)
 
         layout.addStretch()
         return tab
@@ -556,6 +616,14 @@ class SettingsDialog(QDialog):
         if fmt_idx >= 0:
             self._format_combo.setCurrentIndex(fmt_idx)
         self._auto_save_checkbox.setChecked(bool(s.auto_save_dir))
+
+        # Capture behavior settings
+        self._sound_checkbox.setChecked(s.capture_sound)
+        self._cursor_checkbox.setChecked(s.capture_cursor)
+        self._delay_spin.setValue(s.capture_delay)
+        after_idx = self._after_action_combo.findData(s.capture_after_action)
+        if after_idx >= 0:
+            self._after_action_combo.setCurrentIndex(after_idx)
 
         lang_idx = self._lang_combo.findData(s.language)
         if lang_idx >= 0:
@@ -584,6 +652,12 @@ class SettingsDialog(QDialog):
         else:
             s.auto_save_dir = ""
         s.auto_save_format = self._format_combo.currentText().lower()
+
+        # Capture behavior settings
+        s.capture_sound = self._sound_checkbox.isChecked()
+        s.capture_cursor = self._cursor_checkbox.isChecked()
+        s.capture_delay = self._delay_spin.value()
+        s.capture_after_action = self._after_action_combo.currentData()
 
         s.language = self._lang_combo.currentData() or "zh_CN"
 

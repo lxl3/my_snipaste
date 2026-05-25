@@ -159,6 +159,21 @@ class SnipasteApp(QApplication):
             self.overlay.deleteLater()
             self.overlay = None
 
+        # Play capture sound immediately (before delay)
+        if self.settings.capture_sound:
+            self._play_capture_sound()
+
+        # Check capture delay setting
+        delay_seconds = self.settings.capture_delay
+        if delay_seconds > 0:
+            logger.info(f"截图延迟 {delay_seconds} 秒")
+            QTimer.singleShot(delay_seconds * 1000, self._do_capture)
+            return
+
+        self._do_capture()
+
+    def _do_capture(self) -> None:
+        """Execute the actual screen capture."""
         # macOS: check screen recording permission
         if sys.platform == "darwin":
             perm = check_screen_recording_permission()
@@ -225,17 +240,24 @@ class SnipasteApp(QApplication):
         if not s.auto_save_dir and last_save_dir:
             default_path = os.path.join(last_save_dir, default_name) if last_save_dir else default_name
 
+        # Use overlay as parent to ensure proper modal behavior
+        parent = self.overlay if self.overlay else None
         file_path, _selected_filter = QFileDialog.getSaveFileName(
-            None, _("Save Screenshot"), default_path,
+            parent, _("Save Screenshot"), default_path,
             _("PNG Image (*.png);;JPEG Image (*.jpg *.jpeg);;All Files (*)"),
         )
         if file_path:
             pixmap.save(file_path)
+            logger.info(f"截图已保存到: {file_path}")
             # 记住最后使用的目录（仅在未配置自动保存目录时）
             if not s.auto_save_dir:
                 self._last_save_dir = os.path.dirname(file_path) or ""
+            # Close overlay after successful save
             if self.overlay:
+                logger.debug("保存完成，关闭截图界面")
                 self.overlay.close()
+        else:
+            logger.debug("用户取消保存，保持截图界面打开")
 
     def ocr_clipboard(self) -> None:
         logger.info("开始 OCR 剪贴板图片")
@@ -276,6 +298,39 @@ class SnipasteApp(QApplication):
         self.hotkey_listener.capture_signal.connect(self.start_capture)
         self.hotkey_listener.start()
         logger.info(f"快捷键监听器已重启: {self.settings.hotkey}")
+
+    def _play_capture_sound(self) -> None:
+        """Play capture sound (platform-specific)."""
+        try:
+            if sys.platform == "win32":
+                # Windows: Play system sound file asynchronously
+                import winsound
+                sound_path = r"C:\Windows\Media\notify.wav"
+                if os.path.exists(sound_path):
+                    # SND_ASYNC | SND_NOWAIT: play asynchronously without waiting
+                    winsound.PlaySound(sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NOWAIT)
+                else:
+                    # Fallback to system beep if file not found
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+            elif sys.platform == "darwin":
+                # macOS: Play system sound asynchronously (non-blocking)
+                import subprocess
+                # Use Popen instead of run to avoid blocking
+                subprocess.Popen(
+                    ["afplay", "/System/Library/Sounds/Tink.aiff"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            else:
+                # Linux/other: fallback to QApplication.beep()
+                self.beep()
+        except Exception as e:
+            logger.warning(f"播放截图声音失败: {e}")
+            # Fallback to beep
+            try:
+                self.beep()
+            except:
+                pass
 
     def cleanup(self) -> None:
         if hasattr(self, 'hotkey_listener'):
