@@ -176,6 +176,8 @@ class _PynputListener(QObject):
         elif hasattr(key, 'char') and key.char:
             # Convert to lowercase for consistent comparison
             return keyboard.KeyCode.from_char(key.char.lower())
+        # Return the key as-is for function keys and other special keys
+        return key
         return key
 
     def __del__(self) -> None:
