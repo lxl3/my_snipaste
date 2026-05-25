@@ -174,8 +174,14 @@ class _PynputListener(QObject):
             return keyboard.Key.cmd
         # Normalize letter/number keys by their character
         elif hasattr(key, 'char') and key.char:
+            char = key.char
+            # Convert Ctrl+letter combinations (ASCII 0x01-0x1A) back to letters
+            # Ctrl+A=0x01, Ctrl+Z=0x1A, so we add ord('a')-1 to get the letter
+            if len(char) == 1 and 0x01 <= ord(char) <= 0x1A:
+                char = chr(ord(char) + ord('a') - 1)
+                logger.debug(f"转换控制字符: {repr(key.char)} -> '{char}'")
             # Convert to lowercase for consistent comparison
-            return keyboard.KeyCode.from_char(key.char.lower())
+            return keyboard.KeyCode.from_char(char.lower())
         # Return the key as-is for function keys and other special keys
         return key
         return key
