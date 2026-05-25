@@ -1,13 +1,13 @@
 import sys
 import subprocess
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPixmap, QIcon
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QPixmap, QIcon, QKeyEvent
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
     QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
     QCheckBox, QSlider, QFileDialog, QMessageBox, QGroupBox,
-    QFormLayout,
+    QFormLayout, QColorDialog,
 )
 from ..core.i18n import _, available_languages, load_translations
 from ..core.settings import AppSettings, get_settings
@@ -15,6 +15,170 @@ from ..core.constants import PRESET_COLORS
 from ..core.logger import setup_logger
 
 logger = setup_logger("settings_dialog")
+
+
+class HotkeyRecorderWidget(QWidget):
+    """Widget for recording keyboard shortcuts."""
+
+    hotkey_changed = Signal(str)
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._recording = False
+        self._current_keys = set()
+        self._hotkey = ""
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self._display = QLineEdit()
+        self._display.setReadOnly(True)
+        self._display.setPlaceholderText(_("Click 'Record' and press keys..."))
+        layout.addWidget(self._display, 1)
+
+        self._record_btn = QPushButton(_("Record"))
+        self._record_btn.clicked.connect(self._toggle_recording)
+        layout.addWidget(self._record_btn)
+
+        self._clear_btn = QPushButton(_("Clear"))
+        self._clear_btn.clicked.connect(self._clear_hotkey)
+        layout.addWidget(self._clear_btn)
+
+    def set_hotkey(self, hotkey: str) -> None:
+        """Set the displayed hotkey."""
+        self._hotkey = hotkey
+        self._display.setText(hotkey)
+
+    def get_hotkey(self) -> str:
+        """Get the current hotkey."""
+        return self._hotkey
+
+    def _toggle_recording(self) -> None:
+        """Toggle recording mode."""
+        self._recording = not self._recording
+        if self._recording:
+            self._record_btn.setText(_("Stop"))
+            self._record_btn.setStyleSheet("background-color: #ff4444; color: white;")
+            self._display.setText(_("Press keys..."))
+            self._current_keys.clear()
+            self.setFocus()
+            self.grabKeyboard()
+        else:
+            self._stop_recording()
+
+    def _stop_recording(self) -> None:
+        """Stop recording and finalize the hotkey."""
+        self._recording = False
+        self._record_btn.setText(_("Record"))
+        self._record_btn.setStyleSheet("")
+        self.releaseKeyboard()
+
+        if self._current_keys:
+            hotkey = self._format_hotkey(self._current_keys)
+            self._hotkey = hotkey
+            self._display.setText(hotkey)
+            self.hotkey_changed.emit(hotkey)
+            logger.debug(f"Recorded hotkey: {hotkey}")
+
+    def _clear_hotkey(self) -> None:
+        """Clear the current hotkey."""
+        self._hotkey = ""
+        self._display.clear()
+        self._current_keys.clear()
+        self.hotkey_changed.emit("")
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Capture key press during recording."""
+        if not self._recording:
+            super().keyPressEvent(event)
+            return
+
+        key = event.key()
+
+        # Ignore standalone modifier keys release
+        if key in (Qt.Key_Control, Qt.Key_Shift, Qt.Key_Alt, Qt.Key_Meta):
+            return
+
+        # Record modifiers
+        modifiers = event.modifiers()
+        self._current_keys.clear()
+
+        if modifiers & Qt.ControlModifier:
+            self._current_keys.add('ctrl')
+        if modifiers & Qt.ShiftModifier:
+            self._current_keys.add('shift')
+        if modifiers & Qt.AltModifier:
+            self._current_keys.add('alt')
+        if modifiers & Qt.MetaModifier:
+            self._current_keys.add('cmd' if sys.platform == 'darwin' else 'meta')
+
+        # Record the main key
+        key_name = self._key_to_string(key)
+        if key_name:
+            self._current_keys.add(key_name)
+            # Show preview
+            preview = self._format_hotkey(self._current_keys)
+            self._display.setText(preview)
+
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+        """Finalize hotkey on key release."""
+        if not self._recording:
+            super().keyReleaseEvent(event)
+            return
+
+        # Auto-stop recording after releasing the key
+        if self._current_keys and event.key() not in (Qt.Key_Control, Qt.Key_Shift, Qt.Key_Alt, Qt.Key_Meta):
+            self._stop_recording()
+
+    def _key_to_string(self, key: int) -> str:
+        """Convert Qt key code to string representation."""
+        # Function keys
+        if Qt.Key_F1 <= key <= Qt.Key_F12:
+            return f'f{key - Qt.Key_F1 + 1}'
+
+        # Letter keys
+        if Qt.Key_A <= key <= Qt.Key_Z:
+            return chr(key).lower()
+
+        # Number keys
+        if Qt.Key_0 <= key <= Qt.Key_9:
+            return chr(key)
+
+        # Special keys
+        special_keys = {
+            Qt.Key_Space: 'space',
+            Qt.Key_Return: 'return',
+            Qt.Key_Enter: 'enter',
+            Qt.Key_Tab: 'tab',
+            Qt.Key_Backspace: 'backspace',
+            Qt.Key_Escape: 'esc',
+        }
+        return special_keys.get(key, '')
+
+    def _format_hotkey(self, keys: set) -> str:
+        """Format a set of keys into hotkey string."""
+        if not keys:
+            return ""
+
+        # Order: modifiers first, then main key
+        modifiers = []
+        main_key = None
+
+        for key in keys:
+            if key in ('ctrl', 'shift', 'alt', 'cmd', 'meta'):
+                modifiers.append(key)
+            else:
+                main_key = key
+
+        # Sort modifiers for consistency
+        modifier_order = {'ctrl': 0, 'shift': 1, 'alt': 2, 'cmd': 3, 'meta': 3}
+        modifiers.sort(key=lambda x: modifier_order.get(x, 99))
+
+        parts = modifiers
+        if main_key:
+            parts.append(main_key)
+
+        return '+'.join(parts)
 
 
 class SettingsDialog(QDialog):
@@ -41,6 +205,13 @@ class SettingsDialog(QDialog):
         layout.addWidget(self._tabs)
 
         btn_layout = QHBoxLayout()
+
+        # Reset to defaults button
+        reset_btn = QPushButton(_("Reset to Defaults"))
+        reset_btn.clicked.connect(self._reset_to_defaults)
+        reset_btn.setStyleSheet("color: #dc3545;")
+        btn_layout.addWidget(reset_btn)
+
         btn_layout.addStretch()
         save_btn = QPushButton(_("Save"))
         save_btn.clicked.connect(self._save_and_close)
@@ -74,10 +245,9 @@ class SettingsDialog(QDialog):
         # Hotkey
         hotkey_group = QGroupBox(_("Global Hotkey"))
         hotkey_layout = QFormLayout(hotkey_group)
-        self._hotkey_input = QLineEdit()
-        self._hotkey_input.setPlaceholderText("e.g. cmd+shift+x, f12, ctrl+alt+s")
-        hotkey_layout.addRow(_("Shortcut:"), self._hotkey_input)
-        hint = QLabel(_("Use + between keys. Supported: ctrl, shift, alt, cmd, f1-f12, a-z"))
+        self._hotkey_recorder = HotkeyRecorderWidget()
+        hotkey_layout.addRow(_("Shortcut:"), self._hotkey_recorder)
+        hint = QLabel(_("Click 'Record' and press your desired key combination"))
         hint.setStyleSheet("color: #888; font-size: 11px;")
         hotkey_layout.addRow("", hint)
         layout.addWidget(hotkey_group)
@@ -91,8 +261,50 @@ class SettingsDialog(QDialog):
         lang_layout.addRow(self._lang_combo)
         layout.addWidget(lang_group)
 
-        # Launch at startup (macOS only)
+        # macOS-specific settings
         if sys.platform == "darwin":
+            # Permissions status
+            perm_group = QGroupBox(_("Permissions (macOS)"))
+            perm_layout = QVBoxLayout(perm_group)
+
+            from ..core.permissions import get_permission_status
+
+            status = get_permission_status()
+
+            # Input Monitoring
+            input_label = QLabel()
+            if status["input_monitoring"]:
+                input_label.setText("✓ " + _("Input Monitoring: Granted"))
+                input_label.setStyleSheet("color: #28a745; font-weight: 600;")
+            else:
+                input_label.setText("✗ " + _("Input Monitoring: Not Granted"))
+                input_label.setStyleSheet("color: #dc3545; font-weight: 600;")
+            perm_layout.addWidget(input_label)
+
+            # Screen Recording
+            screen_label = QLabel()
+            if status["screen_recording"]:
+                screen_label.setText("✓ " + _("Screen Recording: Granted"))
+                screen_label.setStyleSheet("color: #28a745;")
+            elif status["screen_recording"] is None:
+                screen_label.setText("• " + _("Screen Recording: Unknown"))
+                screen_label.setStyleSheet("color: #888;")
+            else:
+                screen_label.setText("✗ " + _("Screen Recording: Not Granted"))
+                screen_label.setStyleSheet("color: #dc3545;")
+            perm_layout.addWidget(screen_label)
+
+            # Open settings button
+            btn_layout = QHBoxLayout()
+            btn_layout.addStretch()
+            self._open_perm_btn = QPushButton(_("Open System Settings"))
+            self._open_perm_btn.clicked.connect(self._open_permission_settings)
+            btn_layout.addWidget(self._open_perm_btn)
+            perm_layout.addLayout(btn_layout)
+
+            layout.addWidget(perm_group)
+
+            # Launch at startup
             startup_group = QGroupBox(_("Startup"))
             startup_layout = QVBoxLayout(startup_group)
             self._launch_checkbox = QCheckBox(_("Launch MySnipaste at login"))
@@ -176,6 +388,88 @@ class SettingsDialog(QDialog):
         except Exception as e:
             QMessageBox.warning(self, _("OCR Test"), _("Tesseract not available:\n{error}").format(error=e))
 
+    def _pick_custom_color(self) -> None:
+        """Open color picker dialog for custom color selection."""
+        current_color = QColor(self._color_combo.currentData() or PRESET_COLORS[0])
+        color = QColorDialog.getColor(current_color, self, _("Select Custom Color"))
+
+        if color.isValid():
+            hex_color = color.name()
+            # Check if this color already exists in the combo box
+            existing_idx = self._color_combo.findData(hex_color)
+
+            if existing_idx >= 0:
+                # Color already exists, select it
+                self._color_combo.setCurrentIndex(existing_idx)
+            else:
+                # Add new custom color to the combo box
+                pix = QPixmap(16, 16)
+                pix.fill(color)
+                self._color_combo.addItem(f"  {hex_color} (custom)", hex_color)
+                self._color_combo.setItemIcon(self._color_combo.count() - 1, QIcon(pix))
+                self._color_combo.setCurrentIndex(self._color_combo.count() - 1)
+
+            logger.debug(f"Custom color selected: {hex_color}")
+
+    def _open_permission_settings(self) -> None:
+        """Open macOS System Settings for permissions."""
+        from ..core.permissions import open_input_monitoring_settings
+        open_input_monitoring_settings()
+        QMessageBox.information(
+            self,
+            _("Permission Settings"),
+            _("System Settings opened.\n\n"
+              "Please enable Input Monitoring and Screen Recording permissions,\n"
+              "then restart MySnipaste for changes to take effect.")
+        )
+
+    def _reset_to_defaults(self) -> None:
+        """Reset all settings to their default values."""
+        reply = QMessageBox.question(
+            self,
+            _("Reset to Defaults"),
+            _("Are you sure you want to reset all settings to their default values?\n\n"
+              "This action cannot be undone."),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            # Create a new AppSettings instance with default values
+            defaults = AppSettings()
+
+            # Update UI with default values
+            self._hotkey_recorder.set_hotkey(defaults.hotkey)
+            self._ocr_lang_input.setText(defaults.ocr_language)
+
+            idx = self._color_combo.findData(defaults.default_color)
+            if idx >= 0:
+                self._color_combo.setCurrentIndex(idx)
+            self._width_spin.setValue(defaults.default_line_width)
+            self._font_combo.setCurrentText(defaults.default_font_family)
+            self._font_size_spin.setValue(defaults.default_font_size)
+
+            self._save_dir_input.clear()
+            self._auto_save_checkbox.setChecked(False)
+            fmt_idx = self._format_combo.findText(defaults.auto_save_format.upper())
+            if fmt_idx >= 0:
+                self._format_combo.setCurrentIndex(fmt_idx)
+
+            lang_idx = self._lang_combo.findData(defaults.language)
+            if lang_idx >= 0:
+                self._lang_combo.setCurrentIndex(lang_idx)
+
+            if hasattr(self, '_launch_checkbox'):
+                self._launch_checkbox.setChecked(defaults.launch_at_startup)
+
+            self._opacity_slider.setValue(defaults.pin_window_opacity)
+            log_idx = self._log_level_combo.findText(defaults.log_level)
+            if log_idx >= 0:
+                self._log_level_combo.setCurrentIndex(log_idx)
+
+            logger.info("Settings reset to defaults")
+            QMessageBox.information(self, _("Reset Complete"), _("Settings have been reset to default values."))
+
     # ─── Annotation Tab ───
 
     def _build_annotation_tab(self) -> QWidget:
@@ -186,13 +480,21 @@ class SettingsDialog(QDialog):
         group = QGroupBox(_("Default Annotation Style"))
         form = QFormLayout(group)
 
+        # Color selector with custom color button
+        color_row = QHBoxLayout()
         self._color_combo = QComboBox()
         for c in PRESET_COLORS:
             pix = QPixmap(16, 16)
             pix.fill(QColor(c))
             self._color_combo.addItem(f"  {c}", c)
             self._color_combo.setItemIcon(self._color_combo.count() - 1, QIcon(pix))
-        form.addRow(_("Color:"), self._color_combo)
+        color_row.addWidget(self._color_combo, 1)
+
+        self._custom_color_btn = QPushButton(_("Custom..."))
+        self._custom_color_btn.clicked.connect(self._pick_custom_color)
+        color_row.addWidget(self._custom_color_btn)
+
+        form.addRow(_("Color:"), color_row)
 
         self._width_spin = QSpinBox()
         self._width_spin.setRange(1, 20)
@@ -239,7 +541,7 @@ class SettingsDialog(QDialog):
 
     def _load_settings(self) -> None:
         s = self._settings
-        self._hotkey_input.setText(s.hotkey)
+        self._hotkey_recorder.set_hotkey(s.hotkey)
         self._ocr_lang_input.setText(s.ocr_language)
 
         idx = self._color_combo.findData(s.default_color)
@@ -269,7 +571,7 @@ class SettingsDialog(QDialog):
 
     def _save_and_close(self) -> None:
         s = self._settings
-        s.hotkey = self._hotkey_input.text().strip() or s.hotkey
+        s.hotkey = self._hotkey_recorder.get_hotkey() or s.hotkey
         s.ocr_language = self._ocr_lang_input.text().strip() or "eng+chi_sim"
 
         s.default_color = self._color_combo.currentData() or PRESET_COLORS[0]
