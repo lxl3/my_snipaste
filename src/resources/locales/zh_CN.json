@@ -1,6 +1,6 @@
 {
   "MySnipaste Started": "MySnipaste 已启动",
-  "Press {hotkey} to capture\n⌘, to open Settings": "按 {hotkey} 开始截图\n按 ⌘, 打开设置",
+  "Press {hotkey} to capture\nPress {settings_key} to open Settings": "按 {hotkey} 开始截图\n按 {settings_key} 打开设置",
   "Permission Required": "权限不足",
   "Screen Recording permission is required for MySnipaste.\n\nIn System Settings:\n  1. Click the lock to unlock\n  2. Click + and add MySnipaste\n  3. Check the permission\n\nRestart the app after granting permission.": "MySnipaste 需要「屏幕录制」权限才能截图。\n\n请在弹出的系统设置中：\n  1. 点击锁图标解锁\n  2. 点击 ＋ 添加 MySnipaste\n  3. 勾选授权\n\n授权后请重新打开应用。",
   "Capture Failed": "截图失败",

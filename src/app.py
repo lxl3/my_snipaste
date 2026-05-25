@@ -124,10 +124,21 @@ class SnipasteApp(QApplication):
         from .core.hotkeys import get_default_hotkey
         hotkey_display = get_default_hotkey().upper().replace('+', ' + ')
 
+        # Platform-specific settings shortcut display
+        if sys.platform == 'darwin':
+            settings_key = '⌘,'
+        else:
+            settings_key = 'Ctrl+,'
+
         msg = QMessageBox()
         msg.setWindowTitle("MySnipaste")
         msg.setText(_("MySnipaste Started"))
-        msg.setInformativeText(_("Press {hotkey} to capture\n⌘, to open Settings").format(hotkey=hotkey_display))
+        msg.setInformativeText(
+            _("Press {hotkey} to capture\nPress {settings_key} to open Settings").format(
+                hotkey=hotkey_display,
+                settings_key=settings_key
+            )
+        )
         msg.setIcon(QMessageBox.Information)
         msg.setStandardButtons(QMessageBox.Ok)
         msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
