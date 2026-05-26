@@ -311,19 +311,26 @@ class SnipasteApp(QApplication):
         """Play capture sound (platform-specific)."""
         try:
             if sys.platform == "win32":
-                # Windows: Play system sound file asynchronously
+                # Windows: Use thread to play sound without any blocking
+                import threading
                 import winsound
-                sound_path = r"C:\Windows\Media\notify.wav"
-                if os.path.exists(sound_path):
-                    # SND_ASYNC | SND_NOWAIT: play asynchronously without waiting
-                    winsound.PlaySound(sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NOWAIT)
-                else:
-                    # Fallback to system beep if file not found
-                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+
+                def play_sound():
+                    try:
+                        sound_path = r"C:\Windows\Media\notify.wav"
+                        if os.path.exists(sound_path):
+                            winsound.PlaySound(sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NOWAIT)
+                        else:
+                            winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                    except:
+                        pass
+
+                # Play in separate thread for zero blocking
+                threading.Thread(target=play_sound, daemon=True).start()
+
             elif sys.platform == "darwin":
                 # macOS: Play system sound asynchronously (non-blocking)
                 import subprocess
-                # Use Popen instead of run to avoid blocking
                 subprocess.Popen(
                     ["afplay", "/System/Library/Sounds/Tink.aiff"],
                     stdout=subprocess.DEVNULL,
@@ -334,7 +341,6 @@ class SnipasteApp(QApplication):
                 self.beep()
         except Exception as e:
             logger.warning(f"播放截图声音失败: {e}")
-            # Fallback to beep
             try:
                 self.beep()
             except:

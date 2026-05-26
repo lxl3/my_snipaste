@@ -195,6 +195,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 painter.drawRect(h_rect)
 
             self._draw_size_info(painter, rect)
+            self._draw_auto_action_hint(painter, rect)
         else:
             painter.fillRect(self.rect(), DIM_OVERLAY_COLOR)
 
@@ -624,6 +625,47 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         painter.fillRect(bx, by, bw, bh, QColor(0, 0, 0, 100))
         painter.setPen(Qt.white)
         painter.drawText(bx + margin, by + margin + fm.ascent(), text)
+
+    def _draw_auto_action_hint(self, painter: QPainter, rect: QRect) -> None:
+        """Draw hint text for auto-finish action if enabled."""
+        s = get_settings()
+        action = s.capture_after_action
+
+        if action == "none":
+            return  # No hint needed for normal mode
+
+        # Determine hint text based on action
+        if action == "copy":
+            hint_text = _("💡 Double-click or press Enter to copy")
+        elif action == "save":
+            hint_text = _("💡 Double-click or press Enter to save")
+        else:
+            return
+
+        # Draw hint below the size info
+        painter.setPen(QPen(QColor(255, 255, 255, 220), 1))
+        font = QFont("Segoe UI", 11)
+        painter.setFont(font)
+
+        fm = painter.fontMetrics()
+        tw = fm.horizontalAdvance(hint_text)
+        th = fm.height()
+        margin = 6
+
+        # Position: below the selection rect, centered
+        bx = rect.center().x() - tw // 2 - margin
+        by = rect.bottom() + 8
+        if by + th + margin * 2 > self.height() - 10:
+            # If too close to bottom, show above selection
+            by = rect.top() - th - margin * 2 - 30
+
+        bw = tw + margin * 2
+        bh = th + margin * 2
+
+        # Semi-transparent background with slight blue tint
+        painter.fillRect(bx, by, bw, bh, QColor(30, 144, 255, 180))
+        painter.setPen(Qt.white)
+        painter.drawText(bx + margin, by + margin + fm.ascent(), hint_text)
 
     # ─── Coord tooltip ───
 

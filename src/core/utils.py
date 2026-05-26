@@ -96,41 +96,58 @@ def _grab_and_fit(screen: "QScreen") -> QPixmap:
 
 def _draw_cursor(pixmap: QPixmap, cursor_pos: QPoint, offset: QPoint = QPoint(0, 0)) -> None:
     """Draw a cursor icon on the pixmap at the given position."""
+    from PySide6.QtGui import QPolygon, QLinearGradient
+
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.Antialiasing)
+    painter.setRenderHint(QPainter.SmoothPixmapTransform)
 
     # Calculate cursor position relative to pixmap
-    dpr = pixmap.devicePixelRatio()
-    local_pos = (cursor_pos - offset) * dpr
+    local_x = cursor_pos.x() - offset.x()
+    local_y = cursor_pos.y() - offset.y()
 
-    # Draw a simple arrow cursor (white with black outline)
-    # Arrow points: (0,0) -> (0,16) -> (6,12) -> (10,20) -> (12,19) -> (8,11) -> (16,11) -> (0,0)
+    # Standard arrow cursor shape (similar to Windows default)
+    scale = 1.2
     arrow_points = [
-        QPoint(0, 0),
-        QPoint(0, 16),
-        QPoint(6, 12),
-        QPoint(10, 20),
-        QPoint(12, 19),
-        QPoint(8, 11),
-        QPoint(16, 11),
+        QPoint(int(0 * scale), int(0 * scale)),
+        QPoint(int(0 * scale), int(20 * scale)),
+        QPoint(int(7 * scale), int(15 * scale)),
+        QPoint(int(11 * scale), int(25 * scale)),
+        QPoint(int(14 * scale), int(23 * scale)),
+        QPoint(int(10 * scale), int(13 * scale)),
+        QPoint(int(19 * scale), int(13 * scale)),
     ]
 
-    # Offset points to cursor position
-    translated_points = [local_pos + p for p in arrow_points]
+    translated_points = [QPoint(local_x + p.x(), local_y + p.y()) for p in arrow_points]
+    polygon = QPolygon(translated_points)
+
+    # Draw shadow (offset slightly for depth)
+    shadow_offset = 2
+    shadow_points = [QPoint(p.x() + shadow_offset, p.y() + shadow_offset) for p in translated_points]
+    shadow_polygon = QPolygon(shadow_points)
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor(0, 0, 0, 100))  # Semi-transparent black shadow
+    painter.drawPolygon(shadow_polygon)
 
     # Draw black outline
     painter.setPen(QPen(QColor(0, 0, 0), 2))
     painter.setBrush(Qt.NoBrush)
-    for i in range(len(translated_points)):
-        p1 = translated_points[i]
-        p2 = translated_points[(i + 1) % len(translated_points)]
-        painter.drawLine(p1, p2)
+    painter.drawPolygon(polygon)
 
-    # Fill with white
+    # Fill with gradient for a more modern look
+    gradient = QLinearGradient(local_x, local_y, local_x + 10, local_y + 15)
+    gradient.setColorAt(0, QColor(255, 255, 255))  # White at top
+    gradient.setColorAt(1, QColor(220, 220, 220))  # Light gray at bottom
     painter.setPen(Qt.NoPen)
-    painter.setBrush(QColor(255, 255, 255))
-    from PySide6.QtGui import QPolygon
-    painter.drawPolygon(QPolygon(translated_points))
+    painter.setBrush(gradient)
+    painter.drawPolygon(polygon)
+
+    # Add inner highlight for shine effect
+    painter.setPen(QPen(QColor(255, 255, 255, 150), 1))
+    painter.drawLine(
+        QPoint(local_x + 1, local_y + 1),
+        QPoint(local_x + 1, local_y + int(18 * scale))
+    )
 
     painter.end()
 

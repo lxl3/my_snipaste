@@ -123,5 +123,7 @@
   "Auto copy to clipboard": "自动复制到剪贴板",
   "Auto save to file": "自动保存到文件",
   "Logging": "日志",
-  "Language": "语言"
+  "Language": "语言",
+  "💡 Double-click or press Enter to copy": "💡 双击或按 Enter 自动复制",
+  "💡 Double-click or press Enter to save": "💡 双击或按 Enter 自动保存"
 }
