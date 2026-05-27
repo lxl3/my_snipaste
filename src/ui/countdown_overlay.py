@@ -64,35 +64,42 @@ class CountdownOverlay(QWidget):
         self.close()
 
     def paintEvent(self, event) -> None:
-        """绘制倒计时界面"""
+        """绘制倒计时界面（无背景，使用描边技术）"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        # 绘制半透明黑色背景
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 26))  # 10% opacity (255 * 0.10 = 26)
+        # 不再绘制背景 - 完全透明，用户可以看清屏幕内容
 
-        # 绘制倒计时数字（带阴影效果）
+        # 绘制倒计时数字（带 8 方向描边效果）
         font = QFont("Arial", 120, QFont.Bold)
         painter.setFont(font)
 
-        # 先绘制黑色阴影（偏移 4px）
-        shadow_rect = self.rect().adjusted(4, 4, 4, 4)
-        painter.setPen(QColor(0, 0, 0, 200))
-        painter.drawText(shadow_rect, Qt.AlignCenter, str(self._seconds_left))
+        self._draw_text_with_outline(
+            painter,
+            self.rect(),
+            Qt.AlignCenter,
+            str(self._seconds_left),
+            QColor(255, 255, 255),      # 白色文字
+            QColor(0, 0, 0, 200),       # 半透明黑色描边
+            outline_width=3             # 3px 描边（大号文字）
+        )
 
-        # 再绘制白色数字
-        painter.setPen(QColor(255, 255, 255))
-        painter.drawText(self.rect(), Qt.AlignCenter, str(self._seconds_left))
-
-        # 绘制提示文本 "按 ESC 取消"
+        # 绘制提示文本 "按 ESC 取消"（带描边效果）
         hint_font = QFont("Arial", 24)
         painter.setFont(hint_font)
-        painter.setPen(QColor(255, 255, 255, 204))  # 80% opacity (255 * 0.8 = 204)
 
-        # 提示文本位于倒计时数字下方 40px
+        # 提示文本位于倒计时数字下方 80px
         hint_rect = self.rect().adjusted(0, 80, 0, 0)
-        painter.drawText(hint_rect, Qt.AlignHCenter | Qt.AlignTop,
-                        _("Press ESC to cancel"))
+
+        self._draw_text_with_outline(
+            painter,
+            hint_rect,
+            Qt.AlignHCenter | Qt.AlignTop,
+            _("Press ESC to cancel"),
+            QColor(255, 255, 255, 230),  # 略微透明的白色文字
+            QColor(0, 0, 0, 180),        # 半透明黑色描边
+            outline_width=2              # 2px 描边（小号文字）
+        )
 
     def keyPressEvent(self, event) -> None:
         """处理键盘事件"""
