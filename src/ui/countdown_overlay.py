@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal, QRect
 from PySide6.QtGui import QPainter, QColor, QFont
 from PySide6.QtWidgets import QWidget, QApplication
 
@@ -116,8 +116,8 @@ class CountdownOverlay(QWidget):
     def _draw_text_with_outline(
         self,
         painter: QPainter,
-        rect,
-        flags,
+        rect: QRect,
+        flags: Qt.AlignmentFlag,
         text: str,
         text_color: QColor,
         outline_color: QColor,
