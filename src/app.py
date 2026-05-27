@@ -63,44 +63,69 @@ class SnipasteApp(QApplication):
         self.setOrganizationName("MySnipaste")
         self.setQuitOnLastWindowClosed(False)
 
-        app_icon = create_app_icon()
-        if not app_icon.isNull():
-            self.setWindowIcon(app_icon)
+        # 阶段 1: 最小化初始化 - 只设置必要的内容
+        logger.info("MySnipaste 启动 - 阶段 1: 基础设置")
 
         self.overlay: CaptureOverlay | None = None
         self.countdown_overlay: CountdownOverlay | None = None
         self.pin_windows: list = []
         self.settings: AppSettings = get_settings()
-        load_translations(self.settings.language)
+        self.hotkey_listener: HotkeyListener | None = None
 
         apply_log_level(self.settings.log_level)
 
+        # 立即创建托盘图标（最快速度显示）
+        self.tray = TrayManager(self)
+        self.tray.setup(False)  # 先假设没有快捷键，稍后更新
+        self.tray.settings_requested.connect(self._open_settings)
+        logger.info("托盘图标已显示")
+
+        # 阶段 2: 异步加载重量级组件
+        QTimer.singleShot(0, self._async_init)
+
+        self.aboutToQuit.connect(self.cleanup)
+
+    def _async_init(self) -> None:
+        """异步初始化重量级组件，避免阻塞托盘显示"""
+        logger.info("MySnipaste 启动 - 阶段 2: 异步加载组件")
+
+        # 加载翻译文件
+        load_translations(self.settings.language)
+
+        # 设置应用图标
+        app_icon = create_app_icon()
+        if not app_icon.isNull():
+            self.setWindowIcon(app_icon)
+
+        # 设置焦点快捷键（F12, Ctrl+,）
         self.setup_focused_hotkey()
 
-        self.hotkey_listener = HotkeyListener(self.settings.hotkey)
-        self.hotkey_listener.capture_signal.connect(self.start_capture)
+        # macOS 菜单设置
+        if sys.platform == "darwin":
+            self._setup_macos_menu()
 
+        # 检查权限并初始化全局快捷键
         have_hotkey = check_macos_accessibility()
 
-        self.tray = TrayManager(self)
-        self.tray.setup(have_hotkey)
-        self.tray.settings_requested.connect(self._open_settings)
+        # 初始化热键监听器
+        self.hotkey_listener = HotkeyListener(self.settings.hotkey)
+        self.hotkey_listener.capture_signal.connect(self.start_capture)
 
         if have_hotkey:
             self.hotkey_listener.start()
             logger.info("全局快捷键已启动")
+            # 更新托盘图标状态
+            self.tray.setup(True)
         else:
             logger.warning("Input Monitoring 权限未授予，全局快捷键不可用")
 
-        self.aboutToQuit.connect(self.cleanup)
         logger.info("MySnipaste 应用初始化完成")
-        if sys.platform == "darwin":
-            self._setup_macos_menu()
 
+        # 阶段 3: 显示启动提示框
         if have_hotkey:
-            QTimer.singleShot(500, self._show_startup_notification)
+            QTimer.singleShot(300, self._show_startup_notification)
         else:
-            QTimer.singleShot(500, self._show_permission_required_notification)
+            QTimer.singleShot(300, self._show_permission_required_notification)
 
     def setup_focused_hotkey(self) -> None:
         self.f12_shortcut = QShortcut(QKeySequence("F12"), self)
