@@ -251,6 +251,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._finish_text_input()
 
         if event.button() == Qt.RightButton:
+            event.accept()  # 消费事件，防止传递到底层窗口
             if self._drag_mode or not self.selection_rect.isNull():
                 self.selection_rect = QRect()
                 self._drag_mode = None
