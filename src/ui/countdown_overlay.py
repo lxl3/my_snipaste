@@ -55,6 +55,30 @@ class CountdownOverlay(QWidget):
             # 触发重绘以更新显示的数字
             self.update()
 
+    def paintEvent(self, event) -> None:
+        """绘制倒计时界面"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # 绘制半透明黑色背景
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 153))  # 60% opacity (255 * 0.6 = 153)
+
+        # 绘制倒计时数字
+        font = QFont("Arial", 120, QFont.Bold)
+        painter.setFont(font)
+        painter.setPen(QColor(255, 255, 255))
+        painter.drawText(self.rect(), Qt.AlignCenter, str(self._seconds_left))
+
+        # 绘制提示文本 "按 ESC 取消"
+        hint_font = QFont("Arial", 24)
+        painter.setFont(hint_font)
+        painter.setPen(QColor(255, 255, 255, 204))  # 80% opacity (255 * 0.8 = 204)
+
+        # 提示文本位于倒计时数字下方 40px
+        hint_rect = self.rect().adjusted(0, 80, 0, 0)
+        painter.drawText(hint_rect, Qt.AlignHCenter | Qt.AlignTop,
+                        _("Press ESC to cancel"))
+
     def closeEvent(self, event) -> None:
         """窗口关闭时清理资源"""
         if self._timer:
