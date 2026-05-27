@@ -78,7 +78,7 @@ class OverlayActionsMixin:
         if self.selection_rect.isNull():
             return
         self.save_requested.emit(self._render_annotated_pixmap())
-        ToastManager.show(_("Screenshot saved"), "✓", "success", parent=self)
+        # No Toast here - save dialog is shown, overlay will close after successful save
 
     # ─── Undo / Redo ───
 
