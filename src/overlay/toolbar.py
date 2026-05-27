@@ -408,7 +408,73 @@ class OverlayToolbar:
             toolbar_layout.addWidget(btn)
 
     def _select_tool(self, tool_id: str, btn=None, icon_name: str | None = None) -> None:
+        from ..core.settings import get_settings
+
+        # Save current tool's settings before switching
+        s = get_settings()
+        current_tool = self.overlay.current_tool
+
+        # Save shape/arrow/pen settings (use current_color and current_width)
+        if current_tool in ["rect", "ellipse", "arrow", "line", "freehand"]:
+            s.save_tool_settings(current_tool, {
+                "color": self.overlay.current_color.name(),
+                "width": self.overlay.current_width,
+            })
+        # Save text tool settings
+        elif current_tool == "text":
+            s.save_tool_settings("text", {
+                "font_family": self.overlay.text_font_family,
+                "font_size": self.overlay.text_font_size,
+                "bold": self.overlay.text_bold,
+                "italic": self.overlay.text_italic,
+                "color": self.overlay.text_color.name(),
+            })
+
+        # Save last used tool
+        s.last_tool = tool_id
+        s.save()
+
+        # Continue with original logic
         self.overlay.current_tool = tool_id
+
+        # Load new tool's settings
+        if tool_id in ["rect", "ellipse", "arrow", "line", "freehand"]:
+            tool_settings = s.get_tool_settings(
+                tool_id,
+                defaults={"color": s.default_color, "width": s.default_line_width}
+            )
+            self.overlay.current_color = QColor(tool_settings.get("color", s.default_color))
+            self.overlay.current_width = tool_settings.get("width", s.default_line_width)
+            # Update width spinbox if visible
+            if self._width_spinbox:
+                self._width_spinbox.setValue(self.overlay.current_width)
+        elif tool_id == "text":
+            text_settings = s.get_tool_settings(
+                "text",
+                defaults={
+                    "font_family": s.default_font_family,
+                    "font_size": s.default_font_size,
+                    "bold": False,
+                    "italic": False,
+                    "color": s.default_color,
+                }
+            )
+            self.overlay.text_font_family = text_settings.get("font_family", s.default_font_family)
+            self.overlay.text_font_size = text_settings.get("font_size", s.default_font_size)
+            self.overlay.text_bold = text_settings.get("bold", False)
+            self.overlay.text_italic = text_settings.get("italic", False)
+            self.overlay.text_color = QColor(text_settings.get("color", s.default_color))
+
+            # Update text UI controls if they exist
+            if self._font_combo:
+                self._font_combo.setCurrentText(self.overlay.text_font_family)
+            if self._font_size_spinbox:
+                self._font_size_spinbox.setValue(self.overlay.text_font_size)
+            if self._bold_btn:
+                self._bold_btn.setChecked(self.overlay.text_bold)
+            if self._italic_btn:
+                self._italic_btn.setChecked(self.overlay.text_italic)
+
         for tid, b in self._tool_btns.items():
             b.setChecked(tid == tool_id)
         if btn:
