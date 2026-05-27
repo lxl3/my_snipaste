@@ -45,6 +45,12 @@ class HotkeyListener(QObject):
         if self._listener:
             self._listener.stop()
 
+    def update_hotkey(self, hotkey: str) -> None:
+        """Update hotkey without restarting the pynput listener / CGEventTap."""
+        self.hotkey = hotkey
+        if self._listener and self.running:
+            self._listener.update_hotkey(hotkey)
+
 class _PynputListener(QObject):
     """pynput 全局快捷键监听（Windows/Linux，macOS 备用）"""
     capture_signal = Signal()
@@ -55,6 +61,7 @@ class _PynputListener(QObject):
         self.listener = None
         self.running: bool = False
         self._current_keys: set = set()
+        self._required_keys: set = set()
 
     def start(self) -> None:
         logger.debug("PynputListener 启动中...")
@@ -88,6 +95,12 @@ class _PynputListener(QObject):
         # Don't join: the thread is a daemon and will exit on its own.
         # Joining blocks the Qt main thread and can cause event loop issues.
 
+    def update_hotkey(self, hotkey: str) -> None:
+        """Update target hotkey without restarting the pynput listener / CGEventTap."""
+        self.hotkey = hotkey
+        self._parse_hotkey()
+        self._current_keys.clear()
+
     def _parse_hotkey(self) -> set:  # set[keyboard.Key | keyboard.KeyCode]
         from pynput import keyboard
         parts = self.hotkey.lower().split('+')
@@ -98,7 +111,7 @@ class _PynputListener(QObject):
                 keys.add(keyboard.Key.ctrl_l)
             elif part in ('cmd', 'command', 'super'):
                 keys.add(keyboard.Key.cmd)
-            elif part in ('shift'):
+            elif part in ('shift',):
                 keys.add(keyboard.Key.shift_l)
             elif part in ('alt', 'option'):
                 keys.add(keyboard.Key.alt_l)
@@ -108,6 +121,7 @@ class _PynputListener(QObject):
                 keys.add(keyboard.KeyCode.from_char(part))
             else:
                 logger.warning(f"未识别的快捷键部分: {part}")
+        self._required_keys = keys
         logger.debug(f"PynputListener 热键解析完成: {self.hotkey} → {len(keys)} keys")
         return keys
 
@@ -115,8 +129,8 @@ class _PynputListener(QObject):
         logger.debug("PynputListener 监听线程已启动")
         try:
             from pynput import keyboard
-            required_keys = self._parse_hotkey()
-            logger.debug(f"PynputListener 目标组合键: {required_keys}")
+            self._parse_hotkey()
+            logger.debug(f"PynputListener 目标组合键: {self._required_keys}")
 
             def on_press(key):
                 if not self.running:
@@ -125,7 +139,7 @@ class _PynputListener(QObject):
                     normalized = self._normalize(key)
                     self._current_keys.add(normalized)
                     logger.debug(f"按键按下: {key} normalized={normalized}")
-                    if required_keys.issubset(self._current_keys):
+                    if self._required_keys and self._required_keys.issubset(self._current_keys):
                         logger.debug(f"快捷键触发: {self.hotkey}")
                         self.capture_signal.emit()
                         self._current_keys.clear()

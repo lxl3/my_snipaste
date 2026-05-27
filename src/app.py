@@ -343,17 +343,9 @@ class SnipasteApp(QApplication):
                 have_hotkey = check_macos_accessibility()
                 self.tray.refresh_menu_text(have_hotkey)
                 if self.hotkey_listener and self.settings.hotkey != self.hotkey_listener.hotkey:
-                    self.hotkey_listener.stop()
-                    QTimer.singleShot(100, self._restart_hotkey)
+                    self.hotkey_listener.update_hotkey(self.settings.hotkey)
         except Exception:
             logger.exception("settings error")
-
-    def _restart_hotkey(self) -> None:
-        logger.info(f"重启快捷键监听器，新快捷键: {self.settings.hotkey}")
-        self.hotkey_listener = HotkeyListener(self.settings.hotkey)
-        self.hotkey_listener.capture_signal.connect(self.start_capture)
-        self.hotkey_listener.start()
-        logger.info(f"快捷键监听器已重启: {self.settings.hotkey}")
 
     def _play_capture_sound(self) -> None:
         """Play capture sound (platform-specific)."""
