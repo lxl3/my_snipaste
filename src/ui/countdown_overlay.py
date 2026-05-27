@@ -32,4 +32,33 @@ class CountdownOverlay(QWidget):
             virtual_geometry = screen.virtualGeometry()
             self.setGeometry(virtual_geometry)
 
+        # 初始化定时器
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._update_countdown)
+        self._timer.start(1000)  # 每秒触发一次
+
         logger.info(f"CountdownOverlay 初始化，倒计时 {seconds} 秒")
+
+    def _update_countdown(self) -> None:
+        """每秒更新倒计时"""
+        self._seconds_left -= 1
+        logger.debug(f"倒计时：{self._seconds_left} 秒")
+
+        if self._seconds_left <= 0:
+            # 倒计时结束
+            logger.info("倒计时结束，发送 countdown_finished 信号")
+            if self._timer:
+                self._timer.stop()
+            self.countdown_finished.emit()
+            self.close()
+        else:
+            # 触发重绘以更新显示的数字
+            self.update()
+
+    def closeEvent(self, event) -> None:
+        """窗口关闭时清理资源"""
+        if self._timer:
+            self._timer.stop()
+            self._timer = None
+        logger.debug("CountdownOverlay 已关闭")
+        super().closeEvent(event)
