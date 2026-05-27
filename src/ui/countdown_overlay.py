@@ -79,6 +79,17 @@ class CountdownOverlay(QWidget):
         painter.drawText(hint_rect, Qt.AlignHCenter | Qt.AlignTop,
                         _("Press ESC to cancel"))
 
+    def keyPressEvent(self, event) -> None:
+        """处理键盘事件"""
+        if event.key() == Qt.Key_Escape:
+            logger.info("用户按 ESC 取消倒计时")
+            if self._timer:
+                self._timer.stop()
+            self.countdown_cancelled.emit()
+            self.close()
+        else:
+            super().keyPressEvent(event)
+
     def closeEvent(self, event) -> None:
         """窗口关闭时清理资源"""
         if self._timer:
