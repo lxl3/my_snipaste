@@ -336,13 +336,12 @@ class SnipasteApp(QApplication):
         try:
             result = SettingsDialog.open(None)
             if result is not None:
-                old_hotkey = self.settings.hotkey
                 self.settings = result
                 logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
                 load_translations(self.settings.language)
                 have_hotkey = check_macos_accessibility()
                 self.tray.refresh_menu_text(have_hotkey)
-                if self.hotkey_listener and self.settings.hotkey != old_hotkey:
+                if self.hotkey_listener and self.settings.hotkey != self.hotkey_listener.hotkey:
                     self.hotkey_listener.stop()
                     QTimer.singleShot(100, self._restart_hotkey)
         except Exception:
