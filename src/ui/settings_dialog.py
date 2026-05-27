@@ -1,7 +1,7 @@
 import sys
 import subprocess
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QEvent
 from PySide6.QtGui import QColor, QPixmap, QIcon, QKeyEvent
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
@@ -84,7 +84,6 @@ class HotkeyRecorderWidget(QWidget):
             self._display.setText(_("Press keys..."))
             self._current_keys.clear()
             self.setFocus()
-            self.grabKeyboard()
         else:
             self._stop_recording()
 
@@ -93,7 +92,6 @@ class HotkeyRecorderWidget(QWidget):
         self._recording = False
         self._record_btn.setText(_("Record"))
         self._record_btn.setStyleSheet("")
-        self.releaseKeyboard()
 
         if self._current_keys:
             hotkey = self._format_hotkey(self._current_keys)
@@ -108,6 +106,11 @@ class HotkeyRecorderWidget(QWidget):
         self._display.clear()
         self._current_keys.clear()
         self.hotkey_changed.emit("")
+
+    def focusOutEvent(self, event: QEvent) -> None:
+        if self._recording:
+            self._stop_recording()
+        super().focusOutEvent(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Capture key press during recording."""
