@@ -193,6 +193,10 @@ class SnipasteApp(QApplication):
 
     def _do_capture(self) -> None:
         """Execute the actual screen capture."""
+        # 清理倒计时覆盖层引用（倒计时已结束）
+        if self.countdown_overlay:
+            self.countdown_overlay = None
+
         # macOS: check screen recording permission
         if sys.platform == "darwin":
             perm = check_screen_recording_permission()
