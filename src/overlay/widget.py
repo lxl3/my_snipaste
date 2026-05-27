@@ -465,6 +465,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def mouseReleaseEvent(self, event) -> None:
         if event.button() != Qt.LeftButton:
+            event.accept()  # 消费右键释放事件，防止传递到底层窗口
             return
         # end eraser drag
         self._erasing = False
