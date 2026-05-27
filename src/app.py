@@ -156,6 +156,12 @@ class SnipasteApp(QApplication):
     def start_capture(self) -> None:
         logger.info("start_capture() 被调用")
         _mac_activate_app()
+
+        # 防止倒计时进行中重复触发截图
+        if self.countdown_overlay is not None:
+            logger.info("倒计时进行中，忽略重复触发")
+            return
+
         if self.overlay is not None:
             self.overlay.close()
             self.overlay.deleteLater()
