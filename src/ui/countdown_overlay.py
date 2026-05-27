@@ -46,14 +46,22 @@ class CountdownOverlay(QWidget):
 
         if self._seconds_left <= 0:
             # 倒计时结束
-            logger.info("倒计时结束，发送 countdown_finished 信号")
+            logger.info("倒计时结束，隐藏窗口并准备截图")
             if self._timer:
                 self._timer.stop()
-            self.countdown_finished.emit()
-            self.close()
+            # 立即隐藏窗口
+            self.hide()
+            # 延迟 200ms 后发送信号，确保窗口完全消失
+            QTimer.singleShot(200, self._emit_finished)
         else:
             # 触发重绘以更新显示的数字
             self.update()
+
+    def _emit_finished(self) -> None:
+        """延迟发送倒计时结束信号"""
+        logger.info("发送 countdown_finished 信号")
+        self.countdown_finished.emit()
+        self.close()
 
     def paintEvent(self, event) -> None:
         """绘制倒计时界面"""
@@ -61,7 +69,7 @@ class CountdownOverlay(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
 
         # 绘制半透明黑色背景
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 153))  # 60% opacity (255 * 0.6 = 153)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 89))  # 35% opacity (255 * 0.35 = 89)
 
         # 绘制倒计时数字
         font = QFont("Arial", 120, QFont.Bold)
