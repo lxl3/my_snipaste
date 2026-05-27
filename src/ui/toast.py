@@ -2,8 +2,6 @@ from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout
 from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QEasingCurve
 from PySide6.QtGui import QColor, QPainter
 
-from ..core.i18n import _
-
 
 class ToastNotification(QWidget):
     """Toast 提示组件"""
@@ -75,6 +73,11 @@ class ToastNotification(QWidget):
 class ToastManager:
     """Toast 管理器 - 单例模式"""
 
+    # Constants
+    TOAST_SPACING = 10      # pixels between stacked toasts
+    ENTRANCE_OFFSET = 50    # pixels to slide in from
+    MAX_TOASTS = 3         # maximum number of toasts to display
+
     _instance = None
 
     def __init__(self):
@@ -105,7 +108,7 @@ class ToastManager:
         manager._toasts.append(toast)
 
         # 限制最多 3 个
-        if len(manager._toasts) > 3:
+        if len(manager._toasts) > cls.MAX_TOASTS:
             oldest = manager._toasts.pop(0)
             manager._hide_toast(oldest, animated=False)
 
@@ -118,8 +121,8 @@ class ToastManager:
         if self._parent:
             parent_rect = self._parent.geometry()
             x = parent_rect.x() + (parent_rect.width() - toast.width()) // 2
-            # Stack vertically: each toast offset by its height + 10px gap
-            y_offset = (len(self._toasts) - 1) * (toast.height() + 10)
+            # Stack vertically: each toast offset by its height + spacing
+            y_offset = (len(self._toasts) - 1) * (toast.height() + self.TOAST_SPACING)
             y = parent_rect.y() + 20 + y_offset
         else:
             # No parent - use screen center
@@ -127,11 +130,11 @@ class ToastManager:
             screen = QApplication.primaryScreen().geometry()
             x = (screen.width() - toast.width()) // 2
             # Stack vertically
-            y_offset = (len(self._toasts) - 1) * (toast.height() + 10)
+            y_offset = (len(self._toasts) - 1) * (toast.height() + self.TOAST_SPACING)
             y = 20 + y_offset
 
         # 进场动画：从上方滑入 + 淡入
-        start_pos = QPoint(x, y - 50)
+        start_pos = QPoint(x, y - self.ENTRANCE_OFFSET)
         end_pos = QPoint(x, y)
 
         toast.move(start_pos)
