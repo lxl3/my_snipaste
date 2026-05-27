@@ -139,7 +139,7 @@ class CountdownOverlay(QWidget):
     ) -> None:
         """绘制带描边效果的文字
 
-        使用 8 方向描边技术，确保文字在任何背景下都清晰可读（类似视频字幕）
+        使用 4 方向描边技术（上下左右），确保文字在任何背景下都清晰可读，避免对角线方向重叠造成重影
 
         Args:
             painter: QPainter 对象
@@ -150,16 +150,12 @@ class CountdownOverlay(QWidget):
             outline_color: 描边颜色
             outline_width: 描边宽度（像素）
         """
-        # 8 个方向的偏移：上、下、左、右、左上、右上、左下、右下
+        # 4 个方向的偏移：上、下、左、右（避免对角线重叠造成重影）
         offsets = [
             (0, -outline_width),   # 上
             (0, outline_width),    # 下
             (-outline_width, 0),   # 左
             (outline_width, 0),    # 右
-            (-outline_width, -outline_width),  # 左上
-            (outline_width, -outline_width),   # 右上
-            (-outline_width, outline_width),   # 左下
-            (outline_width, outline_width),    # 右下
         ]
 
         # 先绘制 8 个方向的描边
