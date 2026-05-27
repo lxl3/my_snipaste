@@ -25,6 +25,7 @@ from .core.permissions import (
 from .ui.pin_window import PinWindow
 from .ui.tray import TrayManager
 from .ui.settings_dialog import SettingsDialog
+from .ui.countdown_overlay import CountdownOverlay
 
 logger = setup_logger("app")
 
@@ -67,6 +68,7 @@ class SnipasteApp(QApplication):
             self.setWindowIcon(app_icon)
 
         self.overlay: CaptureOverlay | None = None
+        self.countdown_overlay: CountdownOverlay | None = None
         self.pin_windows: list = []
         self.settings: AppSettings = get_settings()
         load_translations(self.settings.language)
@@ -166,11 +168,22 @@ class SnipasteApp(QApplication):
         # Check capture delay setting
         delay_seconds = self.settings.capture_delay
         if delay_seconds > 0:
-            logger.info(f"截图延迟 {delay_seconds} 秒")
-            QTimer.singleShot(delay_seconds * 1000, self._do_capture)
+            logger.info(f"截图延迟 {delay_seconds} 秒，显示倒计时")
+            self.countdown_overlay = CountdownOverlay(delay_seconds)
+            self.countdown_overlay.countdown_finished.connect(self._do_capture)
+            self.countdown_overlay.countdown_cancelled.connect(self._on_countdown_cancelled)
+            self.countdown_overlay.show()
             return
 
         self._do_capture()
+
+    def _on_countdown_cancelled(self) -> None:
+        """倒计时被用户取消"""
+        logger.info("延迟截图已取消")
+        if self.countdown_overlay:
+            self.countdown_overlay.close()
+            self.countdown_overlay.deleteLater()
+            self.countdown_overlay = None
 
     def _do_capture(self) -> None:
         """Execute the actual screen capture."""
@@ -349,6 +362,9 @@ class SnipasteApp(QApplication):
     def cleanup(self) -> None:
         if hasattr(self, 'hotkey_listener'):
             self.hotkey_listener.stop()
+        if hasattr(self, 'countdown_overlay') and self.countdown_overlay:
+            self.countdown_overlay.close()
+            self.countdown_overlay = None
         if hasattr(self, 'tray'):
             self.tray.cleanup()
         if hasattr(self, '_menu_widget'):
