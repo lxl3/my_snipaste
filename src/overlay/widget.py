@@ -260,7 +260,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.toolbar.toolbar.hide()
                 self.setCursor(Qt.CrossCursor)
                 self.update()
-                return
             # 标记在右键释放时关闭，避免释放事件传递到底层窗口
             self._closing_on_release = True
             return
