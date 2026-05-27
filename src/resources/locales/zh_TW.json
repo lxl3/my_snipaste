@@ -24,6 +24,8 @@
   "(empty)": "(空)",
   "Failed to read log: {error}": "讀取日誌失敗：{error}",
   "Open in Finder": "在 Finder 中開啟",
+  "Open in Explorer": "在檔案總管中開啟",
+  "Check Permissions": "檢查權限",
   "Close": "關閉",
   "MySnipaste Settings": "MySnipaste 設定",
   "General": "一般",
