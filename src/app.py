@@ -179,6 +179,8 @@ class SnipasteApp(QApplication):
             self.countdown_overlay.countdown_finished.connect(self._do_capture)
             self.countdown_overlay.countdown_cancelled.connect(self._on_countdown_cancelled)
             self.countdown_overlay.show()
+            self.countdown_overlay.activateWindow()  # 激活窗口
+            self.countdown_overlay.setFocus()  # 设置焦点以接收键盘输入
             return
 
         self._do_capture()

@@ -29,6 +29,9 @@ class CountdownOverlay(QWidget):
         # 设置窗口透明背景
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
+        # 设置焦点策略以接收键盘输入
+        self.setFocusPolicy(Qt.StrongFocus)
+
         # 设置为全屏覆盖所有显示器
         screen = QApplication.primaryScreen()
         if screen:
@@ -100,9 +103,9 @@ class CountdownOverlay(QWidget):
             hint_rect,
             Qt.AlignHCenter | Qt.AlignTop,
             _("Press ESC to cancel"),
-            QColor(255, 255, 255, 230),  # 略微透明的白色文字
-            QColor(0, 0, 0, 180),        # 半透明黑色描边
-            outline_width=3              # Increased from 2 for better rendering
+            QColor(255, 255, 255),       # 白色文字（与倒计时一致）
+            QColor(0, 0, 0, 200),        # 半透明黑色描边（与倒计时一致）
+            outline_width=3              # 3px 描边
         )
 
     def keyPressEvent(self, event) -> None:
