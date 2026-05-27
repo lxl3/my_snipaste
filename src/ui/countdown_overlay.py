@@ -27,7 +27,7 @@ class CountdownOverlay(QWidget):
         )
 
         # 设置窗口透明背景
-        self.setAttribute(Qt.WindowAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         # 设置为全屏覆盖所有显示器
         screen = QApplication.primaryScreen()
