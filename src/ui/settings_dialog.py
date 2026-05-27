@@ -46,7 +46,7 @@ class HotkeyRecorderWidget(QWidget):
                 border-color: palette(highlight);
             }
             QLineEdit::placeholder {
-                color: rgba(0, 0, 0, 0.5);
+                color: palette(placeholder-text);
             }
         """)
         layout.addWidget(self._display, 1)
@@ -435,7 +435,7 @@ class SettingsDialog(QDialog):
               "Common: eng, chi_sim, jpn, fra, deu, spa\n"
               "Run 'tesseract --list-langs' to see installed.")
         )
-        lang_hint.setStyleSheet("color: #888; font-size: 11px;")
+        lang_hint.setStyleSheet("color: palette(mid); font-size: 11px;")
         form.addRow(_("Languages:"), self._ocr_lang_input)
         form.addRow("", lang_hint)
         layout.addWidget(group)
@@ -705,18 +705,41 @@ class SettingsDialog(QDialog):
     def _apply_launch_at_startup(self, enable: bool) -> None:
         if sys.platform != "darwin":
             return
+
+        # Get the application bundle path (.app) on macOS
+        # When running from PyInstaller bundle, we need the .app path, not the executable
+        import os
+        app_path = sys.executable
+
+        # If running from a .app bundle, find the .app directory
+        if hasattr(sys, '_MEIPASS'):
+            # Running as PyInstaller bundle
+            # executable is inside MySnipaste.app/Contents/MacOS/MySnipaste
+            # We need MySnipaste.app
+            parts = app_path.split('/')
+            try:
+                app_idx = next(i for i, part in enumerate(parts) if part.endswith('.app'))
+                app_path = '/'.join(parts[:app_idx + 1])
+            except StopIteration:
+                logger.warning(f"Could not find .app in path: {app_path}")
+                return
+
+        logger.debug(f"Using app path for login item: {app_path}")
+
         try:
             if enable:
                 subprocess.run([
                     "osascript", "-e",
                     f'tell application "System Events" to make login item '
-                    f'with properties {{path:"{sys.executable}", hidden:false, name:"MySnipaste"}}'
-                ], capture_output=True, timeout=5)
+                    f'with properties {{path:"{app_path}", hidden:false, name:"MySnipaste"}}'
+                ], capture_output=True, timeout=5, check=False)
+                logger.info(f"Added login item: {app_path}")
             else:
                 subprocess.run([
                     "osascript", "-e",
                     'tell application "System Events" to delete login item "MySnipaste"'
-                ], capture_output=True, timeout=5)
+                ], capture_output=True, timeout=5, check=False)
+                logger.info("Removed login item")
         except Exception as e:
             logger.warning(f"Failed to update login item: {e}")
 
