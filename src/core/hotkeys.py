@@ -45,10 +45,6 @@ class HotkeyListener(QObject):
         if self._listener:
             self._listener.stop()
 
-    def __del__(self) -> None:
-        self.stop()
-
-
 class _PynputListener(QObject):
     """pynput 全局快捷键监听（Windows/Linux，macOS 备用）"""
     capture_signal = Signal()
@@ -65,8 +61,8 @@ class _PynputListener(QObject):
         if sys.platform == 'darwin':
             try:
                 from .permissions import (
-                    request_input_monitoring_permission,
                     open_input_monitoring_settings,
+                    request_input_monitoring_permission,
                 )
                 logger.debug("PynputListener 请求输入监控权限...")
                 granted = request_input_monitoring_permission()
@@ -89,14 +85,8 @@ class _PynputListener(QObject):
             except Exception as e:
                 logger.debug(f"停止 pynput Listener 时异常: {e}")
 
-        # Wait for the thread to actually terminate
-        if hasattr(self, 'thread') and self.thread is not None and self.thread.is_alive():
-            logger.debug("等待监听线程退出...")
-            self.thread.join(timeout=1.0)  # Wait up to 1 second
-            if self.thread.is_alive():
-                logger.warning("监听线程在 1 秒后仍未退出")
-            else:
-                logger.debug("监听线程已完全退出")
+        # Don't join: the thread is a daemon and will exit on its own.
+        # Joining blocks the Qt main thread and can cause event loop issues.
 
     def _parse_hotkey(self) -> set:  # set[keyboard.Key | keyboard.KeyCode]
         from pynput import keyboard
@@ -182,11 +172,6 @@ class _PynputListener(QObject):
                 logger.debug(f"转换控制字符: {repr(key.char)} -> '{char}'")
             # Convert to lowercase for consistent comparison
             return keyboard.KeyCode.from_char(char.lower())
-        # Return the key as-is for function keys and other special keys
         return key
-        return key
-
-    def __del__(self) -> None:
-        self.stop()
 
 

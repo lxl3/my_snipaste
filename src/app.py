@@ -333,22 +333,20 @@ class SnipasteApp(QApplication):
             logger.warning("OCR 识别结果为空")
 
     def _open_settings(self) -> None:
-        result = SettingsDialog.open(None)
-        if result is not None:
-            self.settings = result
-            logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
-            # Load translations for new language
-            load_translations(self.settings.language)
-            # Update tray to reflect new language settings
-            self.tray.cleanup()
-            self.tray = TrayManager(self)
-            have_hotkey = check_macos_accessibility()  # Re-check permission status
-            self.tray.setup(have_hotkey)
-            self.tray.settings_requested.connect(self._open_settings)
-            # Stop the old listener (now waits for thread to exit)
-            self.hotkey_listener.stop()
-            # Small delay to ensure clean transition
-            QTimer.singleShot(100, self._restart_hotkey)
+        try:
+            result = SettingsDialog.open(None)
+            if result is not None:
+                old_hotkey = self.settings.hotkey
+                self.settings = result
+                logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
+                load_translations(self.settings.language)
+                have_hotkey = check_macos_accessibility()
+                self.tray.refresh_menu_text(have_hotkey)
+                if self.hotkey_listener and self.settings.hotkey != old_hotkey:
+                    self.hotkey_listener.stop()
+                    QTimer.singleShot(100, self._restart_hotkey)
+        except Exception:
+            logger.exception("settings error")
 
     def _restart_hotkey(self) -> None:
         logger.info(f"重启快捷键监听器，新快捷键: {self.settings.hotkey}")
