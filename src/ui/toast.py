@@ -82,6 +82,7 @@ class ToastManager:
         self._parent = None
         self._timers: dict[ToastNotification, QTimer] = {}
         self._animations: dict[ToastNotification, QPropertyAnimation] = {}
+        self._opacity_timers: dict[ToastNotification, list[QTimer]] = {}
 
     @classmethod
     def instance(cls):
@@ -113,17 +114,21 @@ class ToastManager:
 
     def _show_toast(self, toast: ToastNotification, duration: int):
         """显示 Toast 并设置自动隐藏"""
-        # 定位到父窗口顶部居中
+        # Calculate position with stacking
         if self._parent:
             parent_rect = self._parent.geometry()
             x = parent_rect.x() + (parent_rect.width() - toast.width()) // 2
-            y = parent_rect.y() + 20
+            # Stack vertically: each toast offset by its height + 10px gap
+            y_offset = (len(self._toasts) - 1) * (toast.height() + 10)
+            y = parent_rect.y() + 20 + y_offset
         else:
-            # 无父窗口时使用屏幕中心
+            # No parent - use screen center
             from PySide6.QtWidgets import QApplication
             screen = QApplication.primaryScreen().geometry()
             x = (screen.width() - toast.width()) // 2
-            y = 20
+            # Stack vertically
+            y_offset = (len(self._toasts) - 1) * (toast.height() + 10)
+            y = 20 + y_offset
 
         # 进场动画：从上方滑入 + 淡入
         start_pos = QPoint(x, y - 50)
@@ -155,6 +160,9 @@ class ToastManager:
 
         opacity_timer.timeout.connect(update_opacity)
         opacity_timer.start(30)
+        if toast not in self._opacity_timers:
+            self._opacity_timers[toast] = []
+        self._opacity_timers[toast].append(opacity_timer)
 
         # 自动隐藏定时器
         timer = QTimer()
@@ -178,6 +186,17 @@ class ToastManager:
             self._timers[toast].stop()
             del self._timers[toast]
 
+        # Clean up opacity timers
+        if toast in self._opacity_timers:
+            for timer in self._opacity_timers[toast]:
+                timer.stop()
+            del self._opacity_timers[toast]
+
+        # Clean up animations
+        if toast in self._animations:
+            self._animations[toast].stop()
+            del self._animations[toast]
+
         if animated:
             # 淡出动画
             opacity_steps = 10
@@ -196,6 +215,9 @@ class ToastManager:
 
             opacity_timer.timeout.connect(update_opacity)
             opacity_timer.start(20)
+            if toast not in self._opacity_timers:
+                self._opacity_timers[toast] = []
+            self._opacity_timers[toast].append(opacity_timer)
         else:
             toast.close()
             toast.deleteLater()
