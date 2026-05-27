@@ -334,7 +334,8 @@ class SnipasteApp(QApplication):
 
     def _open_settings(self) -> None:
         try:
-            result = SettingsDialog.open(None)
+            parent = getattr(self, '_menu_widget', None)
+            result = SettingsDialog.open(parent)
             if result is not None:
                 self.settings = result
                 logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
