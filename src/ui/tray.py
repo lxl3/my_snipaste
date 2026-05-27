@@ -139,10 +139,8 @@ class TrayManager(QObject):
             self.app.start_capture()
 
     def _on_tray_mac(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason == QSystemTrayIcon.ActivationReason.Context:
-            return  # right-click: context menu handled by OS
-        # left-click or double-click: show menu (Capture is the first item)
-        if self._menu:
+        # macOS: show menu on any click (left, right, or double-click)
+        if self._menu and reason != QSystemTrayIcon.ActivationReason.Unknown:
             self._menu.popup(QCursor.pos())
 
     def _open_settings(self) -> None:
