@@ -104,8 +104,8 @@ class CountdownOverlay(QWidget):
             Qt.AlignHCenter | Qt.AlignTop,
             _("Press ESC to cancel"),
             QColor(255, 255, 255),       # 白色文字
-            QColor(0, 0, 0),             # 纯黑色描边（不透明，避免重影）
-            outline_width=3              # 3px 描边
+            QColor(0, 0, 0),             # 纯黑色描边
+            outline_width=2              # 2px 描边（小字体用较细描边避免重影）
         )
 
     def keyPressEvent(self, event) -> None:
