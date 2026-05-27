@@ -125,14 +125,21 @@ class HotkeyRecorderWidget(QWidget):
         modifiers = event.modifiers()
         self._current_keys.clear()
 
-        if modifiers & Qt.ControlModifier:
-            self._current_keys.add('ctrl')
+        if sys.platform == 'darwin':
+            # On macOS: Qt.ControlModifier = Command (⌘), Qt.MetaModifier = Control (⌃)
+            if modifiers & Qt.ControlModifier:
+                self._current_keys.add('cmd')
+            if modifiers & Qt.MetaModifier:
+                self._current_keys.add('ctrl')
+        else:
+            if modifiers & Qt.ControlModifier:
+                self._current_keys.add('ctrl')
+            if modifiers & Qt.MetaModifier:
+                self._current_keys.add('meta')
         if modifiers & Qt.ShiftModifier:
             self._current_keys.add('shift')
         if modifiers & Qt.AltModifier:
             self._current_keys.add('alt')
-        if modifiers & Qt.MetaModifier:
-            self._current_keys.add('cmd' if sys.platform == 'darwin' else 'meta')
 
         # Record the main key
         key_name = self._key_to_string(key)
