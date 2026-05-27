@@ -17,6 +17,7 @@ from .toolbar import OverlayToolbar
 from .rendering import OverlayRenderingMixin
 from .actions import OverlayActionsMixin
 from .ocr_mixin import OcrMixin
+from ..ui.toast import ToastManager
 from ..core.constants import (
     DEFAULT_ANNOTATION_COLOR, SELECTION_BORDER_COLOR, DIM_OVERLAY_COLOR,
     HANDLE_SIZE, MIN_SELECTION_SIZE, MIN_DRAW_THRESHOLD,

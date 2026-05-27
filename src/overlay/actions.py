@@ -7,6 +7,7 @@ from PySide6.QtGui import QColor, QFont
 from PySide6.QtCore import QRectF, QPointF, QRect, QPoint
 from ..core.i18n import _
 from ..core.logger import setup_logger
+from ..ui.toast import ToastManager
 
 logger = setup_logger("overlay_actions")
 
@@ -31,6 +32,7 @@ class OverlayActionsMixin:
     def _on_ocr(self) -> None:
         if self.selection_rect.isNull():
             return
+        ToastManager.show(_("OCR recognizing..."), "🔍", "info", parent=self)
         captured = self._render_annotated_pixmap()
         from ..ocr.engine import OcrWorker
         from ..core.utils import qpixmap_to_pil
@@ -44,6 +46,7 @@ class OverlayActionsMixin:
     def _on_ocr_finished(self, text: str) -> None:
         self._cleanup_ocr()
         if text:
+            ToastManager.show(_("Recognition complete"), "✓", "success", parent=self)
             from ..ui.ocr_dialog import OcrResultDialog
             self.releaseKeyboard()
             OcrResultDialog(text, self).exec()
@@ -61,18 +64,21 @@ class OverlayActionsMixin:
         if self.selection_rect.isNull():
             return
         self.pin_requested.emit(self._render_annotated_pixmap(), self._capture_pos())
+        ToastManager.show(_("Pinned to desktop"), "📌", "success", parent=self)
         self.close()
 
     def on_copy(self) -> None:
         if self.selection_rect.isNull():
             return
         self.copy_requested.emit(self._render_annotated_pixmap())
+        ToastManager.show(_("Copied to clipboard"), "✓", "success", parent=self)
         self.close()
 
     def on_save(self) -> None:
         if self.selection_rect.isNull():
             return
         self.save_requested.emit(self._render_annotated_pixmap())
+        ToastManager.show(_("Screenshot saved"), "✓", "success", parent=self)
 
     # ─── Undo / Redo ───
 
@@ -81,12 +87,14 @@ class OverlayActionsMixin:
             self._redo_stack.append(self.annotations.pop())
             self.toolbar.update_undo_redo_state()
             self.update()
+            ToastManager.show(_("Undone"), "↶", "info", parent=self)
 
     def _redo(self) -> None:
         if self._redo_stack:
             self.annotations.append(self._redo_stack.pop())
             self.toolbar.update_undo_redo_state()
             self.update()
+            ToastManager.show(_("Redone"), "↷", "info", parent=self)
 
     # ─── Erase ───
 
