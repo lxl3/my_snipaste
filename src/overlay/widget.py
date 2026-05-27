@@ -79,6 +79,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._eraser_target_size: int = 20
         self._eraser_size_animating: bool = False
         self._erasing: bool = False
+        self._closing_on_release: bool = False  # 标记右键释放时关闭
 
         self._erase_fill_rect_start: QPoint | None = None
         self._erase_fill_rect_current: QPoint | None = None
@@ -260,7 +261,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.setCursor(Qt.CrossCursor)
                 self.update()
                 return
-            self.close()
+            # 标记在右键释放时关闭，避免释放事件传递到底层窗口
+            self._closing_on_release = True
             return
 
         if event.button() == Qt.LeftButton:
@@ -466,6 +468,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
     def mouseReleaseEvent(self, event) -> None:
         if event.button() != Qt.LeftButton:
             event.accept()  # 消费右键释放事件，防止传递到底层窗口
+            # 如果右键按下时标记了关闭，现在释放时才真正关闭
+            if self._closing_on_release:
+                self.close()
             return
         # end eraser drag
         self._erasing = False
