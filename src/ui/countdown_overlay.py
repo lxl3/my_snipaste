@@ -87,7 +87,7 @@ class CountdownOverlay(QWidget):
             Qt.AlignCenter,
             str(self._seconds_left),
             QColor(255, 255, 255),      # 白色文字
-            QColor(0, 0, 0, 200),       # 半透明黑色描边
+            QColor(0, 0, 0),            # 纯黑色描边（不透明，避免重影）
             outline_width=3             # 3px 描边（大号文字）
         )
 
@@ -103,8 +103,8 @@ class CountdownOverlay(QWidget):
             hint_rect,
             Qt.AlignHCenter | Qt.AlignTop,
             _("Press ESC to cancel"),
-            QColor(255, 255, 255),       # 白色文字（与倒计时一致）
-            QColor(0, 0, 0, 200),        # 半透明黑色描边（与倒计时一致）
+            QColor(255, 255, 255),       # 白色文字
+            QColor(0, 0, 0),             # 纯黑色描边（不透明，避免重影）
             outline_width=3              # 3px 描边
         )
 
