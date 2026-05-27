@@ -26,6 +26,9 @@ class CountdownOverlay(QWidget):
             Qt.Tool
         )
 
+        # 设置窗口透明背景
+        self.setAttribute(Qt.WindowAttribute.WA_TranslucentBackground)
+
         # 设置为全屏覆盖所有显示器
         screen = QApplication.primaryScreen()
         if screen:
@@ -67,6 +70,7 @@ class CountdownOverlay(QWidget):
         """绘制倒计时界面（无背景，使用描边技术）"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
 
         # 不再绘制背景 - 完全透明，用户可以看清屏幕内容
 
@@ -98,7 +102,7 @@ class CountdownOverlay(QWidget):
             _("Press ESC to cancel"),
             QColor(255, 255, 255, 230),  # 略微透明的白色文字
             QColor(0, 0, 0, 180),        # 半透明黑色描边
-            outline_width=2              # 2px 描边（小号文字）
+            outline_width=3              # Increased from 2 for better rendering
         )
 
     def keyPressEvent(self, event) -> None:
