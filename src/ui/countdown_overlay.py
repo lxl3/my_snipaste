@@ -69,11 +69,18 @@ class CountdownOverlay(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
 
         # 绘制半透明黑色背景
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 89))  # 35% opacity (255 * 0.35 = 89)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 26))  # 10% opacity (255 * 0.10 = 26)
 
-        # 绘制倒计时数字
+        # 绘制倒计时数字（带阴影效果）
         font = QFont("Arial", 120, QFont.Bold)
         painter.setFont(font)
+
+        # 先绘制黑色阴影（偏移 4px）
+        shadow_rect = self.rect().adjusted(4, 4, 4, 4)
+        painter.setPen(QColor(0, 0, 0, 200))
+        painter.drawText(shadow_rect, Qt.AlignCenter, str(self._seconds_left))
+
+        # 再绘制白色数字
         painter.setPen(QColor(255, 255, 255))
         painter.drawText(self.rect(), Qt.AlignCenter, str(self._seconds_left))
 
