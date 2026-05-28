@@ -15,6 +15,7 @@ from ..core.constants import (
     DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE,
 )
 from ..core.logger import setup_logger
+from ..core.settings import get_settings
 
 logger = setup_logger("overlay_toolbar")
 
@@ -127,16 +128,52 @@ class OverlayToolbar:
             layout.addWidget(tool_btn)
 
     def _add_color_buttons_to_submenu(self, layout, colors: list[str], target_list: list, set_color_fn) -> None:
+        settings = get_settings()
+
+        # Add recent colors (max 3) at the front
+        recent_count = 0
+        for color in settings.recent_colors[:3]:
+            cb = self._make_color_button(color, is_recent=True)
+            cb.clicked.connect(lambda checked, col=color: set_color_fn(col))
+            layout.addWidget(cb)
+            target_list.append(cb)
+            recent_count += 1
+
+        # Add separator if there are recent colors
+        if recent_count > 0:
+            self._add_separator(layout)
+
+        # Add preset colors
         for c in colors:
-            cb = QPushButton()
-            cb.setFixedSize(18, 18)
-            cb.setProperty("color", c)
-            is_current = (c.lower() == self.overlay.current_color.name().lower())
-            border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-            cb.setStyleSheet(f"background: {c}; border: {border}; ")
+            cb = self._make_color_button(c, is_recent=False)
             cb.clicked.connect(lambda checked, col=c: set_color_fn(col))
             layout.addWidget(cb)
             target_list.append(cb)
+
+    def _make_color_button(self, color: str, is_recent: bool = False) -> QPushButton:
+        """Create a color button with visual distinction for recent colors"""
+        btn = QPushButton()
+        btn.setFixedSize(18, 18)
+        btn.setProperty("color", color)
+
+        is_current = (color.lower() == self.overlay.current_color.name().lower())
+
+        if is_recent:
+            # Recent colors have a slightly different style
+            if is_current:
+                border = "2px solid #0078d4"
+            else:
+                border = "1px solid #999"
+            btn.setStyleSheet(f"background: {color}; border: {border}; border-radius: 3px;")
+        else:
+            # Preset colors have standard style
+            if is_current:
+                border = "2px solid #0078d4"
+            else:
+                border = "1px solid #ccc"
+            btn.setStyleSheet(f"background: {color}; border: {border};")
+
+        return btn
 
     def _add_separator(self, layout) -> None:
         sep = QFrame()
@@ -488,13 +525,28 @@ class OverlayToolbar:
                     if c:
                         is_current = (c.lower() == self.overlay.current_color.name().lower())
                         border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-                        child.setStyleSheet(f"background: {c}; border: {border}; ")
+                        # Check if this is a recent color button
+                        btn_style = child.styleSheet()
+                        if "border-radius: 3px" in btn_style:
+                            # Recent color button
+                            if not is_current:
+                                border = "1px solid #999"
+                            child.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
+                        else:
+                            # Preset color button
+                            child.setStyleSheet(f"background: {c}; border: {border};")
 
     def _set_pen_color(self, color_hex: str) -> None:
         self._set_shape_color(color_hex)
 
     def _set_shape_color(self, color_hex: str) -> None:
         self.overlay.current_color = QColor(color_hex)
+
+        # Add to recent colors
+        settings = get_settings()
+        settings.add_recent_color(color_hex)
+
+        # Update button borders for all color buttons
         all_buttons = []
         for lst in [self._color_buttons, self._shape_color_buttons, self._arrow_color_buttons]:
             all_buttons.extend(lst)
@@ -503,12 +555,22 @@ class OverlayToolbar:
             if c:
                 is_current = (c.lower() == color_hex.lower())
                 border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-                btn.setStyleSheet(f"background: {c}; border: {border}; ")
+                # Check if this button is a recent color button
+                btn_style = btn.styleSheet()
+                if "border-radius: 3px" in btn_style:
+                    # Recent color button
+                    if not is_current:
+                        border = "1px solid #999"
+                    btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
+                else:
+                    # Preset color button
+                    btn.setStyleSheet(f"background: {c}; border: {border};")
 
     def _open_shape_color_picker(self) -> None:
         color = QColorDialog.getColor(self.overlay.current_color, self.overlay, _("Select Color"))
         if color.isValid():
             self._set_shape_color(color.name())
+            # Color is already added to recent in _set_shape_color
 
     def _set_text_font(self, font_family: str) -> None:
         self.overlay.text_font_family = font_family
@@ -524,6 +586,12 @@ class OverlayToolbar:
 
     def _set_text_color(self, color_hex: str) -> None:
         self.overlay.text_color = QColor(color_hex)
+
+        # Add to recent colors
+        settings = get_settings()
+        settings.add_recent_color(color_hex)
+
+        # Update button borders
         for btn in self._text_color_buttons:
             c = btn.property("color")
             if c:
@@ -535,6 +603,7 @@ class OverlayToolbar:
         color = QColorDialog.getColor(self.overlay.text_color, self.overlay, _("Select Text Color"))
         if color.isValid():
             self._set_text_color(color.name())
+            # Color is already added to recent in _set_text_color
 
     def update_undo_redo_state(self) -> None:
         self._undo_btn.setEnabled(len(self.overlay.annotations) > 0)
