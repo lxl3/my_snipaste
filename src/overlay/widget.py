@@ -74,7 +74,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if tool_settings:
             # Restore color if saved
             saved_color = tool_settings.get("color")
-            self.current_color: QColor = QColor(saved_color) if saved_color else QColor(s.default_color)
+            if saved_color:
+                color = QColor(saved_color)
+                self.current_color: QColor = color if color.isValid() else QColor(s.default_color)
+            else:
+                self.current_color: QColor = QColor(s.default_color)
             # Restore width if saved
             self.current_width: int = tool_settings.get("width", s.default_line_width)
         else:
@@ -113,8 +117,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.toolbar.setup()
 
         # Update toolbar UI to reflect the restored tool
-        for tid, btn in self.toolbar._tool_btns.items():
-            btn.setChecked(tid == self.current_tool)
+        if self.current_tool in self.toolbar._tool_btns:
+            for tid, btn in self.toolbar._tool_btns.items():
+                btn.setChecked(tid == self.current_tool)
 
         self.grabKeyboard()
 
@@ -390,7 +395,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._save_current_tool_settings()
 
         # Switch to new tool
-        old_tool = self.current_tool
         self.current_tool = tool_id
 
         # Update last_tool in settings
@@ -403,9 +407,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             tool_settings = s.get_tool_settings(tool_id)
             if tool_settings:
                 # Restore color if saved
-                saved_color = tool_settings.get("color")
-                if saved_color:
-                    self.current_color = QColor(saved_color)
+                if "color" in tool_settings:
+                    color = QColor(tool_settings["color"])
+                    self.current_color = color if color.isValid() else QColor(s.default_color)
+                else:
+                    self.current_color = QColor(s.default_color)
                 # Restore width if saved
                 saved_width = tool_settings.get("width")
                 if saved_width is not None:

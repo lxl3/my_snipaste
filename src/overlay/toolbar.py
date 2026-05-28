@@ -375,6 +375,7 @@ class OverlayToolbar:
         eraser_menu.aboutToShow.connect(_setup)
 
         self._tool_btns["eraser_dot"] = eraser_btn
+        self._tool_btns["eraser_fill"] = eraser_btn
 
     def _select_eraser_subtool(self, tool_id: str, btn, icon_name: str, menu_obj) -> None:
         self._select_tool(tool_id, btn, icon_name)
