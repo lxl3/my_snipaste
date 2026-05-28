@@ -17,6 +17,7 @@ from .toolbar import OverlayToolbar
 from .rendering import OverlayRenderingMixin
 from .actions import OverlayActionsMixin
 from .ocr_mixin import OcrMixin
+from .hotkey_panel import HotkeyHelpPanel
 from ..core.constants import (
     DEFAULT_ANNOTATION_COLOR, SELECTION_BORDER_COLOR, DIM_OVERLAY_COLOR,
     HANDLE_SIZE, MIN_SELECTION_SIZE, MIN_DRAW_THRESHOLD,
@@ -99,6 +100,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.toolbar = OverlayToolbar(self)
         self.toolbar.setup()
         self.grabKeyboard()
+
+        self._hotkey_panel = None
 
     # ─── Selection helpers ───
 
@@ -557,8 +560,19 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.update()
 
     def keyPressEvent(self, event) -> None:
+        # Hotkey help panel toggle
+        if event.key() == Qt.Key_Question or event.key() == Qt.Key_F1:
+            self._toggle_hotkey_panel()
+            event.accept()
+            return
+
         if event.key() == Qt.Key_Escape:
-            # First ESC: Cancel current operation (text editing, drawing, etc.)
+            # First ESC: Hide hotkey panel if visible
+            if self._hotkey_panel and self._hotkey_panel.isVisible():
+                self._hotkey_panel.hide()
+                return
+
+            # Second ESC: Cancel current operation (text editing, drawing, etc.)
             if self._text_editor:
                 self._text_editor.hide()
                 self._text_editor.deleteLater()
@@ -694,3 +708,17 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             return
         erase_rect = QRect(self._erase_fill_rect_start, self._erase_fill_rect_current).normalized()
         self._erase_in_rect(erase_rect)
+
+    def _toggle_hotkey_panel(self) -> None:
+        """Toggle keyboard shortcut help panel display."""
+        if self._hotkey_panel is None:
+            self._hotkey_panel = HotkeyHelpPanel(self)
+            # Center the panel in the overlay window
+            panel_x = (self.width() - self._hotkey_panel.width()) // 2
+            panel_y = (self.height() - self._hotkey_panel.height()) // 2
+            self._hotkey_panel.move(panel_x, panel_y)
+            self._hotkey_panel.show()
+        elif self._hotkey_panel.isVisible():
+            self._hotkey_panel.hide()
+        else:
+            self._hotkey_panel.show()

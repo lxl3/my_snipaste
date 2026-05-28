@@ -135,5 +135,10 @@
   "Undone": "已撤销",
   "Redone": "已重做",
   "OCR recognizing...": "OCR 识别中...",
-  "Recognition complete": "识别完成"
+  "Recognition complete": "识别完成",
+  "Hotkeys": "快捷键",
+  "Copy": "复制",
+  "Pin": "固定",
+  "Toggle help": "切换帮助",
+  "Press Esc to close": "按 Esc 关闭"
 }
