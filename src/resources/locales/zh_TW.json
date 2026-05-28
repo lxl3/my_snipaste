@@ -128,5 +128,19 @@
   "Language": "語言",
   "💡 Double-click or press Enter to copy": "💡 雙擊或按 Enter 自動複製",
   "💡 Double-click or press Enter to save": "💡 雙擊或按 Enter 自動儲存",
-  "Press ESC to cancel": "按 ESC 取消"
+  "Press ESC to cancel": "按 ESC 取消",
+  "Recent Screenshots": "📂 最近截圖",
+  "No history yet": "暫無歷史截圖",
+  "Copied to clipboard": "已複製到剪貼簿",
+  "Screenshot saved": "截圖已儲存",
+  "Pinned to desktop": "已固定到桌面",
+  "Undone": "已撤銷",
+  "Redone": "已重做",
+  "OCR recognizing...": "OCR 識別中...",
+  "Recognition complete": "識別完成",
+  "Hotkeys": "快捷鍵",
+  "Copy": "複製",
+  "Pin": "固定",
+  "Toggle help": "顯示此說明",
+  "Press Esc to close": "按 Esc 關閉"
 }
