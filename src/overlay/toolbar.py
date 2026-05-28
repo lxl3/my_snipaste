@@ -258,7 +258,10 @@ class OverlayToolbar:
         self._width_spinbox.setValue(self.overlay.current_width)
         self._width_spinbox.setFixedWidth(50)
         self._width_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
-        self._width_spinbox.valueChanged.connect(lambda v: setattr(self.overlay, 'current_width', v))
+        self._width_spinbox.valueChanged.connect(
+            lambda v: (setattr(self.overlay, 'current_width', v),
+                       self.overlay._apply_property_to_selected("width", v))
+        )
         container_layout.addWidget(self._width_spinbox)
 
         pen_action.setDefaultWidget(pen_container)
@@ -521,6 +524,8 @@ class OverlayToolbar:
 
     def _set_shape_color(self, color_hex: str) -> None:
         self.overlay.current_color = QColor(color_hex)
+        # Apply to selected annotation if one exists
+        self.overlay._apply_property_to_selected("color", color_hex)
 
         # Add to recent colors
         settings = get_settings()
@@ -555,18 +560,23 @@ class OverlayToolbar:
 
     def _set_text_font(self, font_family: str) -> None:
         self.overlay.text_font_family = font_family
+        self.overlay._apply_property_to_selected("font_family", font_family)
 
     def _set_text_size(self, size: int) -> None:
         self.overlay.text_font_size = size
+        self.overlay._apply_property_to_selected("font_size", size)
 
     def _toggle_bold(self) -> None:
         self.overlay.text_bold = self._bold_btn.isChecked()
+        self.overlay._apply_property_to_selected("bold", self.overlay.text_bold)
 
     def _toggle_italic(self) -> None:
         self.overlay.text_italic = self._italic_btn.isChecked()
+        self.overlay._apply_property_to_selected("italic", self.overlay.text_italic)
 
     def _set_text_color(self, color_hex: str) -> None:
         self.overlay.text_color = QColor(color_hex)
+        self.overlay._apply_property_to_selected("text_color", color_hex)
 
         # Add to recent colors
         settings = get_settings()
@@ -596,5 +606,5 @@ class OverlayToolbar:
             # Color is already added to recent in _set_text_color
 
     def update_undo_redo_state(self) -> None:
-        self._undo_btn.setEnabled(len(self.overlay.annotations) > 0)
+        self._undo_btn.setEnabled(len(self.overlay._undo_stack) > 0)
         self._redo_btn.setEnabled(len(self.overlay._redo_stack) > 0)

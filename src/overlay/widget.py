@@ -6,9 +6,10 @@ Composed of CaptureOverlay (main class) + 3 mixins:
 - OverlayActionsMixin   — actions / text editing
 """
 
+import math
 import os
 from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
-from PySide6.QtGui import QPainter, QColor, QPen, QFont
+from PySide6.QtGui import QPainter, QColor, QPen, QFont, QFontMetrics
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, QTimer
 
 from ..core.utils import capture_all_screens
@@ -86,7 +87,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.current_color: QColor = QColor(s.default_color)
             self.current_width: int = s.default_line_width
         self.annotations: list[dict] = []
-        self._redo_stack: list[dict] = []
+        self._undo_stack: list[dict] = []  # action history for undo
+        self._redo_stack: list[dict] = []  # reversed actions for redo
         self._drawing: bool = False
         self._draw_start: QPointF = QPointF()
         self._draw_points: list[QPointF] = []
@@ -103,6 +105,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         self._text_editor: QLineEdit | None = None
         self._text_editor_pos: QPointF | None = None
+        self._editing_annotation_idx: int | None = None  # non-None when re-editing existing text
+
+        # ─── Annotation selection / editing state ───
+        self._selected_annotation_idx: int | None = None
+        self._annotation_drag_orig: dict = {}  # original position data for drag
 
         self.text_font_family: str = s.default_font_family
         self.text_font_size: int = s.default_font_size
@@ -132,6 +139,122 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def _sel_to_local(self, pos: QPoint) -> QPointF:
         return QPointF(pos - self.selection_rect.topLeft())
+
+    # ─── Annotation hit-test & selection ───
+
+    def _hit_test_annotation(self, pos: QPoint) -> int | None:
+        """Return index of annotation at *pos* (topmost first), or None.
+        Freehand annotations are excluded from selection entirely."""
+        local = self._sel_to_local(QPointF(pos))
+        for i in range(len(self.annotations) - 1, -1, -1):
+            ann = self.annotations[i]
+            t = ann["type"]
+            if t == "freehand":
+                continue  # freehand is never selectable
+            try:
+                if t in ("rect", "ellipse", "mosaic"):
+                    if QRectF(ann["rect"]).contains(local):
+                        return i
+                elif t in ("arrow", "line"):
+                    d = self._point_to_segment_distance(local, ann["start"], ann["end"])
+                    if d < 8:
+                        return i
+                elif t == "freehand":
+                    pts = ann["points"]
+                    for j in range(len(pts) - 1):
+                        d = self._point_to_segment_distance(local, pts[j], pts[j + 1])
+                        if d < 8:
+                            return i
+                elif t == "text":
+                    fm = QFontMetrics(QFont(ann["font_family"], ann["font_size"]))
+                    tw = fm.horizontalAdvance(ann["text"])
+                    th = fm.height()
+                    text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
+                    if text_rect.contains(local):
+                        return i
+            except Exception:
+                continue
+        return None
+
+    def _select_annotation(self, idx: int, event_pos: QPointF) -> None:
+        """Select annotation at *idx* and prepare for possible drag."""
+        self._selected_annotation_idx = idx
+        ann = self.annotations[idx]
+        # Snapshot original position data for drag delta calculation
+        self._annotation_drag_orig = {}
+        t = ann["type"]
+        if t in ("rect", "ellipse", "mosaic"):
+            self._annotation_drag_orig["rect"] = QRectF(ann["rect"])
+        elif t in ("arrow", "line"):
+            self._annotation_drag_orig["start"] = QPointF(ann["start"])
+            self._annotation_drag_orig["end"] = QPointF(ann["end"])
+        elif t == "freehand":
+            self._annotation_drag_orig["points"] = [QPointF(p) for p in ann["points"]]
+        elif t == "text":
+            self._annotation_drag_orig["pos"] = QPointF(ann["pos"])
+        self._drag_start_pos = event_pos
+        self._drag_mode = ("move_annotation",)
+        self.toolbar.toolbar.hide()
+        self.update()
+
+    def _deselect_annotation(self) -> None:
+        self._selected_annotation_idx = None
+        self._annotation_drag_orig = {}
+        self.update()
+
+    def _apply_property_to_selected(self, key: str, value) -> None:
+        """Update a property on the currently selected annotation, if any."""
+        if self._selected_annotation_idx is None:
+            return
+        ann = self.annotations[self._selected_annotation_idx]
+        if key == "color" and "color" in ann:
+            ann["color"] = QColor(value) if isinstance(value, str) else value
+        elif key == "width" and "width" in ann:
+            ann["width"] = value
+        elif key == "font_family" and ann["type"] == "text":
+            ann["font_family"] = value
+        elif key == "font_size" and ann["type"] == "text":
+            ann["font_size"] = value
+        elif key == "bold" and ann["type"] == "text":
+            ann["bold"] = value
+        elif key == "italic" and ann["type"] == "text":
+            ann["italic"] = value
+        elif key == "text_color" and ann["type"] == "text":
+            ann["color"] = QColor(value) if isinstance(value, str) else value
+        self.update()
+
+    def _get_annotation_bounds_local(self, ann: dict) -> QRectF:
+        """Bounding rect of an annotation in *local* (selection-relative) coords."""
+        t = ann["type"]
+        try:
+            if t in ("rect", "ellipse", "mosaic"):
+                return QRectF(ann["rect"])
+            elif t in ("arrow", "line"):
+                pts = [ann["start"], ann["end"]]
+                xs = [p.x() for p in pts]
+                ys = [p.y() for p in pts]
+                margin = ann.get("width", 3) + 4
+                return QRectF(min(xs) - margin, min(ys) - margin,
+                              max(xs) - min(xs) + margin * 2,
+                              max(ys) - min(ys) + margin * 2)
+            elif t == "freehand":
+                pts = ann["points"]
+                if not pts:
+                    return QRectF()
+                margin = ann.get("width", 3) + 4
+                xs = [p.x() for p in pts]
+                ys = [p.y() for p in pts]
+                return QRectF(min(xs) - margin, min(ys) - margin,
+                              max(xs) - min(xs) + margin * 2,
+                              max(ys) - min(ys) + margin * 2)
+            elif t == "text":
+                fm = QFontMetrics(QFont(ann["font_family"], ann["font_size"]))
+                tw = fm.horizontalAdvance(ann["text"])
+                th = fm.height()
+                return QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
+        except Exception:
+            pass
+        return QRectF()
 
     def _get_all_handles(self, rect: QRect) -> list[QRect]:
         half = HANDLE_SIZE // 2
@@ -209,6 +332,14 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             painter.fillRect(rect.right() + 1, rect.top(), w - rect.right() - 1, rect.height(), DIM_OVERLAY_COLOR)
 
             self._draw_annotations(painter, rect.size(), rect.topLeft())
+
+            # Selection indicator for selected annotation
+            if self._selected_annotation_idx is not None:
+                try:
+                    ann = self.annotations[self._selected_annotation_idx]
+                    self._draw_selection_indicator(painter, ann, rect.topLeft())
+                except IndexError:
+                    self._deselect_annotation()
 
             painter.setPen(QPen(SELECTION_BORDER_COLOR, 2))
             painter.setBrush(Qt.NoBrush)
@@ -290,6 +421,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             if self._drag_mode or not self.selection_rect.isNull():
                 self.selection_rect = QRect()
                 self._drag_mode = None
+                self._deselect_annotation()
                 self.annotations.clear()
                 self.toolbar.toolbar.hide()
                 self.setCursor(Qt.CrossCursor)
@@ -316,6 +448,17 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self._erase_fill_rect_current = pos
                 self.update()
                 return
+
+            # ─── Annotation selection / hit-test (select tool only) ───
+            if not self.selection_rect.isNull() and self.annotations and self.current_tool == "select":
+                hit_idx = self._hit_test_annotation(pos)
+                if hit_idx is not None:
+                    self._select_annotation(hit_idx, event.position())
+                    return
+                # Click on empty space → deselect
+                if self._selected_annotation_idx is not None:
+                    self._deselect_annotation()
+
             if not self.selection_rect.isNull() and self.current_tool != "select":
                 self._start_drawing(pos)
                 return
@@ -370,6 +513,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             return
         self.is_selecting = True
         self.toolbar.toolbar.hide()
+        self._deselect_annotation()
         self.annotations.clear()
         self.start_point = pos
         self.end_point = self.start_point
@@ -391,6 +535,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def _on_tool_selected(self, tool_id: str) -> None:
         logger.debug(f"tool selected: {tool_id}")
+
+        # Deselect any selected annotation when switching tools
+        self._deselect_annotation()
 
         # Save current tool settings before switching
         self._save_current_tool_settings()
@@ -485,6 +632,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                     "type": "freehand", "points": list(self._draw_points),
                     "color": QColor(self.current_color), "width": self.current_width,
                 })
+                self._undo_stack.append({"type": "add", "ann": self.annotations[-1], "index": len(self.annotations) - 1})
                 self._redo_stack.clear()
                 self.toolbar.update_undo_redo_state()
             elif len(self._draw_points) > 2 and self.annotations and self.annotations[-1]["type"] == "freehand":
@@ -530,7 +678,33 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             if "bottom" in handle:
                 r.setBottom(round(self._drag_start_rect.bottom() + delta.y()))
             self.selection_rect = r.normalized()
+        elif mode == "move_annotation":
+            self._move_selected_annotation(delta)
         self.update()
+
+    def _move_selected_annotation(self, delta: QPointF) -> None:
+        """Apply *delta* to the drag-origin snapshot of the selected annotation."""
+        if self._selected_annotation_idx is None:
+            return
+        ann = self.annotations[self._selected_annotation_idx]
+        t = ann["type"]
+        orig = self._annotation_drag_orig
+        if t in ("rect", "ellipse", "mosaic") and "rect" in orig:
+            r = orig["rect"]
+            ann["rect"] = QRectF(r.x() + delta.x(), r.y() + delta.y(),
+                                  r.width(), r.height())
+        elif t in ("arrow", "line") and "start" in orig and "end" in orig:
+            ann["start"] = QPointF(orig["start"].x() + delta.x(),
+                                    orig["start"].y() + delta.y())
+            ann["end"] = QPointF(orig["end"].x() + delta.x(),
+                                  orig["end"].y() + delta.y())
+        elif t == "freehand" and "points" in orig:
+            ann["points"] = [QPointF(p.x() + delta.x(), p.y() + delta.y())
+                             for p in orig["points"]]
+            ann.pop("_path", None)
+        elif t == "text" and "pos" in orig:
+            ann["pos"] = QPointF(orig["pos"].x() + delta.x(),
+                                  orig["pos"].y() + delta.y())
 
     def mouseReleaseEvent(self, event) -> None:
         if event.button() != Qt.LeftButton:
@@ -553,6 +727,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._finish_drawing()
             return
         if self._drag_mode:
+            mode = self._drag_mode[0]
+            # Commit annotation move to undo stack
+            if mode == "move_annotation" and self._selected_annotation_idx is not None:
+                self._redo_stack.clear()  # new action invalidates redo
+                self.toolbar.update_undo_redo_state()
             self._drag_mode = None
             self._position_toolbar()
             self.toolbar.toolbar.show()
@@ -565,12 +744,20 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.selection_rect = QRect()
 
     def mouseDoubleClickEvent(self, event) -> None:
-        """Handle double-click to auto-finish capture based on settings."""
+        """Handle double-click to re-edit text or auto-finish capture."""
         if event.button() != Qt.LeftButton:
+            return
+        if self.selection_rect.isNull():
+            return
+
+        # Text annotation re-edit (takes priority)
+        hit_idx = self._hit_test_annotation(event.pos())
+        if hit_idx is not None and self.annotations[hit_idx]["type"] == "text":
+            self._reopen_text_editor(hit_idx)
             return
 
         # Only auto-finish if we have a valid selection
-        if not self.selection_rect.isNull() and self.selection_rect.contains(event.pos()):
+        if self.selection_rect.contains(event.pos()):
             self._auto_finish()
 
     def _auto_finish(self) -> None:
@@ -615,6 +802,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             ann = self._preview_annotation
             if ann["type"] in ("rect", "ellipse", "mosaic") and ann["rect"].width() > MIN_DRAW_THRESHOLD and ann["rect"].height() > MIN_DRAW_THRESHOLD:
                 self.annotations.append(ann)
+                self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
                 self._redo_stack.clear()
                 self.toolbar.update_undo_redo_state()
             elif ann["type"] in ("arrow", "line"):
@@ -622,11 +810,15 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 dy = ann["end"].y() - ann["start"].y()
                 if abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD:
                     self.annotations.append(ann)
+                    self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
                     self._redo_stack.clear()
                     self.toolbar.update_undo_redo_state()
         elif self.current_tool == "freehand" and self.annotations and self.annotations[-1]["type"] == "freehand":
             if len(self.annotations[-1]["points"]) < 2:
                 self.annotations.pop()
+            else:
+                # Freehand drawing complete — push to undo stack (only once, not per segment)
+                pass  # freehand is added incrementally in _update_drawing
         self._preview_annotation = None
         self.update()
 
@@ -669,9 +861,24 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.update()
                 return
 
+            # Deselect annotation if one is selected
+            if self._selected_annotation_idx is not None:
+                self._deselect_annotation()
+                return
+
             # Any other ESC: Close immediately
             self.close()
             return
+        elif event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+            if self._selected_annotation_idx is not None:
+                idx = self._selected_annotation_idx
+                ann = self.annotations.pop(idx)
+                self._undo_stack.append({"type": "remove", "ann": ann, "index": idx})
+                self._redo_stack.clear()
+                self._deselect_annotation()
+                self.toolbar.update_undo_redo_state()
+                self.update()
+                return
         elif event.key() in (Qt.Key_Return, Qt.Key_Enter):
             # Enter key: auto-finish if selection exists
             if not self.selection_rect.isNull():

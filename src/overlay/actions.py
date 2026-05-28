@@ -2,9 +2,9 @@
 
 import math
 
-from PySide6.QtWidgets import QMessageBox
-from PySide6.QtGui import QColor, QFont
-from PySide6.QtCore import QRectF, QPointF, QRect, QPoint
+from PySide6.QtWidgets import QMessageBox, QLineEdit
+from PySide6.QtGui import QColor, QFont, QFontMetrics
+from PySide6.QtCore import Qt, QRectF, QPointF, QRect, QPoint
 from ..core.i18n import _
 from ..core.logger import setup_logger
 from ..ui.toast import ToastManager
@@ -102,20 +102,54 @@ class OverlayActionsMixin:
         # No Toast here - save dialog is shown, overlay will close after successful save
 
     # ─── Undo / Redo ───
+    # Action-based undo/redo: each action is a dict with
+    # {"type": "add" | "remove" | "batch_remove",
+    #  "ann": dict, "index": int} for singles, or
+    # {"type": "batch_remove", "anns": [{"ann": dict, "index": int}, ...]}
+    # for batch operations.
 
     def _undo(self) -> None:
-        if self.annotations:
-            self._redo_stack.append(self.annotations.pop())
-            self.toolbar.update_undo_redo_state()
-            self.update()
-            ToastManager.show(_("Undone"), "↶", "info", parent=self)
+        if not self._undo_stack:
+            return
+        action = self._undo_stack.pop()
+        if action["type"] == "add":
+            # Undo an add → remove the annotation
+            ann = self.annotations.pop(action["index"])
+            self._redo_stack.append({"type": "remove", "ann": ann, "index": action["index"]})
+        elif action["type"] == "remove":
+            # Undo a remove → re-insert the annotation
+            self.annotations.insert(action["index"], action["ann"])
+            self._redo_stack.append({"type": "add", "ann": action["ann"], "index": action["index"]})
+        elif action["type"] == "batch_remove":
+            # Undo a batch remove → re-insert all in reverse index order
+            for item in reversed(action["anns"]):
+                self.annotations.insert(item["index"], item["ann"])
+            self._redo_stack.append(action)  # same structure for redo
+        self.toolbar.update_undo_redo_state()
+        self.update()
+        ToastManager.show(_("Undone"), "↶", "info", parent=self)
 
     def _redo(self) -> None:
-        if self._redo_stack:
-            self.annotations.append(self._redo_stack.pop())
-            self.toolbar.update_undo_redo_state()
-            self.update()
-            ToastManager.show(_("Redone"), "↷", "info", parent=self)
+        if not self._redo_stack:
+            return
+        action = self._redo_stack.pop()
+        if action["type"] == "add":
+            # Redo an add → re-insert the annotation
+            self.annotations.insert(action["index"], action["ann"])
+            self._undo_stack.append({"type": "add", "ann": action["ann"], "index": action["index"]})
+        elif action["type"] == "remove":
+            # Redo a remove → remove the annotation again
+            ann = self.annotations.pop(action["index"])
+            self._undo_stack.append({"type": "remove", "ann": ann, "index": action["index"]})
+        elif action["type"] == "batch_remove":
+            # Redo a batch remove → remove all in reverse index order
+            removed = []
+            for item in reversed(action["anns"]):
+                removed.append({"ann": self.annotations.pop(item["index"]), "index": item["index"]})
+            self._undo_stack.append({"type": "batch_remove", "anns": removed})
+        self.toolbar.update_undo_redo_state()
+        self.update()
+        ToastManager.show(_("Redone"), "↷", "info", parent=self)
 
     # ─── Erase ───
 
@@ -132,7 +166,10 @@ class OverlayActionsMixin:
                 logger.debug(f"  [{i}] type={t}, rect={ann_rect}, dist={d:.1f}")
                 if d < r:
                     logger.debug(f"  → 擦除 annotation {i} (type={t})")
-                    self._redo_stack.append(self.annotations.pop(i))
+                    self._on_annotation_removed(i)
+                    removed = self.annotations.pop(i)
+                    self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                    self._redo_stack.clear()
                     self.toolbar.update_undo_redo_state()
                     self.update()
                     return
@@ -141,7 +178,10 @@ class OverlayActionsMixin:
                 logger.debug(f"  [{i}] type={t}, start={ann['start']}, end={ann['end']}, dist={d:.1f}")
                 if d < r:
                     logger.debug(f"  → 擦除 annotation {i} (type={t})")
-                    self._redo_stack.append(self.annotations.pop(i))
+                    self._on_annotation_removed(i)
+                    removed = self.annotations.pop(i)
+                    self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                    self._redo_stack.clear()
                     self.toolbar.update_undo_redo_state()
                     self.update()
                     return
@@ -151,37 +191,43 @@ class OverlayActionsMixin:
                     d = self._point_to_segment_distance(local, pts[j], pts[j + 1])
                     if d < r:
                         logger.debug(f"  → 擦除 freehand[{i}] segment {j}, dist={d:.1f}")
-                        self._redo_stack.append(self.annotations.pop(i))
+                        self._on_annotation_removed(i)
+                        removed = self.annotations.pop(i)
+                        self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                        self._redo_stack.clear()
                         self.toolbar.update_undo_redo_state()
                         self.update()
                         return
             elif t == "text":
-                # 计算文字的边界框
-                from PySide6.QtGui import QFont, QFontMetrics
                 font = QFont(ann["font_family"], ann["font_size"])
-                font.setBold(ann["bold"])
-                font.setItalic(ann["italic"])
+                font.setBold(ann.get("bold", False))
+                font.setItalic(ann.get("italic", False))
                 fm = QFontMetrics(font)
-                text_width = fm.horizontalAdvance(ann["text"])
-                text_height = fm.height()
-
-                # 文字边界框（考虑 baseline）
-                text_rect = QRectF(
-                    ann["pos"].x(),
-                    ann["pos"].y(),
-                    text_width,
-                    text_height
-                )
-
+                tw = fm.horizontalAdvance(ann["text"])
+                th = fm.height()
+                text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
                 d = self._point_to_rect_distance(local, text_rect)
                 logger.debug(f"  [{i}] type=text, pos={ann['pos']}, text_rect={text_rect}, dist={d:.1f}")
                 if d < r:
                     logger.debug(f"  → 擦除 text annotation {i}")
-                    self._redo_stack.append(self.annotations.pop(i))
+                    self._on_annotation_removed(i)
+                    removed = self.annotations.pop(i)
+                    self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                    self._redo_stack.clear()
                     self.toolbar.update_undo_redo_state()
                     self.update()
                     return
         logger.debug("  → 未命中任何标注")
+
+    def _on_annotation_removed(self, removed_idx: int) -> None:
+        """Update selection state when an annotation is removed by index."""
+        sel = getattr(self, '_selected_annotation_idx', None)
+        if sel is None:
+            return
+        if sel == removed_idx:
+            self._deselect_annotation()
+        elif sel > removed_idx:
+            self._selected_annotation_idx = sel - 1
 
     @staticmethod
     def _point_to_rect_distance(point: QPointF, rect: QRectF) -> float:
@@ -206,7 +252,8 @@ class OverlayActionsMixin:
             return
         sel_rect = QRectF(self.selection_rect)
         remaining = []
-        for ann in self.annotations:
+        removed_items = []  # track for undo
+        for idx, ann in enumerate(self.annotations):
             t = ann["type"]
             keep = False
             if t in ("rect", "ellipse", "mosaic"):
@@ -225,28 +272,26 @@ class OverlayActionsMixin:
                 )
                 keep = not any_in
             elif t == "text":
-                # 计算文字的边界框
-                from PySide6.QtGui import QFont, QFontMetrics
                 font = QFont(ann["font_family"], ann["font_size"])
-                font.setBold(ann["bold"])
-                font.setItalic(ann["italic"])
+                font.setBold(ann.get("bold", False))
+                font.setItalic(ann.get("italic", False))
                 fm = QFontMetrics(font)
-                text_width = fm.horizontalAdvance(ann["text"])
-                text_height = fm.height()
-
+                tw = fm.horizontalAdvance(ann["text"])
+                th = fm.height()
                 text_global_pos = QPointF(self.selection_rect.topLeft()) + ann["pos"]
-                text_rect = QRectF(text_global_pos.x(), text_global_pos.y(), text_width, text_height)
-                keep = not sel_rect.intersects(text_rect)
+                text_global_rect = QRectF(text_global_pos.x(), text_global_pos.y(), tw, th)
+                keep = not sel_rect.intersects(text_global_rect)
             else:
                 keep = True
             if keep:
                 remaining.append(ann)
-        removed = len(self.annotations) - len(remaining)
-        if removed > 0:
-            self._redo_stack.extend(
-                a for a in self.annotations if a not in remaining
-            )
+            else:
+                removed_items.append({"ann": ann, "index": idx})
+        if removed_items:
+            self._undo_stack.append({"type": "batch_remove", "anns": removed_items})
+            self._redo_stack.clear()
             self.annotations = remaining
+            self._deselect_annotation()  # selection index invalidated
             self.toolbar.update_undo_redo_state()
             self.update()
 
@@ -263,7 +308,8 @@ class OverlayActionsMixin:
         )
 
         remaining = []
-        for ann in self.annotations:
+        removed_items = []  # track for undo
+        for idx, ann in enumerate(self.annotations):
             t = ann["type"]
             keep = False
             if t in ("rect", "ellipse", "mosaic"):
@@ -277,28 +323,26 @@ class OverlayActionsMixin:
                 any_in = any(local_erase.contains(p) for p in pts)
                 keep = not any_in
             elif t == "text":
-                # 计算文字的边界框
-                from PySide6.QtGui import QFont, QFontMetrics
                 font = QFont(ann["font_family"], ann["font_size"])
-                font.setBold(ann["bold"])
-                font.setItalic(ann["italic"])
+                font.setBold(ann.get("bold", False))
+                font.setItalic(ann.get("italic", False))
                 fm = QFontMetrics(font)
-                text_width = fm.horizontalAdvance(ann["text"])
-                text_height = fm.height()
-
-                text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), text_width, text_height)
+                tw = fm.horizontalAdvance(ann["text"])
+                th = fm.height()
+                text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
                 keep = not local_erase.intersects(text_rect)
             else:
                 keep = True
             if keep:
                 remaining.append(ann)
+            else:
+                removed_items.append({"ann": ann, "index": idx})
 
-        removed = len(self.annotations) - len(remaining)
-        if removed > 0:
-            self._redo_stack.extend(
-                a for a in self.annotations if a not in remaining
-            )
+        if removed_items:
+            self._undo_stack.append({"type": "batch_remove", "anns": removed_items})
+            self._redo_stack.clear()
             self.annotations = remaining
+            self._deselect_annotation()  # selection index invalidated
             self.toolbar.update_undo_redo_state()
             self.update()
 
@@ -320,12 +364,25 @@ class OverlayActionsMixin:
             return
         text = self._text_editor.text().strip()
         if text:
-            self.annotations.append({
-                "type": "text", "pos": self._text_editor_pos, "text": text,
-                "color": QColor(self.text_color), "font_family": self.text_font_family,
-                "font_size": self.text_font_size, "bold": self.text_bold,
-                "italic": self.text_italic,
-            })
+            # Update existing text annotation OR create new one
+            if getattr(self, '_editing_annotation_idx', None) is not None:
+                idx = self._editing_annotation_idx
+                if 0 <= idx < len(self.annotations):
+                    ann = self.annotations[idx]
+                    ann["text"] = text
+                    ann["color"] = QColor(self.text_color)
+                    ann["font_family"] = self.text_font_family
+                    ann["font_size"] = self.text_font_size
+                    ann["bold"] = self.text_bold
+                    ann["italic"] = self.text_italic
+            else:
+                self.annotations.append({
+                    "type": "text", "pos": self._text_editor_pos, "text": text,
+                    "color": QColor(self.text_color), "font_family": self.text_font_family,
+                    "font_size": self.text_font_size, "bold": self.text_bold,
+                    "italic": self.text_italic,
+                })
+                self._undo_stack.append({"type": "add", "ann": self.annotations[-1], "index": len(self.annotations) - 1})
             self._redo_stack.clear()
             self.toolbar.update_undo_redo_state()
             self.update()
@@ -337,4 +394,53 @@ class OverlayActionsMixin:
         self._text_editor.deleteLater()
         self._text_editor = None
         self._text_editor_pos = None
+        self._editing_annotation_idx = None
         self.grabKeyboard()
+
+    # ─── Text re-edit ───
+
+    def _reopen_text_editor(self, ann_idx: int) -> None:
+        """Re-open the text editor to edit an existing text annotation."""
+        if not (0 <= ann_idx < len(self.annotations)):
+            return
+        ann = self.annotations[ann_idx]
+        if ann["type"] != "text":
+            return
+
+        self._editing_annotation_idx = ann_idx
+        self._deselect_annotation()
+
+        # Restore font/color to match the annotation
+        self.text_font_family = ann.get("font_family", self.text_font_family)
+        self.text_font_size = ann.get("font_size", self.text_font_size)
+        self.text_bold = ann.get("bold", False)
+        self.text_italic = ann.get("italic", False)
+        self.text_color = ann.get("color", self.text_color)
+
+        local_pos = ann["pos"]
+        self._text_editor_pos = local_pos
+        self._text_editor = QLineEdit(self)
+        font = QFont(self.text_font_family, self.text_font_size)
+        font.setBold(self.text_bold)
+        font.setItalic(self.text_italic)
+        self._text_editor.setFont(font)
+        self._text_editor.setText(ann.get("text", ""))
+        self._text_editor.selectAll()
+        self._text_editor_window_pos = self.selection_rect.topLeft() + local_pos.toPoint()
+        self._text_editor.setStyleSheet(f"""
+            QLineEdit {{
+                background: transparent; border: none; padding: 0px;
+                color: {self.text_color.name()};
+            }}
+        """)
+        self._text_editor.setTextMargins(0, 0, 0, 0)
+        self._text_editor.move(self._text_editor_window_pos)
+        self._text_editor.setMinimumWidth(10)
+        self._text_editor.setAttribute(Qt.WA_DeleteOnClose)
+        self._text_editor.textChanged.connect(self._adjust_text_editor_size)
+        self._adjust_text_editor_size()
+        self.releaseKeyboard()
+        self._text_editor.show()
+        self._text_editor.setFocus()
+        self._text_editor.returnPressed.connect(self._finish_text_input)
+        self._text_editor.editingFinished.connect(self._finish_text_input)
