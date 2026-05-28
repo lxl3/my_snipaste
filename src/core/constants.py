@@ -47,7 +47,7 @@ TOOLBAR_SHADOW_OFFSET = (2, 2)
 TOOLBAR_SHADOW_COLOR = QColor(0, 0, 0, 120)
 
 # ─── Preset Colors ───
-PRESET_COLORS = ["#ff3232", "#ff8c00", "#ffd700", "#32cd32", "#1e90ff", "#8a2be2", "#ffffff", "#000000"]
+PRESET_COLORS = ["#ff3232", "#28a745", "#007bff", "#ffc107", "#000000"]
 TEXT_PRESET_COLORS = [
     ["#000000", "#ffffff", "#ff3232", "#ff8c00", "#ffd700"],
     ["#32cd32", "#1e90ff", "#8a2be2", "#ff69b4", "#808080"]
