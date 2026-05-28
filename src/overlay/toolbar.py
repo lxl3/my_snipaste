@@ -78,6 +78,10 @@ class OverlayToolbar:
         self._build_arrow_menu(toolbar_layout)
         self._build_pen_menu(toolbar_layout)
         self._build_mosaic_btn(toolbar_layout)
+        self._build_highlighter_tool(toolbar_layout)
+        self._build_blur_btn(toolbar_layout)
+        self._build_number_marker_btn(toolbar_layout)
+        self._build_magnifier_btn(toolbar_layout)
         self._build_text_menu(toolbar_layout)
         self._build_eraser_menu(toolbar_layout)
         self._build_ocr_btn(toolbar_layout)
@@ -282,6 +286,81 @@ class OverlayToolbar:
         mosaic_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("mosaic")))
         toolbar_layout.addWidget(mosaic_btn)
         self._tool_btns["mosaic"] = mosaic_btn
+
+    # ─── New annotation tools: highlighter, blur, number marker, magnifier ───
+
+    def _build_highlighter_tool(self, toolbar_layout) -> None:
+        """Highlighter with preset color submenu."""
+        hl_btn, hl_menu = self._make_submenu_btn("highlighter", _("Highlighter"), toolbar_layout, ["highlighter"])
+        hl_action = QWidgetAction(hl_menu)
+        hl_container = QWidget()
+        hl_layout = QHBoxLayout(hl_container)
+        hl_layout.setContentsMargins(3, 3, 3, 3)
+        hl_layout.setSpacing(4)
+
+        # Highlighter preset colors: yellow, green, blue, pink
+        HL_COLORS = ["#FFFF00", "#00FF00", "#00BFFF", "#FF69B4"]
+        self._highlighter_color_buttons = []
+        for c in HL_COLORS:
+            cb = self._make_color_button(c, is_recent=False)
+            cb.clicked.connect(lambda checked, col=c: self._set_highlighter_color(col))
+            hl_layout.addWidget(cb)
+            self._highlighter_color_buttons.append(cb)
+
+        hl_action.setDefaultWidget(hl_container)
+        hl_menu.addAction(hl_action)
+
+        def _setup():
+            self._select_tool("highlighter")
+            self._update_highlighter_state()
+        hl_menu.aboutToShow.connect(_setup)
+
+        self._tool_btns["highlighter"] = hl_btn
+
+    def _set_highlighter_color(self, color_hex: str) -> None:
+        self.overlay.current_color = QColor(color_hex)
+        self.overlay._apply_property_to_selected("color", color_hex)
+        self._update_highlighter_state()
+
+    def _update_highlighter_state(self) -> None:
+        """Update highlighter color button borders."""
+        current = self.overlay.current_color.name().lower()
+        for btn in self._highlighter_color_buttons:
+            c = btn.property("color")
+            if c:
+                is_current = c.lower() == current
+                border = "2px solid #0078d4" if is_current else "1px solid #ccc"
+                btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
+
+    def _build_blur_btn(self, toolbar_layout) -> None:
+        blur_btn = QToolButton()
+        blur_btn.setIcon(self._load_icon("blur"))
+        blur_btn.setIconSize(QSize(16, 16))
+        blur_btn.setToolTip(_("Blur"))
+        blur_btn.setCheckable(True)
+        blur_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("blur")))
+        toolbar_layout.addWidget(blur_btn)
+        self._tool_btns["blur"] = blur_btn
+
+    def _build_number_marker_btn(self, toolbar_layout) -> None:
+        num_btn = QToolButton()
+        num_btn.setIcon(self._load_icon("number_marker"))
+        num_btn.setIconSize(QSize(16, 16))
+        num_btn.setToolTip(_("Number Marker"))
+        num_btn.setCheckable(True)
+        num_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("number_marker")))
+        toolbar_layout.addWidget(num_btn)
+        self._tool_btns["number_marker"] = num_btn
+
+    def _build_magnifier_btn(self, toolbar_layout) -> None:
+        mag_btn = QToolButton()
+        mag_btn.setIcon(self._load_icon("magnifier"))
+        mag_btn.setIconSize(QSize(16, 16))
+        mag_btn.setToolTip(_("Magnifier"))
+        mag_btn.setCheckable(True)
+        mag_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("magnifier")))
+        toolbar_layout.addWidget(mag_btn)
+        self._tool_btns["magnifier"] = mag_btn
 
     def _build_text_menu(self, toolbar_layout) -> None:
         text_btn, text_menu = self._make_submenu_btn("text", _("Text"), toolbar_layout, ["text"])

@@ -354,22 +354,17 @@ class OverlayActionsMixin:
         text = self._text_editor.text()
         fm = self._text_editor.fontMetrics()
 
-        # Add generous padding to ensure text is always visible during typing
-        # Include space for cursor (2px) + some breathing room
-        padding = 25
-        width = fm.horizontalAdvance(text) + padding if text else 20
-        height = fm.height() + 8  # Vertical padding for comfortable display
+        # Calculate width with padding for cursor and comfortable typing
+        # Increased from 14px to ensure text is always visible
+        padding = 10
+        width = fm.horizontalAdvance(text) + padding if text else 50
+        height = fm.height() + 4
 
         current_pos = getattr(self, '_text_editor_window_pos', self._text_editor.pos())
 
-        # Use setMinimumSize + resize instead of setFixedSize for more responsive updates
-        # This allows Qt to update the size immediately without waiting for layout recalculation
-        self._text_editor.setMinimumSize(max(width, 20), height)
-        self._text_editor.resize(max(width, 20), height)
+        # Use resize() for immediate size update during typing
+        self._text_editor.resize(max(width, 50), height)
         self._text_editor.move(current_pos)
-
-        # Force immediate visual update
-        self._text_editor.updateGeometry()
 
     def _finish_text_input(self) -> None:
         if not self._text_editor or self._text_editor_pos is None:

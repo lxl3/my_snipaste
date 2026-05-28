@@ -110,6 +110,26 @@ TOOLBAR_ICONS = {
   <line x1="4" y1="20" x2="20" y2="4"/>
 </svg>""",
 
+    "blur": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10" stroke-dasharray="4 3"/>
+  <path d="M12 2v20" stroke-dasharray="3 2"/>
+  <path d="M2 12h20" stroke-dasharray="3 2"/>
+  <path d="M4.93 4.93l14.14 14.14"/>
+  <path d="M19.07 4.93L4.93 19.07"/>
+</svg>""",
+
+    "number_marker": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10" fill="#000000"/>
+  <text x="12" y="16" font-size="11" font-weight="bold" text-anchor="middle" fill="#ffffff" stroke="none">1</text>
+</svg>""",
+
+    "magnifier": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="11" cy="11" r="7"/>
+  <line x1="16.5" y1="16.5" x2="21" y2="21"/>
+  <line x1="8" y1="11" x2="14" y2="11"/>
+  <line x1="11" y1="8" x2="11" y2="14"/>
+</svg>""",
+
     "OCR": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">                                                                                                                                                <!-- 左上角角标 -->
             <path d="M3 7V3h4"/>
             <!-- 右上角角标 -->

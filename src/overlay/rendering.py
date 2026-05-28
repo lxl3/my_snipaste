@@ -5,9 +5,11 @@ import math
 from PySide6.QtGui import QPainter, QPixmap, QColor, QPen, QFont, QPainterPath
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QSize
 
+from PIL import Image, ImageFilter
+
 from ..core.constants import (
     ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR,
-    HANDLE_SIZE,
+    HANDLE_SIZE, DEFAULT_LINE_WIDTH,
 )
 
 
@@ -75,6 +77,14 @@ class OverlayRenderingMixin:
             self._draw_freehand(painter, ann, offset)
         elif t == "mosaic":
             self._draw_mosaic(painter, ann, offset)
+        elif t == "highlighter":
+            self._draw_highlighter(painter, ann, offset)
+        elif t == "blur":
+            self._draw_blur(painter, ann, offset)
+        elif t == "number_marker":
+            self._draw_number_marker(painter, ann, offset)
+        elif t == "magnifier":
+            self._draw_magnifier(painter, ann, offset)
         elif t == "text":
             self._draw_text(painter, ann, offset)
 
@@ -179,6 +189,132 @@ class OverlayRenderingMixin:
         # drawText(QPointF, text) uses y as baseline; add ascent to align top with click point
         fm = painter.fontMetrics()
         painter.drawText(QPointF(pos.x(), pos.y() + fm.ascent()), ann["text"])
+
+    def _draw_highlighter(self, painter: QPainter, ann: dict, offset) -> None:
+        r = QRectF(ann["rect"]).translated(offset)
+        c = QColor(ann["color"])
+        c.setAlphaF(0.3)  # Semi-transparent
+        hl_width = ann.get("width", 12)  # thick by default
+        # Use a thick rounded pen for highlighter effect
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(c)
+        painter.drawRoundedRect(r, hl_width / 2, hl_width / 2)
+
+    def _draw_blur(self, painter: QPainter, ann: dict, offset) -> None:
+        r = QRectF(ann["rect"]).translated(offset).toRect()
+        if r.isEmpty():
+            return
+
+        cached = ann.get("_cached")
+        if cached is None:
+            dpr = self.full_screenshot.devicePixelRatio()
+            radius = ann.get("radius", 10)
+
+            local_rect = QRectF(ann["rect"])
+            global_x = round((local_rect.x() + self.selection_rect.x()) * dpr)
+            global_y = round((local_rect.y() + self.selection_rect.y()) * dpr)
+
+            # Capture the source region
+            px = QPixmap(r.size())
+            px.fill(Qt.transparent)
+            p2 = QPainter(px)
+            src = QRect(
+                global_x, global_y,
+                round(r.width() * dpr),
+                round(r.height() * dpr),
+            )
+            p2.drawPixmap(px.rect(), self.full_screenshot, src)
+            p2.end()
+
+            # Apply Gaussian blur via PIL
+            img = px.toImage()
+            width = img.width()
+            height = img.height()
+            ptr = img.constBits()
+            ptr.setsize(height * width * 4)
+            arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 4))
+            pil_img = Image.fromarray(arr, "RGBA")
+            blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=radius))
+            # Convert back to QPixmap
+            from ..core.utils import pil_to_qpixmap
+            cached = pil_to_qpixmap(blurred)
+            ann["_cached"] = cached
+
+        painter.drawPixmap(r.topLeft(), cached)
+
+    def _draw_number_marker(self, painter: QPainter, ann: dict, offset) -> None:
+        center = ann["pos"] + offset
+        radius = ann.get("radius", 14)
+        number = ann.get("number", 1)
+        color = QColor(ann.get("color", "#207ff0"))
+        text_color = QColor(ann.get("text_color", "#ffffff"))
+
+        # Draw filled circle
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(color)
+        painter.drawEllipse(center, radius, radius)
+
+        # Draw number text centered in circle
+        font = painter.font()
+        font.setPixelSize(radius)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(text_color)
+        fm = painter.fontMetrics()
+        text = str(number)
+        tw = fm.horizontalAdvance(text)
+        th = fm.height()
+        text_x = center.x() - tw / 2
+        text_y = center.y() + fm.ascent() / 2
+        painter.drawText(QPointF(text_x, text_y), text)
+
+    def _draw_magnifier(self, painter: QPainter, ann: dict, offset) -> None:
+        r = QRectF(ann["rect"]).translated(offset).toRect()
+        if r.isEmpty():
+            return
+
+        cached = ann.get("_cached")
+        if cached is None:
+            dpr = self.full_screenshot.devicePixelRatio()
+            zoom = ann.get("zoom", 2)
+
+            local_rect = QRectF(ann["rect"])
+            # The source area is (1/zoom) of the display area
+            src_w = r.width() / zoom
+            src_h = r.height() / zoom
+            center_x = local_rect.center().x()
+            center_y = local_rect.center().y()
+            src_rect_local = QRectF(
+                center_x - src_w / 2, center_y - src_h / 2,
+                src_w, src_h,
+            )
+
+            global_x = round((src_rect_local.x() + self.selection_rect.x()) * dpr)
+            global_y = round((src_rect_local.y() + self.selection_rect.y()) * dpr)
+
+            px = QPixmap(r.size())
+            px.fill(Qt.transparent)
+            p2 = QPainter(px)
+            src = QRect(
+                global_x, global_y,
+                round(r.width() * dpr),
+                round(r.height() * dpr),
+            )
+            p2.drawPixmap(px.rect(), self.full_screenshot, src)
+            p2.end()
+
+            # Scale up for magnification
+            small = px.scaled(max(1, r.width() // zoom), max(1, r.height() // zoom),
+                              Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+            cached = small.scaled(r.width(), r.height(), Qt.IgnoreAspectRatio, Qt.FastTransformation)
+            ann["_cached"] = cached
+
+        painter.drawPixmap(r.topLeft(), cached)
+
+        # Draw border around magnifier
+        painter.setPen(QPen(QColor(0, 120, 215), 2))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRect(r)
 
     # ─── Selection indicator ───
 
