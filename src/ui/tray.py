@@ -2,13 +2,14 @@ import os
 import platform
 import subprocess
 
-from PySide6.QtGui import QAction, QCursor
+from PySide6.QtGui import QAction, QCursor, QIcon, QPixmap
 from PySide6.QtCore import Signal, QObject
-from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QDialog, QTextEdit, QVBoxLayout, QPushButton, QHBoxLayout
+from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QDialog, QTextEdit, QVBoxLayout, QPushButton, QHBoxLayout, QApplication
 
 from ..core.i18n import _
 from ..core.utils import create_app_icon
 from ..core.logger import setup_logger, get_current_log_path, get_log_dir
+from ..core.screenshot_history import ScreenshotHistory
 
 logger = setup_logger("tray")
 
@@ -44,6 +45,12 @@ class TrayManager(QObject):
         ocr_menu_action = QAction(_("OCR Clipboard Image"), self.app)
         ocr_menu_action.triggered.connect(self.app.ocr_clipboard)
         menu.addAction(ocr_menu_action)
+        menu.addSeparator()
+
+        # Recent screenshots submenu (dynamic - rebuilds on show)
+        recent_menu = QMenu(_("Recent Screenshots"), self.app)
+        recent_menu.aboutToShow.connect(lambda: self._populate_recent_menu(recent_menu))
+        menu.addMenu(recent_menu)
         menu.addSeparator()
 
         settings_action = QAction(_("Settings..."), self.app)
@@ -150,6 +157,88 @@ class TrayManager(QObject):
         """Show permission status dialog (macOS only)."""
         from ..core.permissions import show_permission_dialog
         show_permission_dialog()
+
+    def _populate_recent_menu(self, menu: QMenu) -> None:
+        """Populate recent screenshots submenu dynamically.
+
+        This method is called every time the menu is shown, ensuring
+        it always displays the latest screenshots.
+
+        Args:
+            menu: QMenu to populate with recent screenshots.
+        """
+        # Clear existing items
+        menu.clear()
+
+        history = ScreenshotHistory()
+        screenshots = history.get_recent(10)
+
+        if not screenshots:
+            empty_action = menu.addAction(_("No history yet"))
+            empty_action.setEnabled(False)
+            return
+
+        for item in screenshots:
+            # Get thumbnail (48x36 for menu items)
+            thumbnail = history.get_thumbnail(item["id"], size=(48, 36))
+
+            # Create action text: "5分钟前 - 1920×1080"
+            text = f"{item['time_ago']} - {item['width']}×{item['height']}"
+
+            # Create action with icon if thumbnail exists
+            if thumbnail and not thumbnail.isNull():
+                action = menu.addAction(QIcon(thumbnail), text)
+            else:
+                action = menu.addAction(text)
+
+            # Connect to copy handler (use lambda with default arg to capture id)
+            screenshot_id = item["id"]
+            action.triggered.connect(lambda checked=False, sid=screenshot_id: self._on_history_copy(sid))
+
+    def _on_history_copy(self, screenshot_id: str) -> None:
+        """Copy screenshot from history to clipboard.
+
+        Args:
+            screenshot_id: ID of the screenshot to copy.
+        """
+        from .toast import ToastManager
+
+        try:
+            history = ScreenshotHistory()
+
+            # Find the screenshot in recent items
+            screenshots = history.get_recent(100)  # Get more to find by ID
+            screenshot = next((s for s in screenshots if s["id"] == screenshot_id), None)
+
+            if not screenshot:
+                logger.warning(f"Screenshot not found in history: {screenshot_id}")
+                ToastManager.show(_("Screenshot not found"), icon="✗", toast_type="error")
+                return
+
+            # Load full screenshot from disk using public property
+            filepath = history.history_dir / screenshot["filename"]
+
+            if not filepath.exists():
+                logger.error(f"Screenshot file not found: {filepath}")
+                ToastManager.show(_("Screenshot file not found"), icon="✗", toast_type="error")
+                return
+
+            pixmap = QPixmap(str(filepath))
+            if pixmap.isNull():
+                logger.error(f"Failed to load screenshot: {filepath}")
+                ToastManager.show(_("Failed to load screenshot"), icon="✗", toast_type="error")
+                return
+
+            # Copy to clipboard
+            QApplication.clipboard().setPixmap(pixmap)
+            logger.info(f"Copied screenshot from history to clipboard: {screenshot_id}")
+
+            # Show success toast notification
+            ToastManager.show(_("Copied to clipboard"), icon="✓", toast_type="success", duration=2000)
+
+        except Exception as e:
+            logger.error(f"Failed to copy screenshot from history: {e}")
+            ToastManager.show(_("Failed to copy screenshot"), icon="✗", toast_type="error")
 
     def cleanup(self) -> None:
         if self.tray_icon:

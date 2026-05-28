@@ -77,6 +77,24 @@ class ScreenshotHistory:
 
         logger.info(f"Screenshot history initialized: {self._history_dir}")
 
+    @property
+    def history_dir(self) -> Path:
+        """Get the history directory path.
+
+        Returns:
+            Path: Directory where screenshots are stored.
+        """
+        return self._history_dir
+
+    @property
+    def max_count(self) -> int:
+        """Get the maximum number of screenshots to keep.
+
+        Returns:
+            int: Maximum screenshot count.
+        """
+        return self._metadata.get("max_count", 100)
+
     def _load_metadata(self) -> dict:
         """Load metadata from history.json.
 
