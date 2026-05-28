@@ -122,6 +122,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         self.toolbar = OverlayToolbar(self)
         self.toolbar.setup()
+
+        # Sync toolbar UI to loaded tool state
+        if self.current_tool != "select":
+            self.toolbar._select_tool(self.current_tool)
+
         self.grabKeyboard()
 
     # ─── Selection helpers ───
