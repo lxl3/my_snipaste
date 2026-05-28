@@ -100,11 +100,21 @@ class ToastManager:
              parent=None):
         """显示 Toast 提示"""
         manager = cls.instance()
+
+        # Validate parent is still alive before using it
+        actual_parent = None
         if parent:
-            manager._parent = parent
+            try:
+                # Check if parent is still valid
+                if parent.isVisible():
+                    actual_parent = parent
+                    manager._parent = parent
+            except RuntimeError:
+                # Parent already deleted, use None
+                actual_parent = None
 
         # 创建 Toast
-        toast = ToastNotification(message, icon, toast_type, manager._parent)
+        toast = ToastNotification(message, icon, toast_type, actual_parent)
         manager._toasts.append(toast)
 
         # 限制最多 3 个
@@ -117,8 +127,19 @@ class ToastManager:
 
     def _show_toast(self, toast: ToastNotification, duration: int):
         """显示 Toast 并设置自动隐藏"""
-        # Calculate position with stacking
+        # Validate parent before using it
+        valid_parent = False
         if self._parent:
+            try:
+                if self._parent.isVisible():
+                    valid_parent = True
+            except RuntimeError:
+                # Parent already deleted
+                self._parent = None
+                valid_parent = False
+
+        # Calculate position with stacking
+        if valid_parent:
             parent_rect = self._parent.geometry()
             x = parent_rect.x() + (parent_rect.width() - toast.width()) // 2
             # Stack vertically: each toast offset by its height + spacing
