@@ -566,7 +566,10 @@ class OverlayToolbar:
         from ..core.settings import get_settings
         s = get_settings()
         if self.overlay.current_tool in ["rect", "ellipse", "arrow", "line", "freehand"]:
-            current_settings = s.get_tool_settings(self.overlay.current_tool, {})
+            current_settings = s.get_tool_settings(self.overlay.current_tool, {
+                "color": self.overlay.current_color.name(),
+                "width": self.overlay.current_width,
+            })
             current_settings["color"] = color_hex
             s.save_tool_settings(self.overlay.current_tool, current_settings)
 
@@ -589,7 +592,10 @@ class OverlayToolbar:
         from ..core.settings import get_settings
         s = get_settings()
         if self.overlay.current_tool in ["rect", "ellipse", "arrow", "line", "freehand"]:
-            current_settings = s.get_tool_settings(self.overlay.current_tool, {})
+            current_settings = s.get_tool_settings(self.overlay.current_tool, {
+                "color": self.overlay.current_color.name(),
+                "width": self.overlay.current_width,
+            })
             current_settings["width"] = width
             s.save_tool_settings(self.overlay.current_tool, current_settings)
 
@@ -602,7 +608,13 @@ class OverlayToolbar:
         self.overlay.text_font_family = font_family
         from ..core.settings import get_settings
         s = get_settings()
-        text_settings = s.get_tool_settings("text", {})
+        text_settings = s.get_tool_settings("text", {
+            "font_family": self.overlay.text_font_family,
+            "font_size": self.overlay.text_font_size,
+            "bold": self.overlay.text_bold,
+            "italic": self.overlay.text_italic,
+            "color": self.overlay.text_color.name(),
+        })
         text_settings["font_family"] = font_family
         s.save_tool_settings("text", text_settings)
 
@@ -610,7 +622,13 @@ class OverlayToolbar:
         self.overlay.text_font_size = size
         from ..core.settings import get_settings
         s = get_settings()
-        text_settings = s.get_tool_settings("text", {})
+        text_settings = s.get_tool_settings("text", {
+            "font_family": self.overlay.text_font_family,
+            "font_size": self.overlay.text_font_size,
+            "bold": self.overlay.text_bold,
+            "italic": self.overlay.text_italic,
+            "color": self.overlay.text_color.name(),
+        })
         text_settings["font_size"] = size
         s.save_tool_settings("text", text_settings)
 
@@ -618,7 +636,13 @@ class OverlayToolbar:
         self.overlay.text_bold = self._bold_btn.isChecked()
         from ..core.settings import get_settings
         s = get_settings()
-        text_settings = s.get_tool_settings("text", {})
+        text_settings = s.get_tool_settings("text", {
+            "font_family": self.overlay.text_font_family,
+            "font_size": self.overlay.text_font_size,
+            "bold": self.overlay.text_bold,
+            "italic": self.overlay.text_italic,
+            "color": self.overlay.text_color.name(),
+        })
         text_settings["bold"] = self.overlay.text_bold
         s.save_tool_settings("text", text_settings)
 
@@ -626,7 +650,13 @@ class OverlayToolbar:
         self.overlay.text_italic = self._italic_btn.isChecked()
         from ..core.settings import get_settings
         s = get_settings()
-        text_settings = s.get_tool_settings("text", {})
+        text_settings = s.get_tool_settings("text", {
+            "font_family": self.overlay.text_font_family,
+            "font_size": self.overlay.text_font_size,
+            "bold": self.overlay.text_bold,
+            "italic": self.overlay.text_italic,
+            "color": self.overlay.text_color.name(),
+        })
         text_settings["italic"] = self.overlay.text_italic
         s.save_tool_settings("text", text_settings)
 
@@ -636,7 +666,13 @@ class OverlayToolbar:
         # Save to text tool settings
         from ..core.settings import get_settings
         s = get_settings()
-        text_settings = s.get_tool_settings("text", {})
+        text_settings = s.get_tool_settings("text", {
+            "font_family": self.overlay.text_font_family,
+            "font_size": self.overlay.text_font_size,
+            "bold": self.overlay.text_bold,
+            "italic": self.overlay.text_italic,
+            "color": self.overlay.text_color.name(),
+        })
         text_settings["color"] = color_hex
         s.save_tool_settings("text", text_settings)
 
