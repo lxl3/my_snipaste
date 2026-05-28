@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QApplication, QToolButton, QFrame, QHBoxLayout, QMenu,
     QWidgetAction, QPushButton, QSpinBox, QVBoxLayout,
-    QComboBox, QColorDialog,
+    QComboBox, QColorDialog, QLabel,
 )
 from PySide6.QtGui import QColor, QIcon
 from PySide6.QtCore import Qt, QPoint, QSize
@@ -77,10 +77,8 @@ class OverlayToolbar:
         self._build_shape_menu(toolbar_layout)
         self._build_arrow_menu(toolbar_layout)
         self._build_pen_menu(toolbar_layout)
-        self._build_mosaic_btn(toolbar_layout)
         self._build_highlighter_tool(toolbar_layout)
-        self._build_blur_btn(toolbar_layout)
-        self._build_number_marker_btn(toolbar_layout)
+        self._build_mosaic_menu(toolbar_layout)
         self._build_magnifier_btn(toolbar_layout)
         self._build_text_menu(toolbar_layout)
         self._build_eraser_menu(toolbar_layout)
@@ -115,13 +113,13 @@ class OverlayToolbar:
         parent_layout.addWidget(btn)
         return btn, menu
 
-    def _add_tool_buttons_to_submenu(self, layout, items: list[tuple[str, str]], main_btn, menu) -> None:
-        for item_icon, item_tool in items:
+    def _add_tool_buttons_to_submenu(self, layout, items: list[tuple[str, str, str]], main_btn, menu) -> None:
+        for item_icon, item_tool, item_tip in items:
             tool_btn = QToolButton()
             tool_btn.setIcon(self._load_icon(item_icon))
             tool_btn.setIconSize(QSize(20, 20))
             tool_btn.setFixedSize(24, 24)
-            tool_btn.setToolTip(item_tool)
+            tool_btn.setToolTip(item_tip)
             tool_btn.setCheckable(True)
             tool_btn.setProperty("tool_type", item_tool)
             tool_btn.setStyleSheet(SUBMENU_STYLE)
@@ -204,7 +202,7 @@ class OverlayToolbar:
         shape_layout.setContentsMargins(3, 3, 3, 3)
         shape_layout.setSpacing(3)
 
-        self._add_tool_buttons_to_submenu(shape_layout, [("rectangle", "rect"), ("ellipse", "ellipse")], shape_btn, shape_menu)
+        self._add_tool_buttons_to_submenu(shape_layout, [("rectangle", "rect", _("Rectangle")), ("ellipse", "ellipse", _("Ellipse"))], shape_btn, shape_menu)
         self._add_separator(shape_layout)
         self._add_color_picker_btn(shape_layout, self._open_shape_color_picker)
         self._add_color_buttons_to_submenu(shape_layout, PRESET_COLORS, self._shape_color_buttons, self._set_shape_color)
@@ -229,7 +227,7 @@ class OverlayToolbar:
         arrow_layout.setContentsMargins(3, 3, 3, 3)
         arrow_layout.setSpacing(3)
 
-        self._add_tool_buttons_to_submenu(arrow_layout, [("arrow", "arrow"), ("line", "line")], arrow_btn, arrow_menu)
+        self._add_tool_buttons_to_submenu(arrow_layout, [("arrow", "arrow", _("Arrow")), ("line", "line", _("Line"))], arrow_btn, arrow_menu)
         self._add_separator(arrow_layout)
         self._add_color_picker_btn(arrow_layout, self._open_shape_color_picker)
         self._add_color_buttons_to_submenu(arrow_layout, PRESET_COLORS, self._arrow_color_buttons, self._set_shape_color)
@@ -277,26 +275,114 @@ class OverlayToolbar:
 
         self._tool_btns["freehand"] = pen_btn
 
-    def _build_mosaic_btn(self, toolbar_layout) -> None:
-        mosaic_btn = QToolButton()
-        mosaic_btn.setIcon(self._load_icon("mosaic"))
-        mosaic_btn.setIconSize(QSize(16, 16))
-        mosaic_btn.setToolTip(_("Mosaic"))
-        mosaic_btn.setCheckable(True)
-        mosaic_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("mosaic")))
-        toolbar_layout.addWidget(mosaic_btn)
-        self._tool_btns["mosaic"] = mosaic_btn
+    def _build_mosaic_menu(self, toolbar_layout) -> None:
+        mosaic_btn, mosaic_menu = self._make_submenu_btn("mosaic", _("Mosaic / Blur"), toolbar_layout, ["mosaic", "blur"])
+        mosaic_action = QWidgetAction(mosaic_menu)
+        mosaic_container = QWidget()
+        mosaic_layout = QHBoxLayout(mosaic_container)
+        mosaic_layout.setContentsMargins(3, 3, 3, 3)
+        mosaic_layout.setSpacing(4)
 
-    # ─── New annotation tools: highlighter, blur, number marker, magnifier ───
+        self._add_tool_buttons_to_submenu(mosaic_layout, [
+            ("mosaic", "mosaic", _("Mosaic")),
+            ("blur", "blur", _("Blur")),
+        ], mosaic_btn, mosaic_menu)
+
+        mosaic_action.setDefaultWidget(mosaic_container)
+        mosaic_menu.addAction(mosaic_action)
+
+        # ── Blur / Mosaic control row (second row, shared row for both controls) ──
+        self._adjust_act = QWidgetAction(mosaic_menu)
+        self._adjust_ctrl = QWidget()
+        ctrl_layout = QHBoxLayout(self._adjust_ctrl)
+        ctrl_layout.setContentsMargins(6, 2, 6, 2)
+        ctrl_layout.setSpacing(4)
+
+        # Blur controls (inside a sub-widget for batch hide/show)
+        self._blur_group = QWidget()
+        blur_group_layout = QHBoxLayout(self._blur_group)
+        blur_group_layout.setContentsMargins(0, 0, 0, 0)
+        blur_group_layout.setSpacing(4)
+        radius_label = QLabel(_("Blur:"))
+        blur_group_layout.addWidget(radius_label)
+        self._blur_radius_spinbox = QSpinBox()
+        self._blur_radius_spinbox.setRange(1, 50)
+        self._blur_radius_spinbox.setValue(self.overlay.current_blur_radius)
+        self._blur_radius_spinbox.setFixedWidth(55)
+        self._blur_radius_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._blur_radius_spinbox.valueChanged.connect(
+            lambda v: (setattr(self.overlay, 'current_blur_radius', v),
+                       self.overlay._apply_property_to_selected("blur_radius", v))
+        )
+        blur_group_layout.addWidget(self._blur_radius_spinbox)
+
+        # Mosaic controls (inside a sub-widget for batch hide/show)
+        self._mosaic_group = QWidget()
+        mosaic_group_layout = QHBoxLayout(self._mosaic_group)
+        mosaic_group_layout.setContentsMargins(0, 0, 0, 0)
+        mosaic_group_layout.setSpacing(4)
+        scale_label = QLabel(_("Mosaic:"))
+        mosaic_group_layout.addWidget(scale_label)
+        self._mosaic_scale_spinbox = QSpinBox()
+        self._mosaic_scale_spinbox.setRange(2, 30)
+        self._mosaic_scale_spinbox.setValue(self.overlay.current_mosaic_scale)
+        self._mosaic_scale_spinbox.setFixedWidth(55)
+        self._mosaic_scale_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._mosaic_scale_spinbox.valueChanged.connect(
+            lambda v: (setattr(self.overlay, 'current_mosaic_scale', v),
+                       self.overlay._apply_property_to_selected("mosaic_scale", v))
+        )
+        mosaic_group_layout.addWidget(self._mosaic_scale_spinbox)
+
+        ctrl_layout.addWidget(self._blur_group)
+        ctrl_layout.addWidget(self._mosaic_group)
+        self._adjust_act.setDefaultWidget(self._adjust_ctrl)
+        mosaic_menu.addAction(self._adjust_act)
+
+        def _update_controls():
+            """Show blur or mosaic controls based on active sub-tool."""
+            is_blur = self.overlay.current_tool == "blur"
+            self._blur_group.setVisible(is_blur)
+            self._mosaic_group.setVisible(not is_blur)
+            if is_blur:
+                self._blur_radius_spinbox.setValue(self.overlay.current_blur_radius)
+            else:
+                self._mosaic_scale_spinbox.setValue(self.overlay.current_mosaic_scale)
+
+        def _setup():
+            if self.overlay.current_tool not in ["mosaic", "blur"]:
+                self._select_tool("mosaic", mosaic_btn, "mosaic")
+            self._update_submenu_state(mosaic_menu, ["mosaic", "blur"])
+            _update_controls()
+        mosaic_menu.aboutToShow.connect(_setup)
+
+        # Hook sub-tool button clicks to update controls immediately
+        for action in mosaic_menu.actions():
+            w = action.defaultWidget()
+            if w:
+                for child in w.findChildren(QToolButton):
+                    child.clicked.connect(_update_controls)
+
+        self._tool_btns["mosaic"] = mosaic_btn
+        self._tool_btns["blur"] = mosaic_btn
+
+    # ─── New annotation tools: highlighter (+ number marker), mosaic + blur, magnifier ───
 
     def _build_highlighter_tool(self, toolbar_layout) -> None:
-        """Highlighter with preset color submenu."""
-        hl_btn, hl_menu = self._make_submenu_btn("highlighter", _("Highlighter"), toolbar_layout, ["highlighter"])
+        """Highlighter with number marker sub-tool and preset colors."""
+        hl_btn, hl_menu = self._make_submenu_btn("highlighter", _("Highlighter / Number Marker"), toolbar_layout, ["highlighter", "number_marker"])
         hl_action = QWidgetAction(hl_menu)
         hl_container = QWidget()
         hl_layout = QHBoxLayout(hl_container)
         hl_layout.setContentsMargins(3, 3, 3, 3)
         hl_layout.setSpacing(4)
+
+        # Sub-tools: highlighter, number marker
+        self._add_tool_buttons_to_submenu(hl_layout, [
+            ("highlighter", "highlighter", _("Highlighter")),
+            ("number_marker", "number_marker", _("Number Marker")),
+        ], hl_btn, hl_menu)
+        self._add_separator(hl_layout)
 
         # Highlighter preset colors: yellow, green, blue, pink
         HL_COLORS = ["#FFFF00", "#00FF00", "#00BFFF", "#FF69B4"]
@@ -311,11 +397,14 @@ class OverlayToolbar:
         hl_menu.addAction(hl_action)
 
         def _setup():
-            self._select_tool("highlighter")
+            if self.overlay.current_tool not in ["highlighter", "number_marker"]:
+                self._select_tool("highlighter", hl_btn, "highlighter")
+            self._update_submenu_state(hl_menu, ["highlighter", "number_marker"])
             self._update_highlighter_state()
         hl_menu.aboutToShow.connect(_setup)
 
         self._tool_btns["highlighter"] = hl_btn
+        self._tool_btns["number_marker"] = hl_btn
 
     def _set_highlighter_color(self, color_hex: str) -> None:
         self.overlay.current_color = QColor(color_hex)
@@ -332,34 +421,38 @@ class OverlayToolbar:
                 border = "2px solid #0078d4" if is_current else "1px solid #ccc"
                 btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
 
-    def _build_blur_btn(self, toolbar_layout) -> None:
-        blur_btn = QToolButton()
-        blur_btn.setIcon(self._load_icon("blur"))
-        blur_btn.setIconSize(QSize(16, 16))
-        blur_btn.setToolTip(_("Blur"))
-        blur_btn.setCheckable(True)
-        blur_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("blur")))
-        toolbar_layout.addWidget(blur_btn)
-        self._tool_btns["blur"] = blur_btn
-
-    def _build_number_marker_btn(self, toolbar_layout) -> None:
-        num_btn = QToolButton()
-        num_btn.setIcon(self._load_icon("number_marker"))
-        num_btn.setIconSize(QSize(16, 16))
-        num_btn.setToolTip(_("Number Marker"))
-        num_btn.setCheckable(True)
-        num_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("number_marker")))
-        toolbar_layout.addWidget(num_btn)
-        self._tool_btns["number_marker"] = num_btn
-
     def _build_magnifier_btn(self, toolbar_layout) -> None:
-        mag_btn = QToolButton()
-        mag_btn.setIcon(self._load_icon("magnifier"))
-        mag_btn.setIconSize(QSize(16, 16))
-        mag_btn.setToolTip(_("Magnifier"))
-        mag_btn.setCheckable(True)
-        mag_btn.clicked.connect(lambda: (self._close_current_menu(), self._toggle_tool("magnifier")))
-        toolbar_layout.addWidget(mag_btn)
+        mag_btn, mag_menu = self._make_submenu_btn("magnifier", _("Magnifier"), toolbar_layout, ["magnifier"])
+        # Zoom control row
+        zoom_action = QWidgetAction(mag_menu)
+        zoom_container = QWidget()
+        zoom_layout = QHBoxLayout(zoom_container)
+        zoom_layout.setContentsMargins(6, 4, 6, 4)
+        zoom_layout.setSpacing(4)
+
+        zoom_label = QLabel(_("Zoom:"))
+        zoom_layout.addWidget(zoom_label)
+
+        self._magnifier_zoom_spinbox = QSpinBox()
+        self._magnifier_zoom_spinbox.setRange(2, 8)
+        self._magnifier_zoom_spinbox.setValue(self.overlay.current_magnifier_zoom)
+        self._magnifier_zoom_spinbox.setFixedWidth(55)
+        self._magnifier_zoom_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._magnifier_zoom_spinbox.valueChanged.connect(
+            lambda v: (setattr(self.overlay, 'current_magnifier_zoom', v),
+                       self.overlay._apply_property_to_selected("magnifier_zoom", v))
+        )
+        zoom_layout.addWidget(self._magnifier_zoom_spinbox)
+
+        zoom_action.setDefaultWidget(zoom_container)
+        mag_menu.addAction(zoom_action)
+
+        def _setup():
+            if self.overlay.current_tool != "magnifier":
+                self._select_tool("magnifier", mag_btn, "magnifier")
+            self._magnifier_zoom_spinbox.setValue(self.overlay.current_magnifier_zoom)
+        mag_menu.aboutToShow.connect(_setup)
+
         self._tool_btns["magnifier"] = mag_btn
 
     def _build_text_menu(self, toolbar_layout) -> None:
