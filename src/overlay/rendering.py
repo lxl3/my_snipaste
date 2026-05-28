@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QSize
 
 from ..core.constants import (
     ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR,
+    HANDLE_SIZE,
 )
 
 
@@ -178,3 +179,33 @@ class OverlayRenderingMixin:
         # drawText(QPointF, text) uses y as baseline; add ascent to align top with click point
         fm = painter.fontMetrics()
         painter.drawText(QPointF(pos.x(), pos.y() + fm.ascent()), ann["text"])
+
+    # ─── Selection indicator ───
+
+    def _draw_selection_indicator(self, painter: QPainter, ann: dict, offset) -> None:
+        """Draw bounding box + 8 handles around a selected annotation."""
+        local_bounds = self._get_annotation_bounds_local(ann)
+        if local_bounds.isNull():
+            return
+        # Convert local → global coords
+        global_bounds = local_bounds.translated(offset)
+        # Dashed blue bounding box
+        painter.setPen(QPen(QColor(0, 120, 215), 1.5, Qt.DashLine))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRect(global_bounds)
+        # 8 square handles (4 corners + 4 edge midpoints)
+        half = HANDLE_SIZE // 2
+        handles = [
+            QRect(int(global_bounds.left()) - half, int(global_bounds.top()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(global_bounds.right()) - half, int(global_bounds.top()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(global_bounds.left()) - half, int(global_bounds.bottom()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(global_bounds.right()) - half, int(global_bounds.bottom()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(global_bounds.center().x()) - half, int(global_bounds.top()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(global_bounds.center().x()) - half, int(global_bounds.bottom()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(global_bounds.left()) - half, int(global_bounds.center().y()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(global_bounds.right()) - half, int(global_bounds.center().y()) - half, HANDLE_SIZE, HANDLE_SIZE),
+        ]
+        for h_rect in handles:
+            painter.fillRect(h_rect, QColor(0, 120, 215))
+            painter.setPen(QPen(Qt.white, 1))
+            painter.drawRect(h_rect)
