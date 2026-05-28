@@ -217,6 +217,20 @@ class OverlayActionsMixin:
                     self.toolbar.update_undo_redo_state()
                     self.update()
                     return
+            elif t == "number_marker":
+                center = QPointF(ann["pos"])
+                radius = ann.get("radius", 14)
+                d = math.hypot(local.x() - center.x(), local.y() - center.y())
+                logger.debug(f"  [{i}] type=number_marker, center={center}, dist={d:.1f}")
+                if d < r + radius:
+                    logger.debug(f"  → 擦除 number_marker {i}")
+                    self._on_annotation_removed(i)
+                    removed = self.annotations.pop(i)
+                    self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                    self._redo_stack.clear()
+                    self.toolbar.update_undo_redo_state()
+                    self.update()
+                    return
         logger.debug("  → 未命中任何标注")
 
     def _on_annotation_removed(self, removed_idx: int) -> None:
@@ -256,7 +270,7 @@ class OverlayActionsMixin:
         for idx, ann in enumerate(self.annotations):
             t = ann["type"]
             keep = False
-            if t in ("rect", "ellipse", "mosaic"):
+            if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
                 ann_global = QRectF(ann["rect"]).translated(QPointF(self.selection_rect.topLeft()))
                 keep = not sel_rect.intersects(ann_global.toRect())
             elif t in ("arrow", "line"):
@@ -281,6 +295,11 @@ class OverlayActionsMixin:
                 text_global_pos = QPointF(self.selection_rect.topLeft()) + ann["pos"]
                 text_global_rect = QRectF(text_global_pos.x(), text_global_pos.y(), tw, th)
                 keep = not sel_rect.intersects(text_global_rect)
+            elif t == "number_marker":
+                r = ann.get("radius", 14)
+                marker_global_pos = QPointF(self.selection_rect.topLeft()) + ann["pos"]
+                marker_global_rect = QRectF(marker_global_pos.x() - r, marker_global_pos.y() - r, r * 2, r * 2)
+                keep = not sel_rect.intersects(marker_global_rect)
             else:
                 keep = True
             if keep:
@@ -312,7 +331,7 @@ class OverlayActionsMixin:
         for idx, ann in enumerate(self.annotations):
             t = ann["type"]
             keep = False
-            if t in ("rect", "ellipse", "mosaic"):
+            if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
                 keep = not local_erase.intersects(ann["rect"])
             elif t in ("arrow", "line"):
                 start_in = local_erase.contains(ann["start"])
@@ -331,6 +350,10 @@ class OverlayActionsMixin:
                 th = fm.height()
                 text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
                 keep = not local_erase.intersects(text_rect)
+            elif t == "number_marker":
+                r = ann.get("radius", 14)
+                marker_rect = QRectF(ann["pos"].x() - r, ann["pos"].y() - r, r * 2, r * 2)
+                keep = not local_erase.intersects(marker_rect)
             else:
                 keep = True
             if keep:

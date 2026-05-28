@@ -5,12 +5,13 @@ import math
 from PySide6.QtGui import QPainter, QPixmap, QColor, QPen, QFont, QPainterPath
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QSize
 
-from PIL import Image, ImageFilter
+from PIL import ImageFilter
 
 from ..core.constants import (
     ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR,
     HANDLE_SIZE, DEFAULT_LINE_WIDTH,
 )
+from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
 
 
 class OverlayRenderingMixin:
@@ -155,7 +156,7 @@ class OverlayRenderingMixin:
         cached = ann.get("_cached")
         if cached is None:
             dpr = self.full_screenshot.devicePixelRatio()
-            scale = MOSAIC_SCALE_FACTOR
+            scale = ann.get("scale", MOSAIC_SCALE_FACTOR)
 
             local_rect = QRectF(ann["rect"])
             global_x = round((local_rect.x() + self.selection_rect.x()) * dpr)
@@ -227,16 +228,8 @@ class OverlayRenderingMixin:
             p2.end()
 
             # Apply Gaussian blur via PIL
-            img = px.toImage()
-            width = img.width()
-            height = img.height()
-            ptr = img.constBits()
-            ptr.setsize(height * width * 4)
-            arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 4))
-            pil_img = Image.fromarray(arr, "RGBA")
+            pil_img = qpixmap_to_pil(px)
             blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=radius))
-            # Convert back to QPixmap
-            from ..core.utils import pil_to_qpixmap
             cached = pil_to_qpixmap(blurred)
             ann["_cached"] = cached
 
@@ -279,34 +272,29 @@ class OverlayRenderingMixin:
             zoom = ann.get("zoom", 2)
 
             local_rect = QRectF(ann["rect"])
-            # The source area is (1/zoom) of the display area
-            src_w = r.width() / zoom
-            src_h = r.height() / zoom
             center_x = local_rect.center().x()
             center_y = local_rect.center().y()
-            src_rect_local = QRectF(
-                center_x - src_w / 2, center_y - src_h / 2,
-                src_w, src_h,
-            )
 
-            global_x = round((src_rect_local.x() + self.selection_rect.x()) * dpr)
-            global_y = round((src_rect_local.y() + self.selection_rect.y()) * dpr)
+            # Source area in logical coords = magnifier area / zoom
+            src_logical_w = r.width() / zoom
+            src_logical_h = r.height() / zoom
 
-            px = QPixmap(r.size())
+            # Source area in device pixels (full_screenshot coordinates)
+            src_pixel_x = round((center_x - src_logical_w / 2 + self.selection_rect.x()) * dpr)
+            src_pixel_y = round((center_y - src_logical_h / 2 + self.selection_rect.y()) * dpr)
+            src_pixel_w = max(1, round(src_logical_w * dpr))
+            src_pixel_h = max(1, round(src_logical_h * dpr))
+
+            # Extract native-resolution source at 1/zoom size
+            src = QRect(src_pixel_x, src_pixel_y, src_pixel_w, src_pixel_h)
+            px = QPixmap(src.size())
             px.fill(Qt.transparent)
             p2 = QPainter(px)
-            src = QRect(
-                global_x, global_y,
-                round(r.width() * dpr),
-                round(r.height() * dpr),
-            )
             p2.drawPixmap(px.rect(), self.full_screenshot, src)
             p2.end()
 
-            # Scale up for magnification
-            small = px.scaled(max(1, r.width() // zoom), max(1, r.height() // zoom),
-                              Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-            cached = small.scaled(r.width(), r.height(), Qt.IgnoreAspectRatio, Qt.FastTransformation)
+            # Smoothly scale up to magnifier display size
+            cached = px.scaled(r.width(), r.height(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
             ann["_cached"] = cached
 
         painter.drawPixmap(r.topLeft(), cached)
