@@ -511,15 +511,22 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             font.setBold(self.text_bold)
             font.setItalic(self.text_italic)
             self._text_editor.setFont(font)
-            self._text_editor_window_pos = self.selection_rect.topLeft() + local.toPoint()
+
+            # Subtract 1px offset to compensate for QLineEdit internal rendering
+            self._text_editor_window_pos = self.selection_rect.topLeft() + local.toPoint() - QPoint(1, 1)
+
             self._text_editor.setStyleSheet(f"""
                 QLineEdit {{
-                    background: transparent; border: none; padding: 0px 2px;
+                    background: transparent;
+                    border: none;
+                    padding: 0px;
                     color: {self.text_color.name()};
                 }}
             """)
             self._text_editor.setTextMargins(0, 0, 0, 0)
             self._text_editor.setContentsMargins(0, 0, 0, 0)
+            # Ensure left alignment so text expands to the right
+            self._text_editor.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             self._text_editor.move(self._text_editor_window_pos)
             self._text_editor.setMinimumWidth(50)
             self._text_editor.setAttribute(Qt.WA_DeleteOnClose)
