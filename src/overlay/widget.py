@@ -235,6 +235,13 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._text_editor.hide()
             self._text_editor.deleteLater()
             self._text_editor = None
+
+        # ensure hotkey panel is cleaned up
+        if self._hotkey_panel:
+            self._hotkey_panel.hide()
+            self._hotkey_panel.deleteLater()
+            self._hotkey_panel = None
+
         try:
             self.releaseKeyboard()
         except RuntimeError:
