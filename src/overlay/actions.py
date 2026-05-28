@@ -8,6 +8,7 @@ from PySide6.QtCore import QRectF, QPointF, QRect, QPoint
 from ..core.i18n import _
 from ..core.logger import setup_logger
 from ..ui.toast import ToastManager
+from ..core.screenshot_history import ScreenshotHistory
 
 logger = setup_logger("overlay_actions")
 
@@ -63,21 +64,41 @@ class OverlayActionsMixin:
     def on_pin(self) -> None:
         if self.selection_rect.isNull():
             return
-        self.pin_requested.emit(self._render_annotated_pixmap(), self._capture_pos())
+        pixmap = self._render_annotated_pixmap()
+        has_annotations = len(self.annotations) > 0
+
+        # Save to history
+        try:
+            ScreenshotHistory().add_screenshot(pixmap, has_annotations)
+        except Exception as e:
+            logger.error(f"Failed to save screenshot to history: {e}")
+
+        self.pin_requested.emit(pixmap, self._capture_pos())
         ToastManager.show(_("Pinned to desktop"), "📌", "success", parent=self)
         self.close()
 
     def on_copy(self) -> None:
         if self.selection_rect.isNull():
             return
-        self.copy_requested.emit(self._render_annotated_pixmap())
+        pixmap = self._render_annotated_pixmap()
+        has_annotations = len(self.annotations) > 0
+
+        # Save to history
+        try:
+            ScreenshotHistory().add_screenshot(pixmap, has_annotations)
+        except Exception as e:
+            logger.error(f"Failed to save screenshot to history: {e}")
+
+        self.copy_requested.emit(pixmap)
         ToastManager.show(_("Copied to clipboard"), "✓", "success", parent=self)
         self.close()
 
     def on_save(self) -> None:
         if self.selection_rect.isNull():
             return
-        self.save_requested.emit(self._render_annotated_pixmap())
+        pixmap = self._render_annotated_pixmap()
+        has_annotations = len(self.annotations) > 0
+        self.save_requested.emit(pixmap, has_annotations)
         # No Toast here - save dialog is shown, overlay will close after successful save
 
     # ─── Undo / Redo ───

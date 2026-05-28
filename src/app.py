@@ -26,6 +26,7 @@ from .ui.pin_window import PinWindow
 from .ui.tray import TrayManager
 from .ui.settings_dialog import SettingsDialog
 from .ui.countdown_overlay import CountdownOverlay
+from .core.screenshot_history import ScreenshotHistory
 
 logger = setup_logger("app")
 
@@ -242,7 +243,7 @@ class SnipasteApp(QApplication):
     def _on_copy(self, pixmap: QPixmap) -> None:
         self.clipboard().setPixmap(pixmap)
 
-    def _on_save(self, pixmap: QPixmap) -> None:
+    def _on_save(self, pixmap: QPixmap, has_annotations: bool = False) -> None:
         s = self.settings
         default_name = _("Screenshot_{time}.{fmt}").format(time=datetime.now().strftime('%Y%m%d_%H%M%S'), fmt=s.auto_save_format)
         default_dir = s.auto_save_dir or ""
@@ -262,6 +263,13 @@ class SnipasteApp(QApplication):
         if file_path:
             pixmap.save(file_path)
             logger.info(f"截图已保存到: {file_path}")
+
+            # Save to history after successful file save
+            try:
+                ScreenshotHistory().add_screenshot(pixmap, has_annotations)
+            except Exception as e:
+                logger.error(f"Failed to save screenshot to history: {e}")
+
             # 记住最后使用的目录（仅在未配置自动保存目录时）
             if not s.auto_save_dir:
                 self._last_save_dir = os.path.dirname(file_path) or ""

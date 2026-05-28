@@ -34,7 +34,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     pin_requested = Signal(object, object)
     copy_requested = Signal(object)
-    save_requested = Signal(object)
+    save_requested = Signal(object, bool)  # (pixmap, has_annotations)
 
     def __init__(self) -> None:
         super().__init__()
