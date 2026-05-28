@@ -423,9 +423,10 @@ class OverlayToolbar:
             toolbar_layout.addWidget(btn)
 
     def _select_tool(self, tool_id: str, btn=None, icon_name: str | None = None) -> None:
-        self.overlay.current_tool = tool_id
-        for tid, b in self._tool_btns.items():
-            b.setChecked(tid == tool_id)
+        # Use the overlay's method to ensure settings are saved/restored
+        self.overlay._on_tool_selected(tool_id)
+
+        # Update UI
         if btn:
             btn.setChecked(True)
             if icon_name:

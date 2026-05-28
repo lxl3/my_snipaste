@@ -8,7 +8,27 @@
       "Bash(git commit *)",
       "Skill(superpowers:writing-plans)",
       "Skill(superpowers:executing-plans)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(git push *)",
+      "Bash(git tag *)",
+      "Bash(git rm *)",
+      "Bash(move *)",
+      "Skill(superpowers:brainstorming)",
+      "Bash(pytest --co -q)",
+      "Bash(ruff check *)",
+      "Bash(pytest --cov=src --cov-report=term-missing)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Skill(superpowers:requesting-code-review)",
+      "Skill(brainstorming)",
+      "Bash(bash *)",
+      "Bash(pytest tests/test_toast.py -v)",
+      "Bash(pytest tests/test_toast.py -v --tb=short)",
+      "Bash(xargs grep -l \"Task 1.*Toast\")",
+      "Bash(git show *)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(pytest tests/test_settings_memory.py -v --tb=short)",
+      "Bash(grep -E \"\\\\.\\(md|txt\\)$\")"
     ]
   }
 }

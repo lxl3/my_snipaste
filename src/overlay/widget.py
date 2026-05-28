@@ -65,10 +65,22 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._drag_start_pos: QPointF = QPointF()
         self._drag_start_rect: QRect = QRect()
 
-        self.current_tool: str = "select"
+        # Restore tool settings from memory
         s = get_settings()
-        self.current_color: QColor = QColor(s.default_color)
-        self.current_width: int = s.default_line_width
+        self.current_tool: str = s.last_tool
+
+        # Restore tool-specific settings
+        tool_settings = s.get_tool_settings(self.current_tool)
+        if tool_settings:
+            # Restore color if saved
+            saved_color = tool_settings.get("color")
+            self.current_color: QColor = QColor(saved_color) if saved_color else QColor(s.default_color)
+            # Restore width if saved
+            self.current_width: int = tool_settings.get("width", s.default_line_width)
+        else:
+            # No saved settings, use defaults
+            self.current_color: QColor = QColor(s.default_color)
+            self.current_width: int = s.default_line_width
         self.annotations: list[dict] = []
         self._redo_stack: list[dict] = []
         self._drawing: bool = False
@@ -99,6 +111,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         self.toolbar = OverlayToolbar(self)
         self.toolbar.setup()
+
+        # Update toolbar UI to reflect the restored tool
+        for tid, btn in self.toolbar._tool_btns.items():
+            btn.setChecked(tid == self.current_tool)
+
         self.grabKeyboard()
 
         self._hotkey_panel = None
@@ -230,6 +247,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         return super().eventFilter(obj, event)
 
     def closeEvent(self, event) -> None:
+        # Save current tool settings before closing
+        self._save_current_tool_settings()
+
         # ensure text editor is cleaned up
         if self._text_editor:
             self._text_editor.hide()
@@ -348,17 +368,50 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.start_point = pos
         self.end_point = self.start_point
         self.selection_rect = QRect()
-        self.current_tool = "select"
-        for btn in self.toolbar._tool_btns.values():
-            btn.setChecked(False)
-        select_btn = self.toolbar._tool_btns.get("select")
-        if select_btn:
-            select_btn.setChecked(True)
+        # Use _on_tool_selected to properly save/restore settings
+        self._on_tool_selected("select")
         self.update()
+
+    def _save_current_tool_settings(self) -> None:
+        """Save current tool settings to persistent storage."""
+        # Only save settings for annotation tools (not select or eraser)
+        if self.current_tool not in ("select", "eraser_dot", "eraser_fill"):
+            settings_dict = {
+                "color": self.current_color.name(),
+                "width": self.current_width,
+            }
+            s = get_settings()
+            s.save_tool_settings(self.current_tool, settings_dict)
 
     def _on_tool_selected(self, tool_id: str) -> None:
         logger.debug(f"tool selected: {tool_id}")
+
+        # Save current tool settings before switching
+        self._save_current_tool_settings()
+
+        # Switch to new tool
+        old_tool = self.current_tool
         self.current_tool = tool_id
+
+        # Update last_tool in settings
+        s = get_settings()
+        s.last_tool = tool_id
+        s.save()
+
+        # Restore new tool's settings
+        if tool_id not in ("select", "eraser_dot", "eraser_fill"):
+            tool_settings = s.get_tool_settings(tool_id)
+            if tool_settings:
+                # Restore color if saved
+                saved_color = tool_settings.get("color")
+                if saved_color:
+                    self.current_color = QColor(saved_color)
+                # Restore width if saved
+                saved_width = tool_settings.get("width")
+                if saved_width is not None:
+                    self.current_width = saved_width
+
+        # Update UI
         for tid, btn in self.toolbar._tool_btns.items():
             btn.setChecked(tid == tool_id)
         self.update()
