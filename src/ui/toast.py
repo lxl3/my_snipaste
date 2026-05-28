@@ -156,9 +156,18 @@ class ToastManager:
         step = [0]
 
         def update_opacity():
-            step[0] += 1
-            toast.setWindowOpacity(step[0] / opacity_steps)
-            if step[0] >= opacity_steps:
+            try:
+                # Check if toast still exists before accessing it
+                if not toast or not toast.isVisible():
+                    opacity_timer.stop()
+                    return
+
+                step[0] += 1
+                toast.setWindowOpacity(step[0] / opacity_steps)
+                if step[0] >= opacity_steps:
+                    opacity_timer.stop()
+            except RuntimeError:
+                # Toast already deleted - stop timer
                 opacity_timer.stop()
 
         opacity_timer.timeout.connect(update_opacity)
@@ -172,12 +181,21 @@ class ToastManager:
         elapsed = [0]
 
         def check_hide():
-            if toast.is_hovered():
-                return
-            elapsed[0] += 100
-            if elapsed[0] >= duration:
+            try:
+                # Check if toast still exists before accessing it
+                if not toast or not toast.isVisible():
+                    timer.stop()
+                    return
+
+                if toast.is_hovered():
+                    return
+                elapsed[0] += 100
+                if elapsed[0] >= duration:
+                    timer.stop()
+                    self._hide_toast(toast)
+            except RuntimeError:
+                # Toast already deleted - stop timer
                 timer.stop()
-                self._hide_toast(toast)
 
         timer.timeout.connect(check_hide)
         timer.start(100)
@@ -207,14 +225,33 @@ class ToastManager:
             step = [opacity_steps]
 
             def update_opacity():
-                step[0] -= 1
-                toast.setWindowOpacity(step[0] / opacity_steps)
-                if step[0] <= 0:
+                try:
+                    # Check if toast still exists before accessing it
+                    if not toast or not toast.isVisible():
+                        opacity_timer.stop()
+                        if toast in self._toasts:
+                            self._toasts.remove(toast)
+                        if toast in self._opacity_timers:
+                            del self._opacity_timers[toast]
+                        return
+
+                    step[0] -= 1
+                    toast.setWindowOpacity(step[0] / opacity_steps)
+                    if step[0] <= 0:
+                        opacity_timer.stop()
+                        toast.close()
+                        toast.deleteLater()
+                        if toast in self._toasts:
+                            self._toasts.remove(toast)
+                        if toast in self._opacity_timers:
+                            del self._opacity_timers[toast]
+                except RuntimeError:
+                    # Toast already deleted - stop timer and cleanup
                     opacity_timer.stop()
-                    toast.close()
-                    toast.deleteLater()
                     if toast in self._toasts:
                         self._toasts.remove(toast)
+                    if toast in self._opacity_timers:
+                        del self._opacity_timers[toast]
 
             opacity_timer.timeout.connect(update_opacity)
             opacity_timer.start(20)
