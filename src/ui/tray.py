@@ -55,7 +55,7 @@ class TrayManager(QObject):
         menu.addSeparator()
 
         # Recent screenshots submenu (dynamic - rebuilds on show)
-        recent_menu = QMenu(_("Recent Screenshots"), self.app)
+        recent_menu = QMenu(_("Recent Screenshots"), menu)
         recent_menu.aboutToShow.connect(lambda: self._populate_recent_menu(recent_menu))
         menu.addMenu(recent_menu)
         menu.addSeparator()
