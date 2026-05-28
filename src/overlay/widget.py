@@ -64,23 +64,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._drag_start_pos: QPointF = QPointF()
         self._drag_start_rect: QRect = QRect()
 
-        # Load last used tool and its settings
+        self.current_tool: str = "select"
         s = get_settings()
-        self.current_tool: str = s.last_tool
-
-        # Load tool-specific settings (fall back to defaults if not saved)
-        # For shapes/arrows/pen (use current_color and current_width)
-        if self.current_tool in ["rect", "ellipse", "arrow", "line", "freehand"]:
-            tool_settings = s.get_tool_settings(
-                self.current_tool,
-                defaults={"color": s.default_color, "width": s.default_line_width}
-            )
-            self.current_color: QColor = QColor(tool_settings.get("color", s.default_color))
-            self.current_width: int = tool_settings.get("width", s.default_line_width)
-        else:
-            # For other tools, use defaults
-            self.current_color: QColor = QColor(s.default_color)
-            self.current_width: int = s.default_line_width
+        self.current_color: QColor = QColor(s.default_color)
+        self.current_width: int = s.default_line_width
         self.annotations: list[dict] = []
         self._redo_stack: list[dict] = []
         self._drawing: bool = False
@@ -100,32 +87,17 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._text_editor: QLineEdit | None = None
         self._text_editor_pos: QPointF | None = None
 
-        # Load text tool settings
-        text_settings = s.get_tool_settings(
-            "text",
-            defaults={
-                "font_family": s.default_font_family,
-                "font_size": s.default_font_size,
-                "bold": False,
-                "italic": False,
-                "color": s.default_color,
-            }
-        )
-        self.text_font_family: str = text_settings.get("font_family", s.default_font_family)
-        self.text_font_size: int = text_settings.get("font_size", s.default_font_size)
-        self.text_bold: bool = text_settings.get("bold", False)
-        self.text_italic: bool = text_settings.get("italic", False)
-        self.text_color: QColor = QColor(text_settings.get("color", s.default_color))
+        self.text_font_family: str = s.default_font_family
+        self.text_font_size: int = s.default_font_size
+        self.text_bold: bool = False
+        self.text_italic: bool = False
+        self.text_color: QColor = QColor(s.default_color)
 
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
 
         self.toolbar = OverlayToolbar(self)
         self.toolbar.setup()
-
-        # Sync toolbar UI to loaded tool state
-        if self.current_tool != "select":
-            self.toolbar._select_tool(self.current_tool)
 
         self.grabKeyboard()
 

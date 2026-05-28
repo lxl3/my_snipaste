@@ -221,7 +221,7 @@ class OverlayToolbar:
         self._width_spinbox.setValue(self.overlay.current_width)
         self._width_spinbox.setFixedWidth(50)
         self._width_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
-        self._width_spinbox.valueChanged.connect(self._on_width_changed)
+        self._width_spinbox.valueChanged.connect(lambda v: setattr(self.overlay, 'current_width', v))
         container_layout.addWidget(self._width_spinbox)
 
         pen_action.setDefaultWidget(pen_container)
@@ -408,73 +408,7 @@ class OverlayToolbar:
             toolbar_layout.addWidget(btn)
 
     def _select_tool(self, tool_id: str, btn=None, icon_name: str | None = None) -> None:
-        from ..core.settings import get_settings
-
-        # Save current tool's settings before switching
-        s = get_settings()
-        current_tool = self.overlay.current_tool
-
-        # Save shape/arrow/pen settings (use current_color and current_width)
-        if current_tool in ["rect", "ellipse", "arrow", "line", "freehand"]:
-            s.save_tool_settings(current_tool, {
-                "color": self.overlay.current_color.name(),
-                "width": self.overlay.current_width,
-            })
-        # Save text tool settings
-        elif current_tool == "text":
-            s.save_tool_settings("text", {
-                "font_family": self.overlay.text_font_family,
-                "font_size": self.overlay.text_font_size,
-                "bold": self.overlay.text_bold,
-                "italic": self.overlay.text_italic,
-                "color": self.overlay.text_color.name(),
-            })
-
-        # Save last used tool
-        s.last_tool = tool_id
-        s.save()
-
-        # Continue with original logic
         self.overlay.current_tool = tool_id
-
-        # Load new tool's settings
-        if tool_id in ["rect", "ellipse", "arrow", "line", "freehand"]:
-            tool_settings = s.get_tool_settings(
-                tool_id,
-                defaults={"color": s.default_color, "width": s.default_line_width}
-            )
-            self.overlay.current_color = QColor(tool_settings.get("color", s.default_color))
-            self.overlay.current_width = tool_settings.get("width", s.default_line_width)
-            # Update width spinbox if visible
-            if self._width_spinbox:
-                self._width_spinbox.setValue(self.overlay.current_width)
-        elif tool_id == "text":
-            text_settings = s.get_tool_settings(
-                "text",
-                defaults={
-                    "font_family": s.default_font_family,
-                    "font_size": s.default_font_size,
-                    "bold": False,
-                    "italic": False,
-                    "color": s.default_color,
-                }
-            )
-            self.overlay.text_font_family = text_settings.get("font_family", s.default_font_family)
-            self.overlay.text_font_size = text_settings.get("font_size", s.default_font_size)
-            self.overlay.text_bold = text_settings.get("bold", False)
-            self.overlay.text_italic = text_settings.get("italic", False)
-            self.overlay.text_color = QColor(text_settings.get("color", s.default_color))
-
-            # Update text UI controls if they exist
-            if self._font_combo:
-                self._font_combo.setCurrentText(self.overlay.text_font_family)
-            if self._font_size_spinbox:
-                self._font_size_spinbox.setValue(self.overlay.text_font_size)
-            if self._bold_btn:
-                self._bold_btn.setChecked(self.overlay.text_bold)
-            if self._italic_btn:
-                self._italic_btn.setChecked(self.overlay.text_italic)
-
         for tid, b in self._tool_btns.items():
             b.setChecked(tid == tool_id)
         if btn:
@@ -561,18 +495,6 @@ class OverlayToolbar:
 
     def _set_shape_color(self, color_hex: str) -> None:
         self.overlay.current_color = QColor(color_hex)
-
-        # Save color to current tool's settings
-        from ..core.settings import get_settings
-        s = get_settings()
-        if self.overlay.current_tool in ["rect", "ellipse", "arrow", "line", "freehand"]:
-            current_settings = s.get_tool_settings(self.overlay.current_tool, {
-                "color": self.overlay.current_color.name(),
-                "width": self.overlay.current_width,
-            })
-            current_settings["color"] = color_hex
-            s.save_tool_settings(self.overlay.current_tool, current_settings)
-
         # Update UI
         all_buttons = []
         for lst in [self._color_buttons, self._shape_color_buttons, self._arrow_color_buttons]:
@@ -584,20 +506,6 @@ class OverlayToolbar:
                 border = "2px solid #0078d4" if is_current else "1px solid #ccc"
                 btn.setStyleSheet(f"background: {c}; border: {border}; ")
 
-    def _on_width_changed(self, width: int) -> None:
-        """Handle line width change and save to settings."""
-        self.overlay.current_width = width
-
-        # Save width to current tool's settings
-        from ..core.settings import get_settings
-        s = get_settings()
-        if self.overlay.current_tool in ["rect", "ellipse", "arrow", "line", "freehand"]:
-            current_settings = s.get_tool_settings(self.overlay.current_tool, {
-                "color": self.overlay.current_color.name(),
-                "width": self.overlay.current_width,
-            })
-            current_settings["width"] = width
-            s.save_tool_settings(self.overlay.current_tool, current_settings)
 
     def _open_shape_color_picker(self) -> None:
         color = QColorDialog.getColor(self.overlay.current_color, self.overlay, _("Select Color"))
@@ -606,76 +514,18 @@ class OverlayToolbar:
 
     def _set_text_font(self, font_family: str) -> None:
         self.overlay.text_font_family = font_family
-        from ..core.settings import get_settings
-        s = get_settings()
-        text_settings = s.get_tool_settings("text", {
-            "font_family": self.overlay.text_font_family,
-            "font_size": self.overlay.text_font_size,
-            "bold": self.overlay.text_bold,
-            "italic": self.overlay.text_italic,
-            "color": self.overlay.text_color.name(),
-        })
-        text_settings["font_family"] = font_family
-        s.save_tool_settings("text", text_settings)
 
     def _set_text_size(self, size: int) -> None:
         self.overlay.text_font_size = size
-        from ..core.settings import get_settings
-        s = get_settings()
-        text_settings = s.get_tool_settings("text", {
-            "font_family": self.overlay.text_font_family,
-            "font_size": self.overlay.text_font_size,
-            "bold": self.overlay.text_bold,
-            "italic": self.overlay.text_italic,
-            "color": self.overlay.text_color.name(),
-        })
-        text_settings["font_size"] = size
-        s.save_tool_settings("text", text_settings)
 
     def _toggle_bold(self) -> None:
         self.overlay.text_bold = self._bold_btn.isChecked()
-        from ..core.settings import get_settings
-        s = get_settings()
-        text_settings = s.get_tool_settings("text", {
-            "font_family": self.overlay.text_font_family,
-            "font_size": self.overlay.text_font_size,
-            "bold": self.overlay.text_bold,
-            "italic": self.overlay.text_italic,
-            "color": self.overlay.text_color.name(),
-        })
-        text_settings["bold"] = self.overlay.text_bold
-        s.save_tool_settings("text", text_settings)
 
     def _toggle_italic(self) -> None:
         self.overlay.text_italic = self._italic_btn.isChecked()
-        from ..core.settings import get_settings
-        s = get_settings()
-        text_settings = s.get_tool_settings("text", {
-            "font_family": self.overlay.text_font_family,
-            "font_size": self.overlay.text_font_size,
-            "bold": self.overlay.text_bold,
-            "italic": self.overlay.text_italic,
-            "color": self.overlay.text_color.name(),
-        })
-        text_settings["italic"] = self.overlay.text_italic
-        s.save_tool_settings("text", text_settings)
 
     def _set_text_color(self, color_hex: str) -> None:
         self.overlay.text_color = QColor(color_hex)
-
-        # Save to text tool settings
-        from ..core.settings import get_settings
-        s = get_settings()
-        text_settings = s.get_tool_settings("text", {
-            "font_family": self.overlay.text_font_family,
-            "font_size": self.overlay.text_font_size,
-            "bold": self.overlay.text_bold,
-            "italic": self.overlay.text_italic,
-            "color": self.overlay.text_color.name(),
-        })
-        text_settings["color"] = color_hex
-        s.save_tool_settings("text", text_settings)
-
         # Update UI
         for btn in self._text_color_buttons:
             c = btn.property("color")

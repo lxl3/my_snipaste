@@ -53,10 +53,6 @@ class AppSettings:
     capture_cursor: bool = False
     capture_after_action: str = "none"  # none, copy, save
 
-    # Tool settings memory
-    last_tool: str = "select"
-    tool_settings: dict[str, dict] = field(default_factory=dict)
-
     def save(self) -> None:
         path = _get_settings_path()
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -91,17 +87,6 @@ class AppSettings:
         global _loaded
         _loaded = None
         return AppSettings.load()
-
-    def get_tool_settings(self, tool: str, defaults: dict | None = None) -> dict:
-        """Get settings for a specific tool, falling back to defaults."""
-        if defaults is None:
-            defaults = {}
-        return self.tool_settings.get(tool, defaults)
-
-    def save_tool_settings(self, tool: str, settings: dict) -> None:
-        """Save settings for a specific tool and persist to disk."""
-        self.tool_settings[tool] = settings
-        self.save()
 
 
 def get_settings() -> AppSettings:
