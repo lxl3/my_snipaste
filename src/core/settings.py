@@ -53,6 +53,22 @@ class AppSettings:
     capture_cursor: bool = False
     capture_after_action: str = "none"  # none, copy, save
 
+    # UX 优化配置
+    # 颜色记忆
+    recent_colors: list[str] = field(default_factory=list)
+    max_recent_colors: int = 5
+
+    # 工具设置记忆
+    last_tool: str = "select"
+    tool_settings: dict[str, dict] = field(default_factory=dict)
+
+    # Toast 提示
+    enable_toast: bool = True
+    toast_duration: int = 2000
+
+    # 快捷键帮助
+    show_hotkey_tip: bool = True
+
     def save(self) -> None:
         path = _get_settings_path()
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -61,6 +77,30 @@ class AppSettings:
                 json.dump(asdict(self), f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Failed to save settings: {e}", file=sys.stderr)
+
+    def add_recent_color(self, color: str) -> None:
+        """添加颜色到最近使用列表"""
+        # 去重：如果已存在则移除
+        if color in self.recent_colors:
+            self.recent_colors.remove(color)
+
+        # 插入到开头
+        self.recent_colors.insert(0, color)
+
+        # 限制最多 5 个
+        if len(self.recent_colors) > self.max_recent_colors:
+            self.recent_colors = self.recent_colors[:self.max_recent_colors]
+
+        self.save()
+
+    def get_tool_settings(self, tool: str) -> dict:
+        """获取工具设置"""
+        return self.tool_settings.get(tool, {})
+
+    def save_tool_settings(self, tool: str, settings: dict) -> None:
+        """保存工具设置"""
+        self.tool_settings[tool] = settings
+        self.save()
 
     @staticmethod
     def load() -> "AppSettings":
