@@ -203,6 +203,19 @@ class ToastManager:
 
     def _hide_toast(self, toast: ToastNotification, animated: bool = True):
         """隐藏 Toast"""
+        # Check if toast is already deleted
+        try:
+            if not toast:
+                # Toast is None, just cleanup
+                if toast in self._toasts:
+                    self._toasts.remove(toast)
+                return
+        except RuntimeError:
+            # Toast already deleted, just cleanup
+            if toast in self._toasts:
+                self._toasts.remove(toast)
+            return
+
         if toast in self._timers:
             self._timers[toast].stop()
             del self._timers[toast]
@@ -259,7 +272,12 @@ class ToastManager:
                 self._opacity_timers[toast] = []
             self._opacity_timers[toast].append(opacity_timer)
         else:
-            toast.close()
-            toast.deleteLater()
-            if toast in self._toasts:
-                self._toasts.remove(toast)
+            try:
+                toast.close()
+                toast.deleteLater()
+            except RuntimeError:
+                # Toast already deleted - just cleanup
+                pass
+            finally:
+                if toast in self._toasts:
+                    self._toasts.remove(toast)
