@@ -156,8 +156,25 @@ class OverlayActionsMixin:
                         self.update()
                         return
             elif t == "text":
-                d = math.hypot(local.x() - ann["pos"].x(), local.y() - ann["pos"].y())
-                logger.debug(f"  [{i}] type=text, pos={ann['pos']}, dist={d:.1f}")
+                # 计算文字的边界框
+                from PySide6.QtGui import QFont, QFontMetrics
+                font = QFont(ann["font_family"], ann["font_size"])
+                font.setBold(ann["bold"])
+                font.setItalic(ann["italic"])
+                fm = QFontMetrics(font)
+                text_width = fm.horizontalAdvance(ann["text"])
+                text_height = fm.height()
+
+                # 文字边界框（考虑 baseline）
+                text_rect = QRectF(
+                    ann["pos"].x(),
+                    ann["pos"].y(),
+                    text_width,
+                    text_height
+                )
+
+                d = self._point_to_rect_distance(local, text_rect)
+                logger.debug(f"  [{i}] type=text, pos={ann['pos']}, text_rect={text_rect}, dist={d:.1f}")
                 if d < r:
                     logger.debug(f"  → 擦除 text annotation {i}")
                     self._redo_stack.append(self.annotations.pop(i))
@@ -208,8 +225,18 @@ class OverlayActionsMixin:
                 )
                 keep = not any_in
             elif t == "text":
-                text_pos = QPointF(self.selection_rect.topLeft()) + ann["pos"]
-                keep = not sel_rect.contains(text_pos)
+                # 计算文字的边界框
+                from PySide6.QtGui import QFont, QFontMetrics
+                font = QFont(ann["font_family"], ann["font_size"])
+                font.setBold(ann["bold"])
+                font.setItalic(ann["italic"])
+                fm = QFontMetrics(font)
+                text_width = fm.horizontalAdvance(ann["text"])
+                text_height = fm.height()
+
+                text_global_pos = QPointF(self.selection_rect.topLeft()) + ann["pos"]
+                text_rect = QRectF(text_global_pos.x(), text_global_pos.y(), text_width, text_height)
+                keep = not sel_rect.intersects(text_rect)
             else:
                 keep = True
             if keep:
@@ -250,7 +277,17 @@ class OverlayActionsMixin:
                 any_in = any(local_erase.contains(p) for p in pts)
                 keep = not any_in
             elif t == "text":
-                keep = not local_erase.contains(ann["pos"])
+                # 计算文字的边界框
+                from PySide6.QtGui import QFont, QFontMetrics
+                font = QFont(ann["font_family"], ann["font_size"])
+                font.setBold(ann["bold"])
+                font.setItalic(ann["italic"])
+                fm = QFontMetrics(font)
+                text_width = fm.horizontalAdvance(ann["text"])
+                text_height = fm.height()
+
+                text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), text_width, text_height)
+                keep = not local_erase.intersects(text_rect)
             else:
                 keep = True
             if keep:
