@@ -129,5 +129,19 @@
   "Language": "语言",
   "💡 Double-click or press Enter to copy": "💡 双击或按 Enter 自动复制",
   "💡 Double-click or press Enter to save": "💡 双击或按 Enter 自动保存",
-  "Press ESC to cancel": "按 ESC 取消"
+  "Press ESC to cancel": "按 ESC 取消",
+  "Copied to clipboard": "已复制到剪贴板",
+  "Screenshot saved": "截图已保存",
+  "Pinned to desktop": "已固定到桌面",
+  "Undone": "已撤销",
+  "Redone": "已重做",
+  "OCR recognizing...": "OCR 识别中...",
+  "Recognition complete": "识别完成",
+  "Hotkeys": "快捷键",
+  "Copy": "复制",
+  "Pin": "固定",
+  "Toggle help": "显示此帮助",
+  "Press Esc to close": "按 Esc 关闭",
+  "Recent Screenshots": "📂 最近截图",
+  "No history yet": "暂无历史截图"
 }
