@@ -377,9 +377,12 @@ class OverlayActionsMixin:
         text = self._text_editor.text()
         fm = self._text_editor.fontMetrics()
 
-        # Calculate width: text width + small padding for cursor (5px is enough)
-        width = fm.horizontalAdvance(text) + 5 if text else 50
-        height = fm.height() + 2
+        # Calculate width: text width + padding for cursor + buffer space
+        # Need enough padding to prevent text from being clipped during typing
+        # Cursor width (~2px) + buffer for comfortable typing (~15px)
+        padding = 20
+        width = fm.horizontalAdvance(text) + padding if text else 50
+        height = fm.height() + 4
 
         # Get fixed left position - this ensures the editor expands to the right
         current_pos = getattr(self, '_text_editor_window_pos', self._text_editor.pos())
