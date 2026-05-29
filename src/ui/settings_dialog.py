@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
     QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
     QCheckBox, QSlider, QFileDialog, QMessageBox, QGroupBox,
-    QFormLayout, QColorDialog,
+    QFormLayout, QColorDialog, QScrollArea,
 )
 from ..core.i18n import _, available_languages, load_translations
 from ..core.settings import AppSettings, get_settings
@@ -234,6 +234,7 @@ class SettingsDialog(QDialog):
         self._tabs.addTab(self._build_general_tab(), _("General"))
         self._tabs.addTab(self._build_capture_tab(), _("Capture"))
         self._tabs.addTab(self._build_annotation_tab(), _("Annotation"))
+        self._tabs.addTab(self._build_hotkeys_tab(), _("Shortcuts"))
         self._tabs.addTab(self._build_ocr_tab(), _("OCR"))
         self._tabs.addTab(self._build_advanced_tab(), _("Advanced"))
         layout.addWidget(self._tabs)
@@ -558,6 +559,29 @@ class SettingsDialog(QDialog):
             if log_idx >= 0:
                 self._log_level_combo.setCurrentIndex(log_idx)
 
+            # ─── Reset shortcuts to defaults ───
+            shortcut_reset_map = {
+                "capture": "hotkey",
+                "ocr": "hotkey_ocr",
+                "delay_capture": "hotkey_delay",
+                "pin_capture": "hotkey_pin",
+                "full_capture": "hotkey_full",
+                "shortcut_rect": "shortcut_rect",
+                "shortcut_ellipse": "shortcut_ellipse",
+                "shortcut_arrow": "shortcut_arrow",
+                "shortcut_line": "shortcut_line",
+                "shortcut_pen": "shortcut_pen",
+                "shortcut_text": "shortcut_text",
+                "shortcut_highlighter": "shortcut_highlighter",
+                "shortcut_blur": "shortcut_blur",
+                "shortcut_number_marker": "shortcut_number_marker",
+                "shortcut_select": "shortcut_select",
+            }
+            for widget_key, setting_attr in shortcut_reset_map.items():
+                widget = self._shortcut_widgets.get(widget_key)
+                if widget:
+                    widget.set_hotkey(getattr(defaults, setting_attr, ""))
+
             logger.info("Settings reset to defaults")
             QMessageBox.information(self, _("Reset Complete"), _("Settings have been reset to default values."))
 
@@ -637,6 +661,78 @@ class SettingsDialog(QDialog):
         layout.addStretch()
         return tab
 
+    # ─── Shortcuts Tab ───
+
+    def _build_hotkeys_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(8)
+
+        # Scroll area for many shortcut entries
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setSpacing(8)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+
+        # ─── Global Hotkeys group ───
+        global_group = QGroupBox(_("Global Shortcuts"))
+        global_layout = QFormLayout(global_group)
+        global_layout.setSpacing(6)
+
+        # Store all shortcut recorder widgets for load/save/conflict-check
+        self._shortcut_widgets: dict[str, HotkeyRecorderWidget] = {}
+
+        global_items = [
+            ("capture", _("Capture Screenshot")),
+            ("ocr", _("OCR Clipboard")),
+            ("delay_capture", _("Delayed Screenshot")),
+            ("pin_capture", _("Capture && Pin")),
+            ("full_capture", _("Full Screen Capture")),
+        ]
+        for key, label in global_items:
+            rec = HotkeyRecorderWidget()
+            self._shortcut_widgets[key] = rec
+            global_layout.addRow(label + ":", rec)
+            # Add conflict warning placeholder
+            warn = QLabel("")
+            warn.setStyleSheet("color: #cc0000; font-size: 11px;")
+            warn.setVisible(False)
+            global_layout.addRow("", warn)
+
+        scroll_layout.addWidget(global_group)
+
+        # ─── Editor Tool Shortcuts group ───
+        editor_group = QGroupBox(_("Editor Tool Shortcuts"))
+        editor_layout = QFormLayout(editor_group)
+        editor_layout.setSpacing(6)
+
+        editor_items = [
+            ("shortcut_rect", _("Rectangle Tool"), "R"),
+            ("shortcut_ellipse", _("Ellipse Tool"), "E"),
+            ("shortcut_arrow", _("Arrow Tool"), "A"),
+            ("shortcut_line", _("Line Tool"), "L"),
+            ("shortcut_pen", _("Pen Tool"), "P"),
+            ("shortcut_text", _("Text Tool"), "T"),
+            ("shortcut_highlighter", _("Highlighter Tool"), "H"),
+            ("shortcut_blur", _("Blur Tool"), "B"),
+            ("shortcut_number_marker", _("Number Marker Tool"), "N"),
+            ("shortcut_select", _("Select Tool"), "V"),
+        ]
+        for key, label, default in editor_items:
+            rec = HotkeyRecorderWidget()
+            self._shortcut_widgets[key] = rec
+            editor_layout.addRow(label + ":", rec)
+
+        scroll_layout.addWidget(editor_group)
+        scroll_layout.addStretch()
+
+        scroll.setWidget(scroll_content)
+        layout.addWidget(scroll)
+        return tab
+
     # ─── Load / Save ───
 
     def _load_settings(self) -> None:
@@ -677,6 +773,29 @@ class SettingsDialog(QDialog):
         if log_idx >= 0:
             self._log_level_combo.setCurrentIndex(log_idx)
 
+        # ─── Load shortcut settings ───
+        shortcut_keys = {
+            "capture": "hotkey",
+            "ocr": "hotkey_ocr",
+            "delay_capture": "hotkey_delay",
+            "pin_capture": "hotkey_pin",
+            "full_capture": "hotkey_full",
+            "shortcut_rect": "shortcut_rect",
+            "shortcut_ellipse": "shortcut_ellipse",
+            "shortcut_arrow": "shortcut_arrow",
+            "shortcut_line": "shortcut_line",
+            "shortcut_pen": "shortcut_pen",
+            "shortcut_text": "shortcut_text",
+            "shortcut_highlighter": "shortcut_highlighter",
+            "shortcut_blur": "shortcut_blur",
+            "shortcut_number_marker": "shortcut_number_marker",
+            "shortcut_select": "shortcut_select",
+        }
+        for widget_key, setting_attr in shortcut_keys.items():
+            widget = self._shortcut_widgets.get(widget_key)
+            if widget:
+                widget.set_hotkey(getattr(s, setting_attr, ""))
+
     def _save_and_close(self) -> None:
         s = self._settings
         s.hotkey = self._hotkey_recorder.get_hotkey() or s.hotkey
@@ -707,6 +826,50 @@ class SettingsDialog(QDialog):
 
         s.pin_window_opacity = self._opacity_slider.value()
         s.log_level = self._log_level_combo.currentText()
+
+        # ─── Save shortcut settings with conflict detection ───
+        shortcut_save_map = {
+            "capture": "hotkey",
+            "ocr": "hotkey_ocr",
+            "delay_capture": "hotkey_delay",
+            "pin_capture": "hotkey_pin",
+            "full_capture": "hotkey_full",
+            "shortcut_rect": "shortcut_rect",
+            "shortcut_ellipse": "shortcut_ellipse",
+            "shortcut_arrow": "shortcut_arrow",
+            "shortcut_line": "shortcut_line",
+            "shortcut_pen": "shortcut_pen",
+            "shortcut_text": "shortcut_text",
+            "shortcut_highlighter": "shortcut_highlighter",
+            "shortcut_blur": "shortcut_blur",
+            "shortcut_number_marker": "shortcut_number_marker",
+            "shortcut_select": "shortcut_select",
+        }
+        # Check for conflicts before saving
+        seen_values: dict[str, str] = {}
+        conflicts: list[str] = []
+        for widget_key, setting_attr in shortcut_save_map.items():
+            widget = self._shortcut_widgets.get(widget_key)
+            if widget:
+                val = widget.get_hotkey().strip().lower()
+                if val:
+                    if val in seen_values:
+                        conflicts.append(f"'{widget_key}' and '{seen_values[val]}' both use '{val}'")
+                    else:
+                        seen_values[val] = widget_key
+                    setattr(s, setting_attr, val)
+
+        if conflicts:
+            reply = QMessageBox.warning(
+                self,
+                _("Shortcut Conflict"),
+                _("The following shortcuts conflict:\n\n{conflicts}\n\n"
+                  "Do you want to save anyway?").format(conflicts="\n".join(conflicts)),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return  # Don't close, let user fix conflicts
 
         s.save()
         logger.info("Settings saved")
