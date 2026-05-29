@@ -69,6 +69,9 @@ class AppSettings:
     # 快捷键帮助
     show_hotkey_tip: bool = True
 
+    # Pin 窗口设置
+    pin_window_geometry: str = ""  # Stores "x,y,width,height" as string
+
     def save(self) -> None:
         path = _get_settings_path()
         os.makedirs(os.path.dirname(path), exist_ok=True)
