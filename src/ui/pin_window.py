@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QWidget, QMenu, QApplication, QInputDialog, QLineE
 
 from ..core.logger import setup_logger
 from ..core.settings import get_settings
+from ..core.i18n import _
 from ..overlay.toolbar import OverlayToolbar
 from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE
 
@@ -792,7 +793,7 @@ class PinWindow(QWidget):
         menu = QMenu(self)
 
         # Show Toolbar (toggle)
-        show_toolbar_action = QAction("展示工具栏", self)
+        show_toolbar_action = QAction(_("Show Toolbar"), self)
         show_toolbar_action.setCheckable(True)
         show_toolbar_action.setChecked(self._toolbar_shown)
         show_toolbar_action.triggered.connect(self._on_toggle_toolbar)
@@ -800,29 +801,29 @@ class PinWindow(QWidget):
 
         menu.addSeparator()
 
-        copy_action = QAction("复制到剪贴板", self)
+        copy_action = QAction(_("Copy"), self)
         copy_action.triggered.connect(self._on_copy)
         menu.addAction(copy_action)
 
-        save_action = QAction("另存为...", self)
+        save_action = QAction(_("Save As..."), self)
         save_action.triggered.connect(self._on_save_as)
         menu.addAction(save_action)
 
         menu.addSeparator()
 
-        close_action = QAction("关闭窗口", self)
+        close_action = QAction(_("Close"), self)
         close_action.triggered.connect(self.close)
         menu.addAction(close_action)
 
         menu.addSeparator()
 
-        toggle_topmost_action = QAction("切换置顶状态", self)
+        toggle_topmost_action = QAction(_("Toggle Always on Top"), self)
         toggle_topmost_action.setCheckable(True)
         toggle_topmost_action.setChecked(self.isWindowTopMost())
         toggle_topmost_action.triggered.connect(self._on_toggle_topmost)
         menu.addAction(toggle_topmost_action)
 
-        opacity_menu = menu.addMenu("调整不透明度")
+        opacity_menu = menu.addMenu(_("Opacity"))
         for opacity in [30, 50, 70, 80, 90, 100]:
             opacity_action = QAction(f"{opacity}%", self)
             opacity_action.setCheckable(True)
@@ -832,7 +833,7 @@ class PinWindow(QWidget):
 
         menu.addSeparator()
 
-        thumbnail_action = QAction("缩略图模式", self)
+        thumbnail_action = QAction(_("Thumbnail Mode"), self)
         thumbnail_action.setCheckable(True)
         thumbnail_action.setChecked(self._thumbnail_mode)
         thumbnail_action.triggered.connect(self._on_thumbnail_mode_toggled)

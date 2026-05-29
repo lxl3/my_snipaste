@@ -175,5 +175,10 @@
   "Number Marker Tool": "序号标注工具",
   "Select Tool": "选择工具",
   "Shortcut Conflict": "快捷键冲突",
-  "The following shortcuts conflict:\n\n{conflicts}\n\nDo you want to save anyway?": "以下快捷键存在冲突：\n\n{conflicts}\n\n是否仍要保存？"
+  "The following shortcuts conflict:\n\n{conflicts}\n\nDo you want to save anyway?": "以下快捷键存在冲突：\n\n{conflicts}\n\n是否仍要保存？",
+  "Show Toolbar": "显示工具栏",
+  "Save As...": "另存为...",
+  "Toggle Always on Top": "切换置顶状态",
+  "Opacity": "不透明度",
+  "Thumbnail Mode": "缩略图模式"
 }
