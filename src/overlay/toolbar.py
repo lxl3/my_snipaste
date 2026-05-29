@@ -42,8 +42,9 @@ TOOLBAR_STYLE = """
 
 
 class OverlayToolbar:
-    def __init__(self, overlay) -> None:
+    def __init__(self, overlay, pin_window_mode: bool = False) -> None:
         self.overlay = overlay
+        self.pin_window_mode = pin_window_mode
         self.toolbar: QFrame | None = None
         self._tool_btns: dict[str, QToolButton] = {}
         self._color_buttons: list[QPushButton] = []
@@ -585,12 +586,19 @@ class OverlayToolbar:
         toolbar_layout.addWidget(self._redo_btn)
 
     def _build_action_btns(self, toolbar_layout) -> None:
-        for icon, tooltip, fn in [
-            ("close", _("Close (Exit)"), self.overlay.close),
-            ("pin", _("Pin (Stick to desktop)"), self.overlay.on_pin),
+        close_fn = self.overlay._on_done_editing if self.pin_window_mode else self.overlay.close
+        actions = [
+            ("close", _("Close (Exit)"), close_fn),
+        ]
+        if self.pin_window_mode:
+            actions.append(("done", _("Done Editing"), self.overlay._on_done_editing))
+        else:
+            actions.append(("pin", _("Pin (Stick to desktop)"), self.overlay.on_pin))
+        actions += [
             ("save", _("Save to file"), self.overlay.on_save),
             ("copy", _("Copy to clipboard"), self.overlay.on_copy),
-        ]:
+        ]
+        for icon, tooltip, fn in actions:
             btn = QToolButton()
             btn.setIcon(self._load_icon(icon))
             btn.setIconSize(QSize(16, 16))
@@ -632,6 +640,10 @@ class OverlayToolbar:
             self._current_menu = None
         for tid, b in self._tool_btns.items():
             b.setChecked(False)
+
+    def close_menus(self) -> None:
+        """Public method to close any open submenu and reset tool buttons."""
+        self._close_current_menu()
 
     def _toggle_or_open_menu(self, menu, button, tool_ids: list[str]) -> None:
         """Sub-menu main button: if tool active, switch to select; otherwise open menu."""
