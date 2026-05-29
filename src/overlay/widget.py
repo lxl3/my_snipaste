@@ -174,6 +174,31 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         }
         return mapping.get(handle_name, Qt.ArrowCursor)
 
+    # ─── Selection rectangle constraints ───
+
+    def _constrain_rect_to_screen(self, rect: QRect) -> QRect:
+        """限制矩形在屏幕范围内"""
+        screen_width = self.width()
+        screen_height = self.height()
+
+        # 获取矩形的位置和尺寸
+        x = rect.x()
+        y = rect.y()
+        w = rect.width()
+        h = rect.height()
+
+        # 限制位置（确保左上角在屏幕内）
+        x = max(0, min(x, screen_width - w))
+        y = max(0, min(y, screen_height - h))
+
+        # 限制尺寸（如果矩形超出屏幕，裁剪尺寸）
+        if x + w > screen_width:
+            w = screen_width - x
+        if y + h > screen_height:
+            h = screen_height - y
+
+        return QRect(x, y, max(1, w), max(1, h))
+
     # ─── Toolbar positioning ───
 
     def _position_toolbar(self) -> None:
@@ -501,7 +526,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             return
         if self.is_selecting:
             self.end_point = self.current_mouse_pos
-            self.selection_rect = QRect(self.start_point, self.end_point).normalized()
+            rect = QRect(self.start_point, self.end_point).normalized()
+            self.selection_rect = self._constrain_rect_to_screen(rect)
             self.update()
         elif not self.selection_rect.isNull():
             handle = self._handle_at_pos(self.current_mouse_pos)
@@ -546,10 +572,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         delta = current_pos - self._drag_start_pos
         mode = self._drag_mode[0]
         if mode == "move":
-            self.selection_rect = QRect(
+            rect = QRect(
                 round(self._drag_start_rect.x() + delta.x()), round(self._drag_start_rect.y() + delta.y()),
                 self._drag_start_rect.width(), self._drag_start_rect.height(),
             )
+            self.selection_rect = self._constrain_rect_to_screen(rect)
         elif mode == "resize":
             handle = self._drag_mode[1]
             r = QRect(self._drag_start_rect)
@@ -561,7 +588,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 r.setTop(round(self._drag_start_rect.top() + delta.y()))
             if "bottom" in handle:
                 r.setBottom(round(self._drag_start_rect.bottom() + delta.y()))
-            self.selection_rect = r.normalized()
+            self.selection_rect = self._constrain_rect_to_screen(r.normalized())
         self.update()
 
     def mouseReleaseEvent(self, event) -> None:
