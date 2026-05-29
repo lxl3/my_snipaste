@@ -49,6 +49,8 @@ class PinWindow(QWidget):
         self._base_img_w = int(pixmap.width())
         self._base_img_h = int(pixmap.height())
 
+        logger.debug(f"PinWindow init: pixmap physical={pixmap.width()}x{pixmap.height()}, dpr={pixmap.devicePixelRatio()}, logical={self._base_img_w}x{self._base_img_h}")
+
         # --- Annotation state (same interface as CaptureOverlay) ---
         self.annotations: list[dict] = []
         self._undo_stack: list[dict] = []
@@ -320,8 +322,9 @@ class PinWindow(QWidget):
         current_pos = self.pos()
 
         # 同步当前实际尺寸（防止手动调整大小后状态不一致）
+        # 注意：窗口高度可能包含工具栏额外高度，需减去以得到实际图片高度
         actual_w = self.width() - self.SHADOW * 2
-        actual_h = self.height() - self.SHADOW * 2
+        actual_h = self.height() - self.SHADOW * 2 - self._toolbar_extra_height
 
         if actual_w != self._img_w or actual_h != self._img_h:
             self._img_w = actual_w
@@ -353,11 +356,17 @@ class PinWindow(QWidget):
         self._img_h = new_img_h
 
         # 固定左上角位置，向右下缩放
-        # 先改变大小，再确保位置不变
-        self.setFixedSize(self._img_w + self.SHADOW * 2,
-                          self._img_h + self.SHADOW * 2)
-        # 强制恢复位置（防止 Qt 自动调整）
-        self.move(current_pos)
+        if self._toolbar_shown:
+            # 工具栏显示时，通过 _position_toolbar() 统一调整窗口大小和工具栏位置
+            current_pos_before = self.pos()
+            self._position_toolbar()
+            self.move(current_pos_before)  # 恢复位置
+        else:
+            # 没有工具栏时，直接调整窗口大小
+            self.setFixedSize(self._img_w + self.SHADOW * 2,
+                              self._img_h + self.SHADOW * 2)
+            self.move(current_pos)
+
         self.update()
         event.accept()
 
@@ -614,7 +623,7 @@ class PinWindow(QWidget):
     # ─── Toolbar Show / Hide ─────────────────────────────
 
     def _show_toolbar(self) -> None:
-        """Create and show the annotation toolbar below the image (right-aligned)."""
+        """Create and show the annotation toolbar below the image."""
         if self._toolbar_obj is None:
             self._toolbar_obj = OverlayToolbar(self, pin_window_mode=True)
             self._toolbar_obj.setup()
@@ -631,25 +640,43 @@ class PinWindow(QWidget):
         TOOLBAR_HEIGHT = 32
         tb.setFixedSize(TOOLBAR_WIDTH, TOOLBAR_HEIGHT)
 
+        self._toolbar_shown = True
+        self._position_toolbar()
+
+    def _position_toolbar(self) -> None:
+        """Position toolbar below the image, adjusting window size if needed."""
+        if not self._toolbar_shown or not self._toolbar_obj:
+            return
+
+        tb = self._toolbar_obj.toolbar
+        TOOLBAR_WIDTH = 420
+        TOOLBAR_HEIGHT = 32
+
         s = self.SHADOW
         extra = TOOLBAR_HEIGHT + 6  # toolbar height + gap
         self._toolbar_extra_height = extra
-        # Expand window to make room for toolbar dock below the image
-        self.setFixedSize(self._img_w + s * 2, self._img_h + s * 2 + extra)
 
-        # 工具栏定位：优先右对齐，如果太宽则居中
-        if TOOLBAR_WIDTH <= self._img_w:
-            # 右对齐
-            tb_x = s + self._img_w - TOOLBAR_WIDTH - 2
+        # 计算需要的窗口宽度（图片宽度 vs 工具栏宽度）
+        min_content_width = max(self._img_w, TOOLBAR_WIDTH + 4)  # +4 for padding
+        window_width = min_content_width + s * 2
+        window_height = self._img_h + s * 2 + extra
+
+        # 调整窗口大小
+        self.setFixedSize(window_width, window_height)
+
+        # 工具栏定位：优先右对齐
+        content_width = min_content_width
+        if TOOLBAR_WIDTH <= content_width - 4:
+            # 右对齐（留 2px 边距）
+            tb_x = s + content_width - TOOLBAR_WIDTH - 2
         else:
-            # 工具栏比图片宽，居中显示
-            tb_x = s + (self._img_w - TOOLBAR_WIDTH) // 2
+            # 居中
+            tb_x = s + (content_width - TOOLBAR_WIDTH) // 2
 
         tb_y = s + self._img_h + 4
         tb.move(tb_x, tb_y)
         tb.show()
         tb.raise_()
-        self._toolbar_shown = True
         self.update()
 
     def _hide_toolbar(self) -> None:
