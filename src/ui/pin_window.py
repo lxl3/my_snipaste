@@ -328,6 +328,8 @@ class PinWindow(QWidget):
         if delta == 0:
             return
 
+        # 保存当前位置（防止 Qt 自动调整）
+        current_pos = self.pos()
         old_width = self._img_w
         old_height = self._img_h
 
@@ -350,10 +352,12 @@ class PinWindow(QWidget):
         self._img_w = new_img_w
         self._img_h = new_img_h
 
-        # 简单策略：固定左上角位置，向右下缩放
-        # 这样最稳定，不会有位置跳动
+        # 固定左上角位置，向右下缩放
+        # 先改变大小，再确保位置不变
         self.setFixedSize(self._img_w + self.SHADOW * 2,
                           self._img_h + self.SHADOW * 2)
+        # 强制恢复位置（防止 Qt 自动调整）
+        self.move(current_pos)
         self.update()
         event.accept()
 
