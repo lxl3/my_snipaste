@@ -425,9 +425,21 @@ class PinWindow(QWidget):
     # ─── Drawing Logic ───────────────────────────────────
 
     def _content_pos(self, event) -> QPointF:
-        """Convert widget position to content-area coordinates."""
-        return QPointF(event.position().x() - self.SHADOW,
-                       event.position().y() - self.SHADOW)
+        """Convert widget position to content-area coordinates (in original image space)."""
+        # 获取图片区域内的坐标（显示坐标）
+        display_x = event.position().x() - self.SHADOW
+        display_y = event.position().y() - self.SHADOW
+
+        # 转换到原始图片坐标系（考虑缩放）
+        if self._zoom_factor != 1.0 and not self._resized_by_user:
+            # 缩放时：显示坐标 / zoom_factor = 原始坐标
+            orig_x = display_x / self._zoom_factor
+            orig_y = display_y / self._zoom_factor
+        else:
+            orig_x = display_x
+            orig_y = display_y
+
+        return QPointF(orig_x, orig_y)
 
     def _start_drawing(self, event) -> None:
         self._drawing = True
