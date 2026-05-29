@@ -29,6 +29,10 @@ from ..core.logger import setup_logger
 
 logger = setup_logger("overlay")
 
+# Toolbar fixed dimensions
+TOOLBAR_FIXED_WIDTH = 420  # px - 足够容纳最宽的工具菜单
+TOOLBAR_FIXED_HEIGHT = 32  # px - 标准工具栏高度
+
 
 class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMixin):
     """Full-screen semi-transparent overlay with selection, annotation, and OCR."""
@@ -313,24 +317,78 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         }
         return mapping.get(handle_name, Qt.ArrowCursor)
 
+    # ─── Selection rectangle constraints ───
+
+    def _constrain_rect_to_screen(self, rect: QRect) -> QRect:
+        """限制矩形在屏幕范围内"""
+        screen_width = self.width()
+        screen_height = self.height()
+
+        # 获取矩形的位置和尺寸
+        x = rect.x()
+        y = rect.y()
+        w = rect.width()
+        h = rect.height()
+
+        # 限制位置（确保左上角在屏幕内）
+        x = max(0, min(x, screen_width - w))
+        y = max(0, min(y, screen_height - h))
+
+        # 限制尺寸（如果矩形超出屏幕，裁剪尺寸）
+        if x + w > screen_width:
+            w = screen_width - x
+        if y + h > screen_height:
+            h = screen_height - y
+
+        return QRect(x, y, max(1, w), max(1, h))
+
     # ─── Toolbar positioning ───
 
     def _position_toolbar(self) -> None:
+        """Position toolbar at bottom-right of selection (right-aligned)."""
         rect = self.selection_rect
         if rect.isNull():
             self.toolbar.toolbar.hide()
             return
-        self.toolbar.toolbar.adjustSize()
-        tw = self.toolbar.toolbar.width()
-        th = self.toolbar.toolbar.height()
+
+        # 使用固定尺寸（不调用 adjustSize）
+        tw = TOOLBAR_FIXED_WIDTH
+        th = TOOLBAR_FIXED_HEIGHT
+        self.toolbar.toolbar.setFixedSize(tw, th)
+
+        screen_width = self.width()
+        screen_height = self.height()
+
+        # 默认位置：右下角对齐
         x = rect.right() - tw
         y = rect.bottom() + 8
-        if y + th > self.height() - 10:
+
+        # 垂直方向：如果底部超出，移到上方
+        if y + th > screen_height:
             y = rect.top() - th - 8
-        if x < 10:
-            x = rect.left()
-        if x + tw > self.width() - 10:
-            x = self.width() - tw - 10
+            # 如果上方也超出，则放在选区内部顶部
+            if y < 0:
+                y = max(0, rect.top() + 8)
+
+        # 水平方向：处理工具栏宽度大于选区的情况
+        if tw > rect.width():
+            # 工具栏比选区宽：居中对齐选区，但确保不超出屏幕
+            x = rect.center().x() - tw // 2
+            # 确保完全可见
+            x = max(0, min(x, screen_width - tw))
+        else:
+            # 工具栏比选区窄：右对齐
+            x = rect.right() - tw
+            # 处理左侧超出
+            if x < 0:
+                x = rect.left()
+                # 如果左对齐还超出，贴齐屏幕左侧
+                if x < 0:
+                    x = 0
+            # 处理右侧超出
+            if x + tw > screen_width:
+                x = screen_width - tw
+
         self.toolbar.toolbar.move(x, y)
         self.toolbar.toolbar.show()
         self.toolbar.toolbar.raise_()
@@ -664,7 +722,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             return
         if self.is_selecting:
             self.end_point = self.current_mouse_pos
-            self.selection_rect = QRect(self.start_point, self.end_point).normalized()
+            rect = QRect(self.start_point, self.end_point).normalized()
+            self.selection_rect = self._constrain_rect_to_screen(rect)
             self.update()
         elif not self.selection_rect.isNull():
             handle = self._handle_at_pos(self.current_mouse_pos)
@@ -723,10 +782,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         delta = current_pos - self._drag_start_pos
         mode = self._drag_mode[0]
         if mode == "move":
-            self.selection_rect = QRect(
+            rect = QRect(
                 round(self._drag_start_rect.x() + delta.x()), round(self._drag_start_rect.y() + delta.y()),
                 self._drag_start_rect.width(), self._drag_start_rect.height(),
             )
+            self.selection_rect = self._constrain_rect_to_screen(rect)
         elif mode == "resize":
             handle = self._drag_mode[1]
             r = QRect(self._drag_start_rect)
@@ -738,7 +798,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 r.setTop(round(self._drag_start_rect.top() + delta.y()))
             if "bottom" in handle:
                 r.setBottom(round(self._drag_start_rect.bottom() + delta.y()))
-            self.selection_rect = r.normalized()
+            self.selection_rect = self._constrain_rect_to_screen(r.normalized())
         elif mode == "move_annotation":
             self._move_selected_annotation(delta)
         self.update()

@@ -64,6 +64,7 @@ class OverlayToolbar:
         self.toolbar = QFrame(self.overlay)
         self.toolbar.setObjectName("overlayToolbar")
         self.toolbar.setStyleSheet(TOOLBAR_STYLE)
+        self.toolbar.setFixedSize(420, 32)  # 固定尺寸，防止动态变化导致位置跳动
         toolbar_layout = QHBoxLayout(self.toolbar)
         toolbar_layout.setContentsMargins(0, 0, 0, 0)
         toolbar_layout.setSpacing(0)
