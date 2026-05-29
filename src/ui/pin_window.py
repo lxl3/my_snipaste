@@ -43,8 +43,11 @@ class PinWindow(QWidget):
 
         # --- Zoom ---
         self._zoom_factor = 1.0
-        self._base_img_w = int(pixmap.width() / pixmap.devicePixelRatio())
-        self._base_img_h = int(pixmap.height() / pixmap.devicePixelRatio())
+        # _base_img_w/h = logical size of the pixmap.
+        # pixmap.width() already returns device-independent pixels;
+        # do NOT divide by devicePixelRatio() here.
+        self._base_img_w = int(pixmap.width())
+        self._base_img_h = int(pixmap.height())
 
         # --- Annotation state (same interface as CaptureOverlay) ---
         self.annotations: list[dict] = []
@@ -622,16 +625,26 @@ class PinWindow(QWidget):
 
         tb = self._toolbar_obj.toolbar
         tb.setParent(self)
-        tb.adjustSize()
+
+        # 使用固定尺寸（与覆盖层工具栏一致）
+        TOOLBAR_WIDTH = 420
+        TOOLBAR_HEIGHT = 32
+        tb.setFixedSize(TOOLBAR_WIDTH, TOOLBAR_HEIGHT)
 
         s = self.SHADOW
-        extra = tb.height() + 6  # toolbar height + gap
+        extra = TOOLBAR_HEIGHT + 6  # toolbar height + gap
         self._toolbar_extra_height = extra
         # Expand window to make room for toolbar dock below the image
         self.setFixedSize(self._img_w + s * 2, self._img_h + s * 2 + extra)
 
-        # Right-aligned in the dock, 4px gap below image
-        tb_x = s + self._img_w - tb.width() - 2
+        # 工具栏定位：优先右对齐，如果太宽则居中
+        if TOOLBAR_WIDTH <= self._img_w:
+            # 右对齐
+            tb_x = s + self._img_w - TOOLBAR_WIDTH - 2
+        else:
+            # 工具栏比图片宽，居中显示
+            tb_x = s + (self._img_w - TOOLBAR_WIDTH) // 2
+
         tb_y = s + self._img_h + 4
         tb.move(tb_x, tb_y)
         tb.show()
