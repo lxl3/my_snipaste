@@ -188,32 +188,38 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         th = TOOLBAR_FIXED_HEIGHT
         self.toolbar.toolbar.setFixedSize(tw, th)
 
+        screen_width = self.width()
+        screen_height = self.height()
+
         # 默认位置：右下角对齐
         x = rect.right() - tw
         y = rect.bottom() + 8
 
-        # 简化边界检查：只有完全超出时才调整
-        screen_width = self.width()
-        screen_height = self.height()
-
-        # 垂直方向：如果底部超出，移到上方（保持右对齐）
+        # 垂直方向：如果底部超出，移到上方
         if y + th > screen_height:
             y = rect.top() - th - 8
             # 如果上方也超出，则放在选区内部顶部
             if y < 0:
-                y = rect.top() + 8
+                y = max(0, rect.top() + 8)
 
-        # 水平方向：优先保持右对齐
-        if x < 0:
-            # 左侧超出：移到选区左侧开始
-            x = rect.left()
-        if x + tw > screen_width:
-            # 右侧超出：贴齐屏幕右侧
-            x = screen_width - tw
-
-        # 最终保护：确保不超出屏幕
-        x = max(0, min(x, screen_width - tw))
-        y = max(0, min(y, screen_height - th))
+        # 水平方向：处理工具栏宽度大于选区的情况
+        if tw > rect.width():
+            # 工具栏比选区宽：居中对齐选区，但确保不超出屏幕
+            x = rect.center().x() - tw // 2
+            # 确保完全可见
+            x = max(0, min(x, screen_width - tw))
+        else:
+            # 工具栏比选区窄：右对齐
+            x = rect.right() - tw
+            # 处理左侧超出
+            if x < 0:
+                x = rect.left()
+                # 如果左对齐还超出，贴齐屏幕左侧
+                if x < 0:
+                    x = 0
+            # 处理右侧超出
+            if x + tw > screen_width:
+                x = screen_width - tw
 
         self.toolbar.toolbar.move(x, y)
         self.toolbar.toolbar.show()
