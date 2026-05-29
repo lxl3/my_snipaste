@@ -69,6 +69,25 @@ class AppSettings:
     # 快捷键帮助
     show_hotkey_tip: bool = True
 
+    # ─── 全局快捷键扩展 (5.1) ───
+    hotkey_ocr: str = "ctrl+shift+t"  # OCR 剪贴板
+    hotkey_delay: str = "ctrl+shift+d"  # 延迟截图
+    hotkey_pin: str = "ctrl+shift+p"  # 固定窗口截图
+    hotkey_full: str = "ctrl+shift+f"  # 全屏截图
+
+    # ─── 编辑器内工具快捷键 (5.2) ───
+    shortcut_rect: str = "r"
+    shortcut_ellipse: str = "e"
+    shortcut_arrow: str = "a"
+    shortcut_line: str = "l"
+    shortcut_pen: str = "p"
+    shortcut_text: str = "t"
+    shortcut_highlighter: str = "h"
+    shortcut_blur: str = "b"
+    shortcut_number_marker: str = "n"
+    shortcut_select: str = "v"
+    shortcut_grid: str = "g"
+
     # Pin 窗口设置
     pin_window_geometry: str = ""  # Stores "x,y,width,height" as string
 

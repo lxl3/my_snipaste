@@ -10,10 +10,10 @@ from PySide6.QtWidgets import (
 from .overlay.widget import CaptureOverlay
 from .ocr.engine import extract_text
 from .core.i18n import _, load_translations
-from .core.utils import create_app_icon, ScreenCaptureError
+from .core.utils import create_app_icon, ScreenCaptureError, capture_all_screens
 from .core.logger import setup_logger, apply_log_level
 from .core.settings import AppSettings, get_settings
-from .core.hotkeys import HotkeyListener
+from .core.hotkeys import MultiHotkeyListener
 from .core.permissions import (
     check_macos_accessibility,
     check_screen_recording_permission,
@@ -71,7 +71,7 @@ class SnipasteApp(QApplication):
         self.countdown_overlay: CountdownOverlay | None = None
         self.pin_windows: list = []
         self.settings: AppSettings = get_settings()
-        self.hotkey_listener: HotkeyListener | None = None
+        self.hotkey_listener: MultiHotkeyListener | None = None
 
         apply_log_level(self.settings.log_level)
 
@@ -108,9 +108,20 @@ class SnipasteApp(QApplication):
         # 检查权限并初始化全局快捷键
         have_hotkey = check_macos_accessibility()
 
-        # 初始化热键监听器
-        self.hotkey_listener = HotkeyListener(self.settings.hotkey)
+        # 初始化多热键监听器（支持多个全局快捷键组合）
+        self.hotkey_listener = MultiHotkeyListener()
+        self.hotkey_listener.set_hotkeys({
+            "capture": self.settings.hotkey,
+            "ocr": self.settings.hotkey_ocr,
+            "delay_capture": self.settings.hotkey_delay,
+            "pin_capture": self.settings.hotkey_pin,
+            "full_capture": self.settings.hotkey_full,
+        })
         self.hotkey_listener.capture_signal.connect(self.start_capture)
+        self.hotkey_listener.ocr_signal.connect(self.ocr_clipboard)
+        self.hotkey_listener.delay_capture_signal.connect(self._start_delayed_capture)
+        self.hotkey_listener.pin_capture_signal.connect(self._capture_full_and_pin)
+        self.hotkey_listener.full_capture_signal.connect(self._capture_full)
 
         if have_hotkey:
             self.hotkey_listener.start()
@@ -369,6 +380,77 @@ class SnipasteApp(QApplication):
         else:
             logger.warning("OCR 识别结果为空")
 
+    def _start_delayed_capture(self) -> None:
+        """Trigger a delayed screenshot (always shows countdown)."""
+        logger.info("延迟截图快捷键触发")
+        _mac_activate_app()
+
+        if self.countdown_overlay is not None:
+            logger.info("倒计时进行中，忽略重复触发")
+            return
+
+        if self.overlay is not None:
+            self.overlay.close()
+            self.overlay.deleteLater()
+            self.overlay = None
+
+        # Use a default 5-second delay for this hotkey
+        delay = 5
+        self.countdown_overlay = CountdownOverlay(delay)
+        self.countdown_overlay.countdown_finished.connect(self._do_capture)
+        self.countdown_overlay.countdown_cancelled.connect(self._on_countdown_cancelled)
+        self.countdown_overlay.show()
+        self.countdown_overlay.activateWindow()
+        self.countdown_overlay.setFocus()
+
+    def _capture_full_and_pin(self) -> None:
+        """Capture full screen and pin directly without selection UI."""
+        logger.info("截图贴图快捷键触发")
+        _mac_activate_app()
+
+        try:
+            pixmap = capture_all_screens(include_cursor=self.settings.capture_cursor)
+        except Exception:
+            logger.exception("全屏截图失败")
+            return
+
+        # Pin at cursor position or screen center
+        cursor_pos = QCursor.pos()
+        screen = QApplication.primaryScreen()
+        screen_geo = screen.geometry()
+        if screen_geo.contains(cursor_pos):
+            pin_pos = cursor_pos
+        else:
+            pin_pos = screen_geo.center()
+
+        self._on_pin(pixmap, pin_pos)
+
+        # Brief toast notification
+        try:
+            from .ui.toast import ToastManager
+            ToastManager.show(_("Screenshot pinned"), icon="📌", toast_type="success")
+        except Exception:
+            pass
+
+    def _capture_full(self) -> None:
+        """Capture full screen and copy to clipboard without selection UI."""
+        logger.info("全屏截图快捷键触发")
+        _mac_activate_app()
+
+        try:
+            pixmap = capture_all_screens(include_cursor=self.settings.capture_cursor)
+        except Exception:
+            logger.exception("全屏截图失败")
+            return
+
+        self._on_copy(pixmap)
+
+        try:
+            from .ui.toast import ToastManager
+            ToastManager.show(_("Full screen copied to clipboard"), icon="✓", toast_type="success")
+        except Exception:
+            pass
+
     def _open_settings(self) -> None:
         try:
             parent = getattr(self, '_menu_widget', None)
@@ -379,8 +461,14 @@ class SnipasteApp(QApplication):
                 load_translations(self.settings.language)
                 have_hotkey = check_macos_accessibility()
                 self.tray.refresh_menu_text(have_hotkey)
-                if self.hotkey_listener and self.settings.hotkey != self.hotkey_listener.hotkey:
-                    self.hotkey_listener.update_hotkey(self.settings.hotkey)
+                if self.hotkey_listener:
+                    self.hotkey_listener.set_hotkeys({
+                        "capture": self.settings.hotkey,
+                        "ocr": self.settings.hotkey_ocr,
+                        "delay_capture": self.settings.hotkey_delay,
+                        "pin_capture": self.settings.hotkey_pin,
+                        "full_capture": self.settings.hotkey_full,
+                    })
         except Exception:
             logger.exception("settings error")
 
