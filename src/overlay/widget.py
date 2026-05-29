@@ -28,6 +28,10 @@ from ..core.logger import setup_logger
 
 logger = setup_logger("overlay")
 
+# Toolbar fixed dimensions
+TOOLBAR_FIXED_WIDTH = 420  # px - 足够容纳最宽的工具菜单
+TOOLBAR_FIXED_HEIGHT = 32  # px - 标准工具栏高度
+
 
 class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMixin):
     """Full-screen semi-transparent overlay with selection, annotation, and OCR."""
@@ -173,21 +177,44 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
     # ─── Toolbar positioning ───
 
     def _position_toolbar(self) -> None:
+        """Position toolbar at bottom-right of selection (right-aligned)."""
         rect = self.selection_rect
         if rect.isNull():
             self.toolbar.toolbar.hide()
             return
-        self.toolbar.toolbar.adjustSize()
-        tw = self.toolbar.toolbar.width()
-        th = self.toolbar.toolbar.height()
+
+        # 使用固定尺寸（不调用 adjustSize）
+        tw = TOOLBAR_FIXED_WIDTH
+        th = TOOLBAR_FIXED_HEIGHT
+        self.toolbar.toolbar.setFixedSize(tw, th)
+
+        # 默认位置：右下角对齐
         x = rect.right() - tw
         y = rect.bottom() + 8
-        if y + th > self.height() - 10:
+
+        # 简化边界检查：只有完全超出时才调整
+        screen_width = self.width()
+        screen_height = self.height()
+
+        # 垂直方向：如果底部超出，移到上方（保持右对齐）
+        if y + th > screen_height:
             y = rect.top() - th - 8
-        if x < 10:
+            # 如果上方也超出，则放在选区内部顶部
+            if y < 0:
+                y = rect.top() + 8
+
+        # 水平方向：优先保持右对齐
+        if x < 0:
+            # 左侧超出：移到选区左侧开始
             x = rect.left()
-        if x + tw > self.width() - 10:
-            x = self.width() - tw - 10
+        if x + tw > screen_width:
+            # 右侧超出：贴齐屏幕右侧
+            x = screen_width - tw
+
+        # 最终保护：确保不超出屏幕
+        x = max(0, min(x, screen_width - tw))
+        y = max(0, min(y, screen_height - th))
+
         self.toolbar.toolbar.move(x, y)
         self.toolbar.toolbar.show()
         self.toolbar.toolbar.raise_()
