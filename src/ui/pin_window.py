@@ -320,16 +320,12 @@ class PinWindow(QWidget):
         actual_w = self.width() - self.SHADOW * 2
         actual_h = self.height() - self.SHADOW * 2
 
-        logger.debug(f"wheelEvent: delta={delta}, actual_w={actual_w}, actual_h={actual_h}, _img_w={self._img_w}, _img_h={self._img_h}, _base_img_w={self._base_img_w}, _base_img_h={self._base_img_h}, _zoom_factor={self._zoom_factor:.3f}")
-        logger.debug(f"  pixmap size: {self.pixmap.width()}x{self.pixmap.height()}, dpr={self.pixmap.devicePixelRatio()}")
-
         if actual_w != self._img_w or actual_h != self._img_h:
             self._img_w = actual_w
             self._img_h = actual_h
             # 同步 zoom_factor
             if self._base_img_w > 0 and self._base_img_h > 0:
                 self._zoom_factor = self._img_w / self._base_img_w
-            logger.debug(f"  Synced: _img_w={self._img_w}, _zoom_factor={self._zoom_factor:.3f}")
 
         old_width = self._img_w
         old_height = self._img_h
@@ -344,8 +340,6 @@ class PinWindow(QWidget):
         # 计算新尺寸
         new_img_w = max(1, int(self._base_img_w * self._zoom_factor))
         new_img_h = max(1, int(self._base_img_h * self._zoom_factor))
-
-        logger.debug(f"  After zoom: _zoom_factor={self._zoom_factor:.3f}, new_img_w={new_img_w}, old_width={old_width}")
 
         # 避免尺寸相同时的无效更新
         if new_img_w == old_width and new_img_h == old_height:
