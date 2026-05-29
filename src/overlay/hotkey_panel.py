@@ -27,12 +27,26 @@ class HotkeyHelpPanel(QWidget):
 
         # Shortcut list
         shortcuts = [
+            # ─── Editor shortcuts ───
+            ("", ""),  # Section header as separator
             (_("Copy"), "Ctrl+C"),
             (_("Save"), "Ctrl+S"),
             (_("Pin"), "Ctrl+P"),
             ("", ""),  # Separator
             (_("Undo"), "Ctrl+Z"),
             (_("Redo"), "Ctrl+Y"),
+            ("", ""),  # Separator
+            # ─── Tool shortcuts ───
+            (_("Rectangle"), "R"),
+            (_("Ellipse"), "E"),
+            (_("Arrow"), "A"),
+            (_("Line"), "L"),
+            (_("Pen"), "P"),
+            (_("Text"), "T"),
+            (_("Highlighter"), "H"),
+            (_("Blur"), "B"),
+            (_("Number Marker"), "N"),
+            (_("Select"), "V"),
             ("", ""),  # Separator
             (_("Toggle help"), "? / F1"),
         ]

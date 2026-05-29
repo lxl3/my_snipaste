@@ -893,6 +893,32 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             event.accept()
             return
 
+        # ─── Single-key tool shortcuts (only when no modifier held) ───
+        if (not event.modifiers()
+                and self._text_editor is None  # not editing text
+                and Qt.Key_A <= event.key() <= Qt.Key_Z):
+            tool_map = {
+                Qt.Key_R: "rect",
+                Qt.Key_E: "ellipse",
+                Qt.Key_A: "arrow",
+                Qt.Key_L: "line",
+                Qt.Key_P: "freehand",
+                Qt.Key_T: "text",
+                Qt.Key_H: "highlighter",
+                Qt.Key_B: "blur",
+                Qt.Key_N: "number_marker",
+                Qt.Key_V: "select",
+            }
+            tid = tool_map.get(event.key())
+            if tid:
+                # Toggle: if same tool active, switch back to select
+                if self.current_tool == tid:
+                    self._on_tool_selected("select")
+                else:
+                    self._on_tool_selected(tid)
+                event.accept()
+                return
+
         if event.key() == Qt.Key_Escape:
             # First ESC: Hide hotkey panel if visible
             if self._hotkey_panel and self._hotkey_panel.isVisible():
