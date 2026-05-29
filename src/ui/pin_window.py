@@ -44,12 +44,12 @@ class PinWindow(QWidget):
         # --- Zoom ---
         self._zoom_factor = 1.0
         # _base_img_w/h = logical size of the pixmap.
-        # pixmap.width() already returns device-independent pixels;
-        # do NOT divide by devicePixelRatio() here.
-        self._base_img_w = int(pixmap.width())
-        self._base_img_h = int(pixmap.height())
+        # pixmap.width() returns physical pixels, must divide by dpr for logical size
+        dpr = pixmap.devicePixelRatio()
+        self._base_img_w = int(pixmap.width() / dpr)
+        self._base_img_h = int(pixmap.height() / dpr)
 
-        logger.debug(f"PinWindow init: pixmap physical={pixmap.width()}x{pixmap.height()}, dpr={pixmap.devicePixelRatio()}, logical={self._base_img_w}x{self._base_img_h}")
+        logger.debug(f"PinWindow init: pixmap physical={pixmap.width()}x{pixmap.height()}, dpr={dpr}, logical={self._base_img_w}x{self._base_img_h}")
 
         # --- Annotation state (same interface as CaptureOverlay) ---
         self.annotations: list[dict] = []
@@ -120,17 +120,6 @@ class PinWindow(QWidget):
                 painter.setPen(Qt.NoPen)
                 painter.setBrush(QColor(135, 206, 250, alpha))
                 painter.drawRoundedRect(r, 3, 3)
-
-        # --- Draw toolbar dock background below the image ---
-        if self._toolbar_shown and self._toolbar_extra_height > 0:
-            dock_rect = QRect(s, s + self._img_h,
-                              self._img_w, self._toolbar_extra_height)
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(Qt.white)
-            painter.drawRect(dock_rect)
-            # Thin top border for the dock
-            painter.setPen(QPen(QColor("#ccc"), 1))
-            painter.drawLine(dock_rect.topLeft(), dock_rect.topRight())
 
         # --- Draw the image (always within img_rect) ---
         # 使用 drawPixmap(target, source) 让 Qt 自动处理 DPI 缩放
