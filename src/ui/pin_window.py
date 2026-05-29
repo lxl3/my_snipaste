@@ -330,6 +330,17 @@ class PinWindow(QWidget):
 
         # 保存当前位置（防止 Qt 自动调整）
         current_pos = self.pos()
+
+        # 同步当前实际尺寸（防止手动调整大小后状态不一致）
+        actual_w = self.width() - self.SHADOW * 2
+        actual_h = self.height() - self.SHADOW * 2
+        if actual_w != self._img_w or actual_h != self._img_h:
+            self._img_w = actual_w
+            self._img_h = actual_h
+            # 同步 zoom_factor
+            if self._base_img_w > 0 and self._base_img_h > 0:
+                self._zoom_factor = self._img_w / self._base_img_w
+
         old_width = self._img_w
         old_height = self._img_h
 
