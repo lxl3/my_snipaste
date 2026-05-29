@@ -328,34 +328,45 @@ class PinWindow(QWidget):
         if delta == 0:
             return
 
-        # 保存当前窗口位置和鼠标相对位置
+        # 保存当前状态
         old_pos = self.pos()
-        mouse_pos = event.position()
+        old_width = self._img_w
+        old_height = self._img_h
 
-        # 调整缩放因子（使用更小的步长减少抖动）
-        old_zoom = self._zoom_factor
+        # 鼠标在窗口中的位置（包括阴影）
+        mouse_window_pos = event.position()
+
+        # 调整缩放因子
         if delta > 0:
-            self._zoom_factor *= 1.05  # 从 1.1 降低到 1.05，更平滑
+            self._zoom_factor *= 1.1
         elif delta < 0:
-            self._zoom_factor /= 1.05
+            self._zoom_factor /= 1.1
         self._zoom_factor = max(0.1, min(5.0, self._zoom_factor))
 
-        # 计算新尺寸（使用 int 而非 round 减少跳动）
+        # 计算新尺寸
         new_img_w = max(1, int(self._base_img_w * self._zoom_factor))
         new_img_h = max(1, int(self._base_img_h * self._zoom_factor))
 
         # 避免尺寸相同时的无效更新
-        if new_img_w == self._img_w and new_img_h == self._img_h:
+        if new_img_w == old_width and new_img_h == old_height:
             event.accept()
             return
 
         self._img_w = new_img_w
         self._img_h = new_img_h
 
-        # 计算缩放中心点调整（保持鼠标下的图像点不变）
-        zoom_ratio = self._zoom_factor / old_zoom
-        new_x = old_pos.x() + mouse_pos.x() * (1 - zoom_ratio)
-        new_y = old_pos.y() + mouse_pos.y() * (1 - zoom_ratio)
+        # 计算缩放中心点：保持鼠标下的图像点不变
+        # 鼠标在旧图像中的相对位置（0.0-1.0）
+        rel_x = (mouse_window_pos.x() - self.SHADOW) / old_width if old_width > 0 else 0.5
+        rel_y = (mouse_window_pos.y() - self.SHADOW) / old_height if old_height > 0 else 0.5
+
+        # 在新尺寸下，该点应该在的窗口位置
+        new_mouse_x = rel_x * new_img_w + self.SHADOW
+        new_mouse_y = rel_y * new_img_h + self.SHADOW
+
+        # 调整窗口位置，使鼠标仍在同一图像点上
+        new_x = old_pos.x() + mouse_window_pos.x() - new_mouse_x
+        new_y = old_pos.y() + mouse_window_pos.y() - new_mouse_y
 
         self.setFixedSize(self._img_w + self.SHADOW * 2,
                           self._img_h + self.SHADOW * 2)

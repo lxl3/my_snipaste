@@ -74,8 +74,9 @@ class OverlayActionsMixin:
             logger.error(f"Failed to save screenshot to history: {e}")
 
         self.pin_requested.emit(pixmap, self._capture_pos())
-        ToastManager.show(_("Pinned to desktop"), "📌", "success", parent=self)
+        # 先关闭覆盖层，再显示 Toast（parent=None 避免阻塞关闭）
         self.close()
+        ToastManager.show(_("Pinned to desktop"), "📌", "success", parent=None)
 
     def on_copy(self) -> None:
         if self.selection_rect.isNull():
