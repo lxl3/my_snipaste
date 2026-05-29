@@ -274,6 +274,14 @@ class SnipasteApp(QApplication):
     def _on_pin(self, pixmap: QPixmap, pos) -> None:
         win = PinWindow(pixmap, pos)
         win.destroyed.connect(lambda: self.pin_windows.remove(win) if win in self.pin_windows else None)
+        
+        # Connect signals from PinWindow to app handlers
+        win.copy_requested.connect(self._on_copy)
+        win.save_requested.connect(self._on_save)
+        win.close_requested.connect(win.close)
+        win.toggle_topmost_requested.connect(self._on_toggle_topmost)
+        win.opacity_changed.connect(self._on_opacity_changed)
+        
         self.pin_windows.append(win)
         win.show()
 
@@ -316,6 +324,27 @@ class SnipasteApp(QApplication):
                 self.overlay.close()
         else:
             logger.debug("用户取消保存，保持截图界面打开")
+
+    def _on_toggle_topmost(self, checked: bool) -> None:
+        """Toggle window topmost state for all pin windows."""
+        for win in self.pin_windows:
+            if win.isVisible():
+                flags = win.windowFlags()
+                if checked:
+                    win.setWindowFlags(flags | Qt.WindowStaysOnTopHint)
+                else:
+                    win.setWindowFlags(flags & ~Qt.WindowStaysOnTopHint)
+                win.show()  # Need to show again after changing window flags
+
+    def _on_opacity_changed(self, opacity: int) -> None:
+        """Change opacity for all pin windows."""
+        for win in self.pin_windows:
+            if win.isVisible():
+                win.setWindowOpacity(opacity / 100.0)
+                # Update settings to persist the change
+                settings = get_settings()
+                settings.pin_window_opacity = opacity
+                settings.save()
 
     def ocr_clipboard(self) -> None:
         logger.info("开始 OCR 剪贴板图片")
