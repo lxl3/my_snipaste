@@ -311,16 +311,17 @@ class PinWindow(QWidget):
         current_pos = self.pos()
 
         # 同步当前实际尺寸（防止手动调整大小后状态不一致）
-        # 注意：窗口高度可能包含工具栏额外高度，需减去以得到实际图片高度
-        actual_w = self.width() - self.SHADOW * 2
-        actual_h = self.height() - self.SHADOW * 2 - self._toolbar_extra_height
+        # 注意：如果工具栏显示，窗口宽度可能被扩展以容纳工具栏，不应同步宽度
+        if not self._toolbar_shown:
+            actual_w = self.width() - self.SHADOW * 2
+            actual_h = self.height() - self.SHADOW * 2
 
-        if actual_w != self._img_w or actual_h != self._img_h:
-            self._img_w = actual_w
-            self._img_h = actual_h
-            # 同步 zoom_factor
-            if self._base_img_w > 0 and self._base_img_h > 0:
-                self._zoom_factor = self._img_w / self._base_img_w
+            if actual_w != self._img_w or actual_h != self._img_h:
+                self._img_w = actual_w
+                self._img_h = actual_h
+                # 同步 zoom_factor
+                if self._base_img_w > 0 and self._base_img_h > 0:
+                    self._zoom_factor = self._img_w / self._base_img_w
 
         old_width = self._img_w
         old_height = self._img_h
@@ -336,8 +337,11 @@ class PinWindow(QWidget):
         new_img_w = max(1, int(self._base_img_w * self._zoom_factor))
         new_img_h = max(1, int(self._base_img_h * self._zoom_factor))
 
+        logger.debug(f"wheelEvent: delta={delta}, zoom={self._zoom_factor:.3f}, base={self._base_img_w}x{self._base_img_h}, old={old_width}x{old_height}, new={new_img_w}x{new_img_h}")
+
         # 避免尺寸相同时的无效更新
         if new_img_w == old_width and new_img_h == old_height:
+            logger.debug(f"  Skipped: same size")
             event.accept()
             return
 
