@@ -1,4 +1,5 @@
 import math
+from PIL import ImageFilter
 from PySide6.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QSize, Signal
 from PySide6.QtGui import QPixmap, QPainter, QAction, QColor, QPen, QFont, QPainterPath
 from PySide6.QtWidgets import QWidget, QMenu, QApplication, QInputDialog, QLineEdit
@@ -7,7 +8,8 @@ from ..core.logger import setup_logger
 from ..core.settings import get_settings
 from ..core.i18n import _
 from ..overlay.toolbar import OverlayToolbar
-from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE
+from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR
+from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
 
 logger = setup_logger("pin_window")
 
@@ -163,6 +165,12 @@ class PinWindow(QWidget):
             self._draw_highlighter(painter, ann)
         elif t == "number_marker":
             self._draw_number_marker(painter, ann)
+        elif t == "mosaic":
+            self._draw_mosaic(painter, ann)
+        elif t == "blur":
+            self._draw_blur(painter, ann)
+        elif t == "magnifier":
+            self._draw_magnifier(painter, ann)
 
     def _draw_rect(self, painter: QPainter, ann: dict) -> None:
         r = QRectF(*ann["rect"])
@@ -261,6 +269,99 @@ class PinWindow(QWidget):
         text_x = center.x() - tw / 2
         text_y = center.y() + fm.ascent() / 2
         painter.drawText(QPointF(text_x, text_y), text)
+
+    def _draw_mosaic(self, painter: QPainter, ann: dict) -> None:
+        """Draw mosaic effect by pixelating the region."""
+        r = QRectF(*ann["rect"]).toRect()
+        if r.isEmpty():
+            return
+
+        cached = ann.get("_cached")
+        if cached is None:
+            scale = ann.get("scale", MOSAIC_SCALE_FACTOR)
+            dpr = self.pixmap.devicePixelRatio()
+
+            # Extract region from pixmap
+            src_rect = QRect(
+                int(r.x() * dpr),
+                int(r.y() * dpr),
+                int(r.width() * dpr),
+                int(r.height() * dpr)
+            )
+            px = self.pixmap.copy(src_rect)
+
+            # Pixelate: scale down then scale up
+            small_w = max(1, r.width() // scale)
+            small_h = max(1, r.height() // scale)
+            small = px.scaled(small_w, small_h, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+            cached = small.scaled(r.width(), r.height(), Qt.IgnoreAspectRatio, Qt.FastTransformation)
+            ann["_cached"] = cached
+
+        painter.drawPixmap(r.topLeft(), cached)
+
+    def _draw_blur(self, painter: QPainter, ann: dict) -> None:
+        """Draw blur effect using Gaussian blur."""
+        r = QRectF(*ann["rect"]).toRect()
+        if r.isEmpty():
+            return
+
+        cached = ann.get("_cached")
+        if cached is None:
+            radius = ann.get("radius", 10)
+            dpr = self.pixmap.devicePixelRatio()
+
+            # Extract region from pixmap
+            src_rect = QRect(
+                int(r.x() * dpr),
+                int(r.y() * dpr),
+                int(r.width() * dpr),
+                int(r.height() * dpr)
+            )
+            px = self.pixmap.copy(src_rect)
+
+            # Apply Gaussian blur via PIL
+            pil_img = qpixmap_to_pil(px)
+            blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=radius))
+            cached = pil_to_qpixmap(blurred)
+            ann["_cached"] = cached
+
+        painter.drawPixmap(r.topLeft(), cached)
+
+    def _draw_magnifier(self, painter: QPainter, ann: dict) -> None:
+        """Draw magnifier effect by zooming the region."""
+        r = QRectF(*ann["rect"]).toRect()
+        if r.isEmpty():
+            return
+
+        cached = ann.get("_cached")
+        if cached is None:
+            zoom = ann.get("zoom", 2)
+            dpr = self.pixmap.devicePixelRatio()
+
+            # Calculate source area (center of magnifier rect, smaller by zoom factor)
+            center_x = r.center().x()
+            center_y = r.center().y()
+            src_w = r.width() / zoom
+            src_h = r.height() / zoom
+
+            src_rect = QRect(
+                int((center_x - src_w / 2) * dpr),
+                int((center_y - src_h / 2) * dpr),
+                max(1, int(src_w * dpr)),
+                max(1, int(src_h * dpr))
+            )
+
+            # Extract and scale up
+            px = self.pixmap.copy(src_rect)
+            cached = px.scaled(r.width(), r.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            ann["_cached"] = cached
+
+        painter.drawPixmap(r.topLeft(), cached)
+
+        # Draw border
+        painter.setPen(QPen(QColor("#207ff0"), 2))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRect(r)
 
     def _draw_selection_indicator(self, painter: QPainter, ann: dict) -> None:
         bounds = self._get_ann_bounds(ann)
@@ -603,13 +704,15 @@ class PinWindow(QWidget):
             }
             self._add_annotation(ann)
             self._drawing = False
-        elif t in ("rect", "ellipse", "arrow", "line", "highlighter", "freehand"):
+        elif t in ("rect", "ellipse", "arrow", "line", "highlighter", "freehand", "mosaic", "blur", "magnifier"):
             # Preview will be updated in mouseMoveEvent
             pass
 
     def _update_drawing(self, event) -> None:
         pos = self._content_pos(event)
         t = self.current_tool
+
+        MIN_DRAW_THRESHOLD = 5
 
         if t in ("rect", "ellipse", "highlighter"):
             r = QRectF(self._draw_start, pos).normalized()
@@ -619,6 +722,30 @@ class PinWindow(QWidget):
                 "color": self.current_color.name(),
                 "width": self.current_width if t not in ("highlighter",) else 12,
             }
+        elif t == "mosaic":
+            r = QRectF(self._draw_start, pos).normalized()
+            if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
+                self._preview_annotation = {
+                    "type": "mosaic",
+                    "rect": (r.x(), r.y(), r.width(), r.height()),
+                    "scale": self.current_mosaic_scale,
+                }
+        elif t == "blur":
+            r = QRectF(self._draw_start, pos).normalized()
+            if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
+                self._preview_annotation = {
+                    "type": "blur",
+                    "rect": (r.x(), r.y(), r.width(), r.height()),
+                    "radius": self.current_blur_radius,
+                }
+        elif t == "magnifier":
+            r = QRectF(self._draw_start, pos).normalized()
+            if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
+                self._preview_annotation = {
+                    "type": "magnifier",
+                    "rect": (r.x(), r.y(), r.width(), r.height()),
+                    "zoom": self.current_magnifier_zoom,
+                }
         elif t in ("arrow", "line"):
             self._preview_annotation = {
                 "type": t,
