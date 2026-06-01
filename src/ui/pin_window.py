@@ -505,15 +505,27 @@ class PinWindow(QWidget, OcrMixin):
     # ─── Annotation Selection & Dragging ─────────────────
 
     def _hit_test_annotations(self, pos: QPointF) -> int | None:
-        """Return index of annotation at *pos*, or None. Test in reverse order (top first)."""
+        """Return index of annotation at *pos*, or None. Test in reverse order (top first).
+        For rect/ellipse: only detect border (Snipaste-style), not interior.
+        """
+        BORDER_THRESHOLD = 8  # pixels - distance from border to detect
+
         for i in range(len(self.annotations) - 1, -1, -1):
             ann = self.annotations[i]
             t = ann["type"]
             try:
                 if t in ("rect", "ellipse", "highlighter", "mosaic", "blur", "magnifier"):
                     r = QRectF(*ann["rect"])
+                    # Check if point is near border (not inside)
                     if r.contains(pos):
-                        return i
+                        # Point is inside - check distance to nearest edge
+                        dist_left = abs(pos.x() - r.left())
+                        dist_right = abs(pos.x() - r.right())
+                        dist_top = abs(pos.y() - r.top())
+                        dist_bottom = abs(pos.y() - r.bottom())
+                        min_dist = min(dist_left, dist_right, dist_top, dist_bottom)
+                        if min_dist <= BORDER_THRESHOLD:
+                            return i
                 elif t in ("arrow", "line"):
                     start = QPointF(*ann["start"])
                     end = QPointF(*ann["end"])
@@ -676,12 +688,17 @@ class PinWindow(QWidget, OcrMixin):
             elif self._toolbar_shown and self.current_tool in ("eraser_dot", "eraser_fill"):
                 # Update eraser cursor position
                 self.update()
-            elif self._toolbar_shown and self.current_tool in ("select", ""):
-                # 在 select 模式下，检查是否悬停在注解上
+            elif self._toolbar_shown:
+                # Check if hovering over annotation border (any tool)
                 pos = self._content_pos(event)
                 hit_idx = self._hit_test_annotations(pos)
                 if hit_idx is not None:
-                    self.setCursor(Qt.OpenHandCursor)  # 可拖动提示
+                    ann_type = self.annotations[hit_idx]["type"]
+                    # Show drag cursor if select tool or matching tool
+                    if self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
+                        self.setCursor(Qt.OpenHandCursor)  # 可拖动提示
+                    else:
+                        self.setCursor(Qt.ArrowCursor)
                 else:
                     self.setCursor(Qt.ArrowCursor)
             else:
@@ -694,15 +711,11 @@ class PinWindow(QWidget, OcrMixin):
                 event.accept()
                 return
             elif self._dragging_annotation:
-                # Finish dragging annotation
+                # Finish dragging annotation (Snipaste-style: deselect after drag)
                 self._dragging_annotation = False
-                # 恢复光标：检查是否仍在注解上
-                pos = self._content_pos(event)
-                hit_idx = self._hit_test_annotations(pos)
-                if hit_idx is not None:
-                    self.setCursor(Qt.OpenHandCursor)  # 悬停在注解上
-                else:
-                    self.setCursor(Qt.ArrowCursor)  # 普通光标
+                self._deselect_annotation()  # Auto-deselect after drag
+                # 恢复普通光标
+                self.setCursor(Qt.ArrowCursor)
                 event.accept()
                 return
             else:
