@@ -9,13 +9,14 @@ from ..ui.toast import ToastManager
 from ..core.settings import get_settings
 from ..core.i18n import _
 from ..overlay.toolbar import OverlayToolbar
+from ..overlay.ocr_mixin import OcrMixin
 from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR
 from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
 
 logger = setup_logger("pin_window")
 
 
-class PinWindow(QWidget):
+class PinWindow(QWidget, OcrMixin):
     """Floating pinned window with drop shadow, zoom, and annotation tools."""
 
     # Signals for communication with main application
@@ -91,8 +92,11 @@ class PinWindow(QWidget):
         self._text_editor_window_pos: QPoint | None = None
         self._editing_annotation_idx: int | None = None
 
-        # OCR worker
+        # OCR worker (required by OcrMixin)
         self._ocr_worker = None
+        self._ocr_progress = None
+        self._ocr_timer = None
+        self._ocr_start_time = None
 
         # --- Toolbar ---
         self._toolbar_obj: OverlayToolbar | None = None
@@ -1092,18 +1096,13 @@ class PinWindow(QWidget):
     def _on_ocr(self) -> None:
         """Perform OCR on the pinned image with annotations."""
         ToastManager.show(_("OCR recognizing..."), "🔍", "info", parent=self)
-
-        # Render the current image with annotations
         captured = self._render_annotated_pixmap()
-
-        # Convert to PIL image and perform OCR
         from ..ocr.engine import OcrWorker
         pil_image = qpixmap_to_pil(captured)
-
-        # Create OCR worker
         self._ocr_worker = OcrWorker(pil_image)
         self._ocr_worker.finished.connect(self._on_ocr_finished)
         self._ocr_worker.error.connect(self._on_ocr_error)
+        self._show_ocr_progress(self._cancel_ocr)
         self._ocr_worker.start()
 
     def _on_ocr_finished(self, text: str) -> None:
@@ -1120,13 +1119,6 @@ class PinWindow(QWidget):
         """Handle OCR error."""
         self._cleanup_ocr()
         QMessageBox.critical(self, _("OCR Error"), _("Text recognition failed:\n{error}").format(error=error_msg))
-
-    def _cleanup_ocr(self) -> None:
-        """Clean up OCR worker resources."""
-        if hasattr(self, '_ocr_worker') and self._ocr_worker:
-            self._ocr_worker.finished.disconnect()
-            self._ocr_worker.error.disconnect()
-            self._ocr_worker = None
 
     def _on_done_editing(self) -> None:
         """Called by toolbar 'Done' button. Hides the toolbar."""
