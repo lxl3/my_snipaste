@@ -67,6 +67,9 @@ class PinWindow(QWidget):
         self._annotation_drag_orig: dict = {}
         self._dragging_annotation: bool = False
 
+        # Mouse tracking
+        self._current_mouse_pos: QPoint = QPoint()
+
         # Tool state (matching overlay toolbar expectations)
         self.current_tool: str = "select"
         self.current_color: QColor = QColor("#ff0000")
@@ -149,6 +152,18 @@ class PinWindow(QWidget):
             self._draw_annotation(painter, self._preview_annotation)
         if 0 <= self._selected_annotation_index < len(self.annotations):
             self._draw_selection_indicator(painter, self.annotations[self._selected_annotation_index])
+
+        # Draw eraser cursor
+        if self.current_tool in ("eraser_dot", "eraser_fill") and self._toolbar_shown:
+            # Convert window position to content position
+            mouse_in_img = self._current_mouse_pos - img_rect.topLeft()
+            if img_rect.contains(self._current_mouse_pos):
+                painter.setPen(QPen(QColor(255, 0, 0), 2))
+                painter.setBrush(Qt.NoBrush)
+                # Draw at scaled position
+                scaled_r = self.eraser_size * self._zoom_factor if not self._resized_by_user and self._zoom_factor != 1.0 else self.eraser_size
+                painter.drawEllipse(mouse_in_img, scaled_r, scaled_r)
+
         painter.restore()
 
     # ─── Annotation Drawing ───────────────────────────────
@@ -585,6 +600,13 @@ class PinWindow(QWidget):
         # Check annotation selection when toolbar is shown
         if self._toolbar_shown:
             pos = self._content_pos(event)
+
+            # Handle eraser tool - erase annotation under cursor
+            if self.current_tool in ("eraser_dot", "eraser_fill"):
+                self._try_erase_annotation(pos)
+                event.accept()
+                return
+
             hit_idx = self._hit_test_annotations(pos)
 
             if hit_idx is not None:
@@ -611,6 +633,8 @@ class PinWindow(QWidget):
         event.accept()
 
     def mouseMoveEvent(self, event) -> None:
+        self._current_mouse_pos = event.position().toPoint()
+
         if self._resizing and self._resize_dir:
             self._handle_resize(event.globalPosition().toPoint())
             event.accept()
@@ -620,6 +644,11 @@ class PinWindow(QWidget):
             delta = pos - self._drag_start
             self._move_selected_annotation(delta)
             self.update()
+            event.accept()
+        elif self.current_tool == "eraser_dot" and event.buttons() & Qt.LeftButton:
+            # Eraser drag - continuously erase annotations
+            pos = self._content_pos(event)
+            self._try_erase_annotation(pos)
             event.accept()
         elif self._dragging:
             self.move(event.globalPosition().toPoint() - self._drag_pos)
@@ -631,6 +660,9 @@ class PinWindow(QWidget):
             resize_dir = self._get_resize_direction(event.position().toPoint())
             if resize_dir:
                 self._update_cursor(resize_dir)
+            elif self._toolbar_shown and self.current_tool in ("eraser_dot", "eraser_fill"):
+                # Update eraser cursor position
+                self.update()
             elif self._toolbar_shown and self.current_tool in ("select", ""):
                 # 在 select 模式下，检查是否悬停在注解上
                 pos = self._content_pos(event)
@@ -902,6 +934,113 @@ class PinWindow(QWidget):
             self._editing_annotation_idx = None
 
         self.update()
+
+    @staticmethod
+    def _point_to_rect_distance(point: QPointF, rect: QRectF) -> float:
+        """Calculate minimum distance from a point to a rectangle."""
+        cx = max(rect.left(), min(point.x(), rect.right()))
+        cy = max(rect.top(), min(point.y(), rect.bottom()))
+        return math.hypot(point.x() - cx, point.y() - cy)
+
+    @staticmethod
+    def _point_to_segment_distance(point: QPointF, p1: QPointF | tuple, p2: QPointF | tuple) -> float:
+        """Calculate minimum distance from a point to a line segment."""
+        # Convert tuples to QPointF if needed
+        if isinstance(p1, tuple):
+            p1 = QPointF(p1[0], p1[1])
+        if isinstance(p2, tuple):
+            p2 = QPointF(p2[0], p2[1])
+
+        dx = p2.x() - p1.x()
+        dy = p2.y() - p1.y()
+        length_sq = dx * dx + dy * dy
+        if length_sq == 0:
+            return math.hypot(point.x() - p1.x(), point.y() - p1.y())
+        t = max(0, min(1, ((point.x() - p1.x()) * dx + (point.y() - p1.y()) * dy) / length_sq))
+        proj_x = p1.x() + t * dx
+        proj_y = p1.y() + t * dy
+        return math.hypot(point.x() - proj_x, point.y() - proj_y)
+
+    def _try_erase_annotation(self, pos: QPointF) -> None:
+        """Try to erase annotation at the given position."""
+        r = self.eraser_size
+        for i in range(len(self.annotations) - 1, -1, -1):
+            ann = self.annotations[i]
+            t = ann["type"]
+
+            if t in ("rect", "ellipse", "mosaic", "blur", "magnifier"):
+                rect_data = ann["rect"]
+                if isinstance(rect_data, tuple):
+                    ann_rect = QRectF(rect_data[0], rect_data[1], rect_data[2], rect_data[3])
+                else:
+                    ann_rect = rect_data
+                d = self._point_to_rect_distance(pos, ann_rect)
+                if d < r:
+                    removed = self.annotations.pop(i)
+                    self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                    self._redo_stack.clear()
+                    self._update_toolbar_undo_redo()
+                    self.update()
+                    return
+
+            elif t in ("arrow", "line"):
+                d = self._point_to_segment_distance(pos, ann["start"], ann["end"])
+                if d < r:
+                    removed = self.annotations.pop(i)
+                    self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                    self._redo_stack.clear()
+                    self._update_toolbar_undo_redo()
+                    self.update()
+                    return
+
+            elif t == "freehand":
+                pts = ann["points"]
+                for j in range(len(pts) - 1):
+                    d = self._point_to_segment_distance(pos, pts[j], pts[j + 1])
+                    if d < r:
+                        removed = self.annotations.pop(i)
+                        self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                        self._redo_stack.clear()
+                        self._update_toolbar_undo_redo()
+                        self.update()
+                        return
+
+            elif t == "text":
+                font = QFont(ann["font_family"], ann["font_size"])
+                font.setBold(ann.get("bold", False))
+                font.setItalic(ann.get("italic", False))
+                fm = QFontMetrics(font)
+                tw = fm.horizontalAdvance(ann["text"])
+                th = fm.height()
+                text_pos = ann["pos"]
+                if isinstance(text_pos, tuple):
+                    text_rect = QRectF(text_pos[0], text_pos[1], tw, th)
+                else:
+                    text_rect = QRectF(text_pos.x(), text_pos.y(), tw, th)
+                d = self._point_to_rect_distance(pos, text_rect)
+                if d < r:
+                    removed = self.annotations.pop(i)
+                    self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                    self._redo_stack.clear()
+                    self._update_toolbar_undo_redo()
+                    self.update()
+                    return
+
+            elif t == "number_marker":
+                marker_pos = ann["pos"]
+                if isinstance(marker_pos, tuple):
+                    marker_pt = QPointF(marker_pos[0], marker_pos[1])
+                else:
+                    marker_pt = marker_pos
+                marker_radius = ann.get("radius", 14)
+                d = math.hypot(pos.x() - marker_pt.x(), pos.y() - marker_pt.y())
+                if d < r + marker_radius:
+                    removed = self.annotations.pop(i)
+                    self._undo_stack.append({"type": "remove", "ann": removed, "index": i})
+                    self._redo_stack.clear()
+                    self._update_toolbar_undo_redo()
+                    self.update()
+                    return
 
     # ─── Toolbar Interface (called by OverlayToolbar) ────
 
