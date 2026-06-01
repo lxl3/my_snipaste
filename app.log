@@ -1,0 +1,23 @@
+14:24:12 [INFO    ] app: MySnipaste 启动 - 阶段 1: 基础设置
+14:24:12 [INFO    ] tray: Tray menu configured
+14:24:12 [INFO    ] app: 托盘图标已显示
+14:24:12 [INFO    ] app: MySnipaste 启动 - 阶段 2: 异步加载组件
+14:24:12 [DEBUG   ] hotkeys: MultiPynputListener 启动中...
+14:24:12 [DEBUG   ] hotkeys: MultiPynputListener 监听线程已启动
+14:24:12 [INFO    ] app: 全局快捷键已启动
+14:24:12 [DEBUG   ] hotkeys: MultiPynputListener 创建 keyboard.Listener...
+14:24:12 [INFO    ] tray: Tray menu configured
+14:24:12 [INFO    ] app: MySnipaste 应用初始化完成
+14:24:15 [INFO    ] app: 启动提示框已关闭
+14:24:17 [DEBUG   ] hotkeys: 多快捷键触发: capture = f12
+14:24:17 [INFO    ] app: start_capture() 被调用
+14:24:17 [INFO    ] app: 启动截图
+14:24:17 [INFO    ] overlay: init overlay, screen: PySide6.QtCore.QRect(0, 0, 1280, 800)
+14:24:17 [DEBUG   ] utils: _grab_and_fit(\\.\DISPLAY1): isNull=False w=1920 h=1200 expected=(1280x800)
+14:24:17 [DEBUG   ] overlay: screenshot size: 1920x1200
+14:24:18 [DEBUG   ] overlay: tool selected: select
+14:24:19 [DEBUG   ] overlay: tool selected: rect
+14:48:17 [INFO    ] app: 用户请求退出应用
+14:48:17 [DEBUG   ] hotkeys: MultiPynputListener 停止
+14:48:17 [DEBUG   ] hotkeys: MultiPynputListener 监听循环已退出
+14:48:17 [DEBUG   ] hotkeys: MultiPynputListener 停止

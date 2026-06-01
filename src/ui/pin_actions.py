@@ -210,6 +210,7 @@ class PinWindowActionsMixin:
     def _try_erase_annotation(self, pos: QPointF) -> None:
         """Try to erase annotation at the given position (adapted from OverlayActionsMixin)."""
         r = self.eraser_size
+        print(f"[DEBUG] 擦除检测: pos=({pos.x():.0f},{pos.y():.0f}), r={r}, annotations={len(self.annotations)}")
         logger.debug(f"擦除检测: pos=({pos.x():.0f},{pos.y():.0f}), r={r}, annotations={len(self.annotations)}")
         for i in range(len(self.annotations) - 1, -1, -1):
             ann = self.annotations[i]

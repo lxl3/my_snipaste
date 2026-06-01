@@ -28,7 +28,21 @@
       "Bash(cat)",
       "Read(//tmp/**)",
       "Bash(pytest tests/test_settings_memory.py -v --tb=short)",
-      "Bash(grep -E \"\\\\.\\(md|txt\\)$\")"
+      "Bash(grep -E \"\\\\.\\(md|txt\\)$\")",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs -r kill)",
+      "Bash(pkill -f \"python main.py\")",
+      "Bash(tee /tmp/pin_debug.log)",
+      "Bash(git *)"
     ]
+  },
+  "mcpServers": {
+    "codegraph": {
+      "command": "codegraph",
+      "args": [
+        "serve",
+        "--mcp"
+      ]
+    }
   }
 }
