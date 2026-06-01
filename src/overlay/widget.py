@@ -740,9 +740,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             hit_idx = self._hit_test_annotation(self.current_mouse_pos)
             if hit_idx is not None:
                 ann_type = self.annotations[hit_idx]["type"]
-                # Show drag cursor if select tool or matching tool
+                # Show crosshair cursor if select tool or matching tool
                 if self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
-                    self.setCursor(Qt.OpenHandCursor)
+                    self.setCursor(Qt.CrossCursor)  # 十字架光标
                 else:
                     handle = self._handle_at_pos(self.current_mouse_pos)
                     self.setCursor(self._cursor_for_handle(handle))

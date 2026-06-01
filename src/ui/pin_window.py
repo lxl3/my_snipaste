@@ -694,9 +694,9 @@ class PinWindow(QWidget, OcrMixin):
                 hit_idx = self._hit_test_annotations(pos)
                 if hit_idx is not None:
                     ann_type = self.annotations[hit_idx]["type"]
-                    # Show drag cursor if select tool or matching tool
+                    # Show crosshair cursor if select tool or matching tool
                     if self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
-                        self.setCursor(Qt.OpenHandCursor)  # 可拖动提示
+                        self.setCursor(Qt.CrossCursor)  # 十字架光标
                     else:
                         self.setCursor(Qt.ArrowCursor)
                 else:
