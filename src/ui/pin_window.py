@@ -797,6 +797,7 @@ class PinWindow(QWidget):
         self.annotations.append(ann)
         self._undo_stack.append({"type": "add", "ann": dict(ann), "index": len(self.annotations) - 1})
         self._redo_stack.clear()
+        self._update_toolbar_undo_redo()
         self.update()
 
     # ─── Toolbar Interface (called by OverlayToolbar) ────
