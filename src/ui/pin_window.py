@@ -427,6 +427,7 @@ class PinWindow(QWidget):
             self._annotation_drag_orig["pos"] = QPointF(*ann["pos"])
         self._drag_start = event_pos
         self._dragging_annotation = True
+        self.setCursor(Qt.ClosedHandCursor)  # 拖动光标
         self.update()
 
     def _deselect_annotation(self) -> None:
@@ -517,7 +518,18 @@ class PinWindow(QWidget):
             event.accept()
         else:
             resize_dir = self._get_resize_direction(event.position().toPoint())
-            self._update_cursor(resize_dir)
+            if resize_dir:
+                self._update_cursor(resize_dir)
+            elif self._toolbar_shown and self.current_tool in ("select", ""):
+                # 在 select 模式下，检查是否悬停在注解上
+                pos = self._content_pos(event)
+                hit_idx = self._hit_test_annotations(pos)
+                if hit_idx is not None:
+                    self.setCursor(Qt.OpenHandCursor)  # 可拖动提示
+                else:
+                    self.setCursor(Qt.ArrowCursor)
+            else:
+                self._update_cursor(resize_dir)
 
     def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
@@ -528,7 +540,13 @@ class PinWindow(QWidget):
             elif self._dragging_annotation:
                 # Finish dragging annotation
                 self._dragging_annotation = False
-                # Could add to undo stack here if needed
+                # 恢复光标：检查是否仍在注解上
+                pos = self._content_pos(event)
+                hit_idx = self._hit_test_annotations(pos)
+                if hit_idx is not None:
+                    self.setCursor(Qt.OpenHandCursor)  # 悬停在注解上
+                else:
+                    self.setCursor(Qt.ArrowCursor)  # 普通光标
                 event.accept()
                 return
             else:
