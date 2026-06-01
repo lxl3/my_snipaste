@@ -105,7 +105,7 @@ class OverlaySelectionMixin:
             self._annotation_drag_orig["pos"] = QPointF(ann["pos"])
         self._drag_start_pos = event_pos
         self._drag_mode = ("move_annotation",)
-        self.toolbar.toolbar.hide()
+        # Keep toolbar visible during annotation drag (consistent with pin_window)
         self.update()
 
     def _deselect_annotation(self) -> None:
