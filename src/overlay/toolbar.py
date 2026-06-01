@@ -587,18 +587,21 @@ class OverlayToolbar:
         toolbar_layout.addWidget(self._redo_btn)
 
     def _build_action_btns(self, toolbar_layout) -> None:
-        close_fn = self.overlay._on_done_editing if self.pin_window_mode else self.overlay.close
-        actions = [
-            ("close", _("Close (Exit)"), close_fn),
-        ]
-        if self.pin_window_mode:
-            actions.append(("done", _("Done Editing"), self.overlay._on_done_editing))
-        else:
+        actions = []
+        if not self.pin_window_mode:
+            # 截图模式：显示关闭和贴图按钮
+            actions.append(("close", _("Close (Exit)"), self.overlay.close))
             actions.append(("pin", _("Pin (Stick to desktop)"), self.overlay.on_pin))
+
+        # 共同按钮：保存和复制
         actions += [
             ("save", _("Save to file"), self.overlay.on_save),
             ("copy", _("Copy to clipboard"), self.overlay.on_copy),
         ]
+
+        # Pin 窗口模式：在复制后添加完成编辑按钮
+        if self.pin_window_mode:
+            actions.append(("done", _("Done Editing"), self.overlay._on_done_editing))
         for icon, tooltip, fn in actions:
             btn = QToolButton()
             btn.setIcon(self._load_icon(icon))

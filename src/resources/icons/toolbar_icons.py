@@ -98,8 +98,8 @@ TOOLBAR_ICONS = {
 </svg>""",
 
     "done": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="10" fill="#207ff0" stroke="#207ff0"/>
-  <polyline points="8 12 11 15 16 9" stroke="#ffffff" stroke-width="2.5"/>
+  <circle cx="12" cy="12" r="10"/>
+  <polyline points="8 12 11 15 16 9" stroke-width="2.5"/>
 </svg>""",
 
     "copy": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
