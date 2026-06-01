@@ -1,9 +1,11 @@
 """Full-screen overlay for area selection, annotation, and event handling.
 
-Composed of CaptureOverlay (main class) + 3 mixins:
+Composed of CaptureOverlay (main class) + 5 mixins:
 - OcrMixin              — OCR progress / cancellation
 - OverlayRenderingMixin — annotation rendering
 - OverlayActionsMixin   — actions / text editing
+- OverlaySelectionMixin — selection / hit-testing / dragging
+- OverlayDrawingMixin   — drawing state / tool selection
 """
 
 import math
@@ -17,6 +19,8 @@ from ..core.settings import get_settings
 from .toolbar import OverlayToolbar
 from .rendering import OverlayRenderingMixin
 from .actions import OverlayActionsMixin
+from .selection import OverlaySelectionMixin
+from .drawing import OverlayDrawingMixin
 from .ocr_mixin import OcrMixin
 from .hotkey_panel import HotkeyHelpPanel
 from ..core.constants import (
@@ -34,7 +38,7 @@ TOOLBAR_FIXED_WIDTH = 420  # px - 足够容纳最宽的工具菜单
 TOOLBAR_FIXED_HEIGHT = 32  # px - 标准工具栏高度
 
 
-class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMixin):
+class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMixin, OverlaySelectionMixin, OverlayDrawingMixin):
     """Full-screen semi-transparent overlay with selection, annotation, and OCR."""
 
     pin_requested = Signal(object, object)
@@ -139,220 +143,15 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         self._hotkey_panel = None
 
-    # ─── Selection helpers ───
-
-    def _capture_pos(self) -> QPoint:
-        return self.total_geometry.topLeft() + self.selection_rect.topLeft()
+    # ─── Helper needed by mixins ───
 
     def _sel_to_local(self, pos: QPoint) -> QPointF:
+        """Convert screen position to selection-relative position."""
         return QPointF(pos - self.selection_rect.topLeft())
 
-    # ─── Annotation hit-test & selection ───
-
-    def _hit_test_annotation(self, pos: QPoint) -> int | None:
-        """Return index of annotation at *pos* (topmost first), or None.
-        Freehand annotations are excluded from selection entirely.
-        For rect/ellipse: only detect border (Snipaste-style), not interior."""
-        BORDER_THRESHOLD = 8  # pixels - distance from border to detect
-
-        local = self._sel_to_local(QPointF(pos))
-        for i in range(len(self.annotations) - 1, -1, -1):
-            ann = self.annotations[i]
-            t = ann["type"]
-            if t == "freehand":
-                continue  # freehand is never selectable
-            try:
-                if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                    r = QRectF(ann["rect"])
-                    # Check if point is near border (Snipaste-style)
-                    if r.contains(local):
-                        # Point is inside - check distance to nearest edge
-                        dist_left = abs(local.x() - r.left())
-                        dist_right = abs(local.x() - r.right())
-                        dist_top = abs(local.y() - r.top())
-                        dist_bottom = abs(local.y() - r.bottom())
-                        min_dist = min(dist_left, dist_right, dist_top, dist_bottom)
-                        if min_dist <= BORDER_THRESHOLD:
-                            return i
-                elif t in ("arrow", "line"):
-                    d = self._point_to_segment_distance(local, ann["start"], ann["end"])
-                    if d < 8:
-                        return i
-                elif t == "freehand":
-                    pts = ann["points"]
-                    for j in range(len(pts) - 1):
-                        d = self._point_to_segment_distance(local, pts[j], pts[j + 1])
-                        if d < 8:
-                            return i
-                elif t == "number_marker":
-                    center = QPointF(ann["pos"])
-                    r = ann.get("radius", 14)
-                    if math.hypot(local.x() - center.x(), local.y() - center.y()) < r + 4:
-                        return i
-                elif t == "text":
-                    fm = QFontMetrics(QFont(ann["font_family"], ann["font_size"]))
-                    tw = fm.horizontalAdvance(ann["text"])
-                    th = fm.height()
-                    text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
-                    if text_rect.contains(local):
-                        return i
-            except Exception:
-                continue
-        return None
-
-    def _select_annotation(self, idx: int, event_pos: QPointF) -> None:
-        """Select annotation at *idx* and prepare for possible drag."""
-        self._selected_annotation_idx = idx
-        ann = self.annotations[idx]
-        # Snapshot original position data for drag delta calculation
-        self._annotation_drag_orig = {}
-        t = ann["type"]
-        if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-            self._annotation_drag_orig["rect"] = QRectF(ann["rect"])
-        elif t in ("arrow", "line"):
-            self._annotation_drag_orig["start"] = QPointF(ann["start"])
-            self._annotation_drag_orig["end"] = QPointF(ann["end"])
-        elif t == "freehand":
-            self._annotation_drag_orig["points"] = [QPointF(p) for p in ann["points"]]
-        elif t in ("text", "number_marker"):
-            self._annotation_drag_orig["pos"] = QPointF(ann["pos"])
-        self._drag_start_pos = event_pos
-        self._drag_mode = ("move_annotation",)
-        self.toolbar.toolbar.hide()
-        self.update()
-
-    def _deselect_annotation(self) -> None:
-        self._selected_annotation_idx = None
-        self._annotation_drag_orig = {}
-        self.update()
-
-    def _apply_property_to_selected(self, key: str, value) -> None:
-        """Update a property on the currently selected annotation, if any."""
-        if self._selected_annotation_idx is None:
-            return
-        ann = self.annotations[self._selected_annotation_idx]
-        if key == "color" and "color" in ann:
-            ann["color"] = QColor(value) if isinstance(value, str) else value
-        elif key == "width" and "width" in ann:
-            ann["width"] = value
-        elif key == "blur_radius" and ann["type"] == "blur":
-            ann["radius"] = value
-            ann.pop("_cached", None)  # force re-render
-        elif key == "magnifier_zoom" and ann["type"] == "magnifier":
-            ann["zoom"] = value
-            ann.pop("_cached", None)  # force re-render with new zoom
-        elif key == "mosaic_scale" and ann["type"] == "mosaic":
-            ann["scale"] = value
-            ann.pop("_cached", None)  # force re-render with new scale
-        elif key == "font_family" and ann["type"] == "text":
-            ann["font_family"] = value
-        elif key == "font_size" and ann["type"] == "text":
-            ann["font_size"] = value
-        elif key == "bold" and ann["type"] == "text":
-            ann["bold"] = value
-        elif key == "italic" and ann["type"] == "text":
-            ann["italic"] = value
-        elif key == "text_color" and ann["type"] == "text":
-            ann["color"] = QColor(value) if isinstance(value, str) else value
-        self.update()
-
-    def _get_annotation_bounds_local(self, ann: dict) -> QRectF:
-        """Bounding rect of an annotation in *local* (selection-relative) coords."""
-        t = ann["type"]
-        try:
-            if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                return QRectF(ann["rect"])
-            elif t in ("arrow", "line"):
-                pts = [ann["start"], ann["end"]]
-                xs = [p.x() for p in pts]
-                ys = [p.y() for p in pts]
-                margin = ann.get("width", 3) + 4
-                return QRectF(min(xs) - margin, min(ys) - margin,
-                              max(xs) - min(xs) + margin * 2,
-                              max(ys) - min(ys) + margin * 2)
-            elif t == "freehand":
-                pts = ann["points"]
-                if not pts:
-                    return QRectF()
-                margin = ann.get("width", 3) + 4
-                xs = [p.x() for p in pts]
-                ys = [p.y() for p in pts]
-                return QRectF(min(xs) - margin, min(ys) - margin,
-                              max(xs) - min(xs) + margin * 2,
-                              max(ys) - min(ys) + margin * 2)
-            elif t == "number_marker":
-                r = ann.get("radius", 14)
-                return QRectF(ann["pos"].x() - r, ann["pos"].y() - r, r * 2, r * 2)
-            elif t == "text":
-                fm = QFontMetrics(QFont(ann["font_family"], ann["font_size"]))
-                tw = fm.horizontalAdvance(ann["text"])
-                th = fm.height()
-                return QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
-        except Exception:
-            pass
-        return QRectF()
-
-    def _get_all_handles(self, rect: QRect) -> list[QRect]:
-        half = HANDLE_SIZE // 2
-        r = rect
-        return [
-            QRect(r.left() - half, r.top() - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(r.right() - half, r.top() - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(r.left() - half, r.bottom() - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(r.right() - half, r.bottom() - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(r.center().x() - half, r.top() - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(r.center().x() - half, r.bottom() - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(r.left() - half, r.center().y() - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(r.right() - half, r.center().y() - half, HANDLE_SIZE, HANDLE_SIZE),
-        ]
-
-    def _handle_at_pos(self, pos: QPoint) -> str | None:
-        handles = self._get_all_handles(self.selection_rect)
-        names = ["top-left", "top-right", "bottom-left", "bottom-right",
-                 "top-center", "bottom-center", "left-center", "right-center"]
-        for h_rect, name in zip(handles, names):
-            if h_rect.contains(pos):
-                return name
-        return None
-
-    def _cursor_for_handle(self, handle_name: str | None) -> Qt.CursorShape:
-        if not handle_name:
-            inside = self.selection_rect.contains(self.current_mouse_pos)
-            if self.current_tool == "select" and inside:
-                return Qt.SizeAllCursor
-            return Qt.ArrowCursor if inside else Qt.CrossCursor
-        mapping = {
-            "top-left": Qt.SizeFDiagCursor, "bottom-right": Qt.SizeFDiagCursor,
-            "top-right": Qt.SizeBDiagCursor, "bottom-left": Qt.SizeBDiagCursor,
-            "top-center": Qt.SizeVerCursor, "bottom-center": Qt.SizeVerCursor,
-            "left-center": Qt.SizeHorCursor, "right-center": Qt.SizeHorCursor,
-        }
-        return mapping.get(handle_name, Qt.ArrowCursor)
-
-    # ─── Selection rectangle constraints ───
-
-    def _constrain_rect_to_screen(self, rect: QRect) -> QRect:
-        """限制矩形在屏幕范围内"""
-        screen_width = self.width()
-        screen_height = self.height()
-
-        # 获取矩形的位置和尺寸
-        x = rect.x()
-        y = rect.y()
-        w = rect.width()
-        h = rect.height()
-
-        # 限制位置（确保左上角在屏幕内）
-        x = max(0, min(x, screen_width - w))
-        y = max(0, min(y, screen_height - h))
-
-        # 限制尺寸（如果矩形超出屏幕，裁剪尺寸）
-        if x + w > screen_width:
-            w = screen_width - x
-        if y + h > screen_height:
-            h = screen_height - y
-
-        return QRect(x, y, max(1, w), max(1, h))
+    def _capture_pos(self) -> QPoint:
+        """Return top-left corner of selection in screen coordinates."""
+        return self.total_geometry.topLeft() + self.selection_rect.topLeft()
 
     # ─── Toolbar positioning ───
 
@@ -496,12 +295,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.deleteLater()
         super().closeEvent(event)
 
-    def _begin_drag(self, mode, event) -> None:
-        self._drag_mode = mode
-        self._drag_start_pos = event.position()
-        self._drag_start_rect = QRect(self.selection_rect)
-        self.toolbar.toolbar.hide()
-
     def mousePressEvent(self, event) -> None:
         if self._text_editor and not self._text_editor.geometry().contains(event.position().toPoint()):
             self._finish_text_input()
@@ -565,153 +358,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                     return
             self._start_selection(pos)
 
-    def _start_drawing(self, pos: QPoint) -> None:
-        local = self._sel_to_local(QPointF(pos))
-        self._drawing = True
-        self._draw_start = local
-        self._draw_points = [local]
-        if self.current_tool == "text":
-            if self._text_editor:
-                self._finish_text_input()
-            self._text_editor_pos = local
-            self._text_editor = QLineEdit(self)
-            font = QFont(self.text_font_family, self.text_font_size)
-            font.setBold(self.text_bold)
-            font.setItalic(self.text_italic)
-            self._text_editor.setFont(font)
-
-            # Subtract 1px offset to compensate for QLineEdit internal rendering
-            self._text_editor_window_pos = self.selection_rect.topLeft() + local.toPoint() - QPoint(1, 1)
-
-            self._text_editor.setStyleSheet(f"""
-                QLineEdit {{
-                    background: transparent;
-                    border: none;
-                    padding: 0px;
-                    color: {self.text_color.name()};
-                }}
-            """)
-            self._text_editor.setTextMargins(0, 0, 0, 0)
-            self._text_editor.setContentsMargins(0, 0, 0, 0)
-            # Ensure left alignment so text expands to the right
-            self._text_editor.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-            self._text_editor.move(self._text_editor_window_pos)
-            self._text_editor.setMinimumWidth(50)
-            self._text_editor.setAttribute(Qt.WA_DeleteOnClose)
-            self._text_editor.textChanged.connect(self._adjust_text_editor_size)
-            self._adjust_text_editor_size()
-            self.releaseKeyboard()
-            self._text_editor.show()
-            self._text_editor.setFocus()
-            self._text_editor.returnPressed.connect(self._finish_text_input)
-            self._text_editor.editingFinished.connect(self._finish_text_input)
-            self._drawing = False
-        elif self.current_tool == "number_marker":
-            self._marker_counter = getattr(self, '_marker_counter', 0) + 1
-            ann = {
-                "type": "number_marker", "pos": local,
-                "number": self._marker_counter,
-                "color": QColor(self.current_color),
-                "text_color": QColor("#ffffff"),
-                "radius": 14,
-            }
-            self.annotations.append(ann)
-            self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
-            self._redo_stack.clear()
-            self.toolbar.update_undo_redo_state()
-            self._drawing = False
-            self.update()
-
-    def _start_selection(self, pos: QPoint) -> None:
-        # safety: keep annotations when eraser is active
-        if self.current_tool in ("eraser_dot", "eraser_fill") and self.annotations:
-            logger.warning(f"_start_selection called during eraser mode (annotations={len(self.annotations)}), ignoring")
-            return
-        self.is_selecting = True
-        self.toolbar.toolbar.hide()
-        self._deselect_annotation()
-        self.annotations.clear()
-        self.start_point = pos
-        self.end_point = self.start_point
-        self.selection_rect = QRect()
-        # Use _on_tool_selected to properly save/restore settings
-        self._on_tool_selected("select")
-        self.update()
-
-    def _save_current_tool_settings(self) -> None:
-        """Save current tool settings to persistent storage."""
-        # Only save settings for annotation tools (not select or eraser)
-        if self.current_tool not in ("select", "eraser_dot", "eraser_fill"):
-            settings_dict = {
-                "color": self.current_color.name(),
-                "width": self.current_width,
-            }
-            s = get_settings()
-            s.save_tool_settings(self.current_tool, settings_dict)
-
-    def _on_tool_selected(self, tool_id: str) -> None:
-        logger.debug(f"tool selected: {tool_id}")
-
-        # Deselect any selected annotation when switching tools
-        self._deselect_annotation()
-
-        # Save current tool settings before switching
-        self._save_current_tool_settings()
-
-        # Switch to new tool
-        self.current_tool = tool_id
-
-        # Update last_tool in settings
-        s = get_settings()
-        s.last_tool = tool_id
-        s.save()
-
-        # Restore new tool's settings
-        if tool_id not in ("select", "eraser_dot", "eraser_fill"):
-            tool_settings = s.get_tool_settings(tool_id)
-            if tool_settings:
-                # Restore color if saved
-                if "color" in tool_settings:
-                    color = QColor(tool_settings["color"])
-                    self.current_color = color if color.isValid() else QColor(s.default_color)
-                else:
-                    self.current_color = QColor(s.default_color)
-                # Restore width if saved
-                saved_width = tool_settings.get("width")
-                if saved_width is not None:
-                    self.current_width = saved_width
-
-        # Update UI
-        for tid, btn in self.toolbar._tool_btns.items():
-            btn.setChecked(tid == tool_id)
-        self.update()
-        if tool_id in ("eraser_dot", "eraser_fill"):
-            self.setCursor(Qt.CrossCursor)
-        elif tool_id == "select":
-            self.setCursor(Qt.SizeAllCursor if not self.selection_rect.isNull() else Qt.CrossCursor)
-
-    def _on_color_changed(self, color: QColor) -> None:
-        self.current_color = color
-        if self.current_tool == "mosaic":
-            QTimer.singleShot(50, self.update)
-
-    def _on_width_changed(self, width: int) -> None:
-        self.current_width = width
-        if self.current_tool == "mosaic":
-            QTimer.singleShot(50, self.update)
-
-    def _on_font_family_changed(self, family: str) -> None:
-        self.text_font_family = family
-
-    def _on_font_size_changed(self, size: int) -> None:
-        self.text_font_size = size
-
-    def _on_bold_toggled(self, bold: bool) -> None:
-        self.text_bold = bold
-
-    def _on_italic_toggled(self, italic: bool) -> None:
-        self.text_italic = italic
-
     def mouseMoveEvent(self, event) -> None:
         self.current_mouse_pos = event.position().toPoint()
         # eraser drag
@@ -750,106 +396,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 handle = self._handle_at_pos(self.current_mouse_pos)
                 self.setCursor(self._cursor_for_handle(handle))
             self.update()
-
-    def _update_drawing(self) -> None:
-        local = self._sel_to_local(QPointF(self.current_mouse_pos))
-        if self.current_tool == "freehand":
-            self._draw_points.append(local)
-            if len(self._draw_points) == 2:
-                self.annotations.append({
-                    "type": "freehand", "points": list(self._draw_points),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                })
-                self._undo_stack.append({"type": "add", "ann": self.annotations[-1], "index": len(self.annotations) - 1})
-                self._redo_stack.clear()
-                self.toolbar.update_undo_redo_state()
-            elif len(self._draw_points) > 2 and self.annotations and self.annotations[-1]["type"] == "freehand":
-                ann = self.annotations[-1]
-                ann["points"] = list(self._draw_points)
-                ann.pop("_path", None)
-        else:
-            dx = local.x() - self._draw_start.x()
-            dy = local.y() - self._draw_start.y()
-            if self.current_tool in ("rect", "ellipse"):
-                self._preview_annotation = {
-                    "type": self.current_tool, "rect": QRectF(self._draw_start, local).normalized(),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                }
-            elif self.current_tool in ("arrow", "line") and (abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD):
-                self._preview_annotation = {
-                    "type": self.current_tool, "start": QPointF(self._draw_start),
-                    "end": QPointF(local), "color": QColor(self.current_color), "width": self.current_width,
-                }
-            elif self.current_tool == "mosaic":
-                r = QRectF(self._draw_start, local).normalized()
-                if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                    self._preview_annotation = {"type": "mosaic", "rect": r, "scale": self.current_mosaic_scale}
-            elif self.current_tool == "highlighter":
-                self._preview_annotation = {
-                    "type": "highlighter", "rect": QRectF(self._draw_start, local).normalized(),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                }
-            elif self.current_tool == "blur":
-                r = QRectF(self._draw_start, local).normalized()
-                if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                    self._preview_annotation = {"type": "blur", "rect": r, "radius": self.current_blur_radius}
-            elif self.current_tool == "magnifier":
-                r = QRectF(self._draw_start, local).normalized()
-                if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                    self._preview_annotation = {"type": "magnifier", "rect": r, "zoom": self.current_magnifier_zoom}
-        self.update()
-
-    def _update_drag(self, current_pos: QPointF) -> None:
-        delta = current_pos - self._drag_start_pos
-        mode = self._drag_mode[0]
-        if mode == "move":
-            rect = QRect(
-                round(self._drag_start_rect.x() + delta.x()), round(self._drag_start_rect.y() + delta.y()),
-                self._drag_start_rect.width(), self._drag_start_rect.height(),
-            )
-            self.selection_rect = self._constrain_rect_to_screen(rect)
-        elif mode == "resize":
-            handle = self._drag_mode[1]
-            r = QRect(self._drag_start_rect)
-            if "left" in handle:
-                r.setLeft(round(self._drag_start_rect.left() + delta.x()))
-            if "right" in handle:
-                r.setRight(round(self._drag_start_rect.right() + delta.x()))
-            if "top" in handle:
-                r.setTop(round(self._drag_start_rect.top() + delta.y()))
-            if "bottom" in handle:
-                r.setBottom(round(self._drag_start_rect.bottom() + delta.y()))
-            self.selection_rect = self._constrain_rect_to_screen(r.normalized())
-        elif mode == "move_annotation":
-            self._move_selected_annotation(delta)
-        self.update()
-
-    def _move_selected_annotation(self, delta: QPointF) -> None:
-        """Apply *delta* to the drag-origin snapshot of the selected annotation."""
-        if self._selected_annotation_idx is None:
-            return
-        ann = self.annotations[self._selected_annotation_idx]
-        t = ann["type"]
-        orig = self._annotation_drag_orig
-        if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier") and "rect" in orig:
-            r = orig["rect"]
-            ann["rect"] = QRectF(r.x() + delta.x(), r.y() + delta.y(),
-                                  r.width(), r.height())
-            # Invalidate cached render (position-dependent for blur/mosaic/magnifier)
-            if t in ("mosaic", "blur", "magnifier"):
-                ann.pop("_cached", None)
-        elif t in ("arrow", "line") and "start" in orig and "end" in orig:
-            ann["start"] = QPointF(orig["start"].x() + delta.x(),
-                                    orig["start"].y() + delta.y())
-            ann["end"] = QPointF(orig["end"].x() + delta.x(),
-                                  orig["end"].y() + delta.y())
-        elif t == "freehand" and "points" in orig:
-            ann["points"] = [QPointF(p.x() + delta.x(), p.y() + delta.y())
-                             for p in orig["points"]]
-            ann.pop("_path", None)
-        elif t in ("text", "number_marker") and "pos" in orig:
-            ann["pos"] = QPointF(orig["pos"].x() + delta.x(),
-                                  orig["pos"].y() + delta.y())
 
     def mouseReleaseEvent(self, event) -> None:
         if event.button() != Qt.LeftButton:
@@ -942,32 +488,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         pixmap.save(filepath)
         logger.info(f"Auto-saved to {filepath}")
         self.close()
-
-    def _finish_drawing(self) -> None:
-        self._drawing = False
-        if self._preview_annotation and self._preview_annotation["type"] != "freehand":
-            ann = self._preview_annotation
-            if ann["type"] in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier") and ann["rect"].width() > MIN_DRAW_THRESHOLD and ann["rect"].height() > MIN_DRAW_THRESHOLD:
-                self.annotations.append(ann)
-                self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
-                self._redo_stack.clear()
-                self.toolbar.update_undo_redo_state()
-            elif ann["type"] in ("arrow", "line"):
-                dx = ann["end"].x() - ann["start"].x()
-                dy = ann["end"].y() - ann["start"].y()
-                if abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD:
-                    self.annotations.append(ann)
-                    self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
-                    self._redo_stack.clear()
-                    self.toolbar.update_undo_redo_state()
-        elif self.current_tool == "freehand" and self.annotations and self.annotations[-1]["type"] == "freehand":
-            if len(self.annotations[-1]["points"]) < 2:
-                self.annotations.pop()
-            else:
-                # Freehand drawing complete — push to undo stack (only once, not per segment)
-                pass  # freehand is added incrementally in _update_drawing
-        self._preview_annotation = None
-        self.update()
 
     def keyPressEvent(self, event) -> None:
         # Hotkey help panel toggle
