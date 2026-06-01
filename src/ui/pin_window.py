@@ -331,6 +331,9 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier") and "rect" in orig:
             r = orig["rect"]
             ann["rect"] = (r.x() + delta.x(), r.y() + delta.y(), r.width(), r.height())
+            # Clear cache for mosaic, blur, magnifier so they re-render at new position
+            if t in ("mosaic", "blur", "magnifier") and "_cached" in ann:
+                ann.pop("_cached")
         elif t in ("arrow", "line") and "start" in orig and "end" in orig:
             ann["start"] = (orig["start"].x() + delta.x(), orig["start"].y() + delta.y())
             ann["end"] = (orig["end"].x() + delta.x(), orig["end"].y() + delta.y())
