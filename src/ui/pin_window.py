@@ -258,7 +258,12 @@ class PinWindow(QWidget, OcrMixin):
         painter.drawPath(path)
 
     def _draw_text_item(self, painter: QPainter, ann: dict) -> None:
-        pos = QPointF(*ann["pos"])
+        # Support both tuple and QPointF formats
+        pos_data = ann["pos"]
+        if isinstance(pos_data, QPointF):
+            pos = pos_data
+        else:
+            pos = QPointF(*pos_data)
         painter.setFont(QFont(ann["font_family"], ann["font_size"]))
         font = painter.font()
         font.setBold(ann["bold"])
@@ -921,10 +926,15 @@ class PinWindow(QWidget, OcrMixin):
                     ann["bold"] = self.text_bold
                     ann["italic"] = self.text_italic
             else:
+                # Store pos as tuple for consistency with other PinWindow annotations
                 self.annotations.append({
-                    "type": "text", "pos": self._text_editor_pos, "text": text,
-                    "color": QColor(self.text_color), "font_family": self.text_font_family,
-                    "font_size": self.text_font_size, "bold": self.text_bold,
+                    "type": "text",
+                    "pos": (self._text_editor_pos.x(), self._text_editor_pos.y()),
+                    "text": text,
+                    "color": QColor(self.text_color),
+                    "font_family": self.text_font_family,
+                    "font_size": self.text_font_size,
+                    "bold": self.text_bold,
                     "italic": self.text_italic,
                 })
                 self._undo_stack.append({"type": "add", "ann": self.annotations[-1], "index": len(self.annotations) - 1})
