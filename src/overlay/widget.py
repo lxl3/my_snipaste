@@ -151,7 +151,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def _hit_test_annotation(self, pos: QPoint) -> int | None:
         """Return index of annotation at *pos* (topmost first), or None.
-        Freehand annotations are excluded from selection entirely."""
+        Freehand annotations are excluded from selection entirely.
+        For rect/ellipse: only detect border (Snipaste-style), not interior."""
+        BORDER_THRESHOLD = 8  # pixels - distance from border to detect
+
         local = self._sel_to_local(QPointF(pos))
         for i in range(len(self.annotations) - 1, -1, -1):
             ann = self.annotations[i]
@@ -160,8 +163,17 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 continue  # freehand is never selectable
             try:
                 if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                    if QRectF(ann["rect"]).contains(local):
-                        return i
+                    r = QRectF(ann["rect"])
+                    # Check if point is near border (Snipaste-style)
+                    if r.contains(local):
+                        # Point is inside - check distance to nearest edge
+                        dist_left = abs(local.x() - r.left())
+                        dist_right = abs(local.x() - r.right())
+                        dist_top = abs(local.y() - r.top())
+                        dist_bottom = abs(local.y() - r.bottom())
+                        min_dist = min(dist_left, dist_right, dist_top, dist_bottom)
+                        if min_dist <= BORDER_THRESHOLD:
+                            return i
                 elif t in ("arrow", "line"):
                     d = self._point_to_segment_distance(local, ann["start"], ann["end"])
                     if d < 8:
@@ -726,8 +738,19 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.selection_rect = self._constrain_rect_to_screen(rect)
             self.update()
         elif not self.selection_rect.isNull():
-            handle = self._handle_at_pos(self.current_mouse_pos)
-            self.setCursor(self._cursor_for_handle(handle))
+            # Check if hovering over annotation border first (Snipaste-style)
+            hit_idx = self._hit_test_annotation(self.current_mouse_pos)
+            if hit_idx is not None:
+                ann_type = self.annotations[hit_idx]["type"]
+                # Show drag cursor if select tool or matching tool
+                if self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
+                    self.setCursor(Qt.OpenHandCursor)
+                else:
+                    handle = self._handle_at_pos(self.current_mouse_pos)
+                    self.setCursor(self._cursor_for_handle(handle))
+            else:
+                handle = self._handle_at_pos(self.current_mouse_pos)
+                self.setCursor(self._cursor_for_handle(handle))
             self.update()
 
     def _update_drawing(self) -> None:
@@ -856,6 +879,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             if mode == "move_annotation" and self._selected_annotation_idx is not None:
                 self._redo_stack.clear()  # new action invalidates redo
                 self.toolbar.update_undo_redo_state()
+                # Auto-deselect after drag (Snipaste-style)
+                self._deselect_annotation()
             self._drag_mode = None
             self._position_toolbar()
             self.toolbar.toolbar.show()
