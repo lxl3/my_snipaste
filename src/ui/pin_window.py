@@ -81,6 +81,12 @@ class PinWindow(QWidget):
         self.text_italic: bool = False
         self.text_color: QColor = QColor("#000000")
 
+        # Text editor for inline editing
+        self._text_editor: QLineEdit | None = None
+        self._text_editor_pos: QPointF | None = None
+        self._text_editor_window_pos: QPoint | None = None
+        self._editing_annotation_idx: int | None = None
+
         # --- Toolbar ---
         self._toolbar_obj: OverlayToolbar | None = None
         self._toolbar_shown: bool = False
@@ -562,6 +568,10 @@ class PinWindow(QWidget):
             super().mousePressEvent(event)
             return
 
+        # Finish text input if clicking outside the text editor
+        if self._text_editor and not self._text_editor.geometry().contains(event.position().toPoint()):
+            self._finish_text_input()
+
         # Check resize first (works in any mode)
         resize_dir = self._get_resize_direction(event.position().toPoint())
         if resize_dir:
@@ -779,19 +789,51 @@ class PinWindow(QWidget):
         self._draw_points = []
 
     def _finish_text(self, pos: QPointF) -> None:
-        text, ok = QInputDialog.getText(self, "输入文字", "文字内容:", QLineEdit.Normal, "")
-        if ok and text.strip():
-            ann = {
-                "type": "text",
-                "pos": (pos.x(), pos.y()),
-                "text": text.strip(),
-                "font_family": self.text_font_family,
-                "font_size": self.text_font_size,
-                "bold": self.text_bold,
-                "italic": self.text_italic,
-                "color": self.text_color.name(),
-            }
-            self._add_annotation(ann)
+        """Create inline text editor at the clicked position."""
+        # Clean up any existing text editor
+        if self._text_editor:
+            self._finish_text_input()
+
+        self._text_editor_pos = pos
+        self._editing_annotation_idx = None
+
+        # Create QLineEdit for inline editing
+        self._text_editor = QLineEdit(self)
+        font = QFont(self.text_font_family, self.text_font_size)
+        font.setBold(self.text_bold)
+        font.setItalic(self.text_italic)
+        self._text_editor.setFont(font)
+
+        # Convert content position to window position
+        # pos is already in image coordinates, need to convert to widget coordinates
+        window_x = int(pos.x() * self._zoom_factor) + self.SHADOW - 1
+        window_y = int(pos.y() * self._zoom_factor) + self.SHADOW - 1
+        self._text_editor_window_pos = QPoint(window_x, window_y)
+
+        # Style the text editor to be transparent with colored text
+        self._text_editor.setStyleSheet(f"""
+            QLineEdit {{
+                background: transparent;
+                border: none;
+                padding: 0px;
+                color: {self.text_color.name()};
+            }}
+        """)
+        self._text_editor.setTextMargins(0, 0, 0, 0)
+        self._text_editor.setContentsMargins(0, 0, 0, 0)
+        self._text_editor.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self._text_editor.move(self._text_editor_window_pos)
+        self._text_editor.setMinimumWidth(50)
+        self._text_editor.setAttribute(Qt.WA_DeleteOnClose)
+
+        # Connect signals for dynamic resizing and finishing
+        self._text_editor.textChanged.connect(self._adjust_text_editor_size)
+        self._adjust_text_editor_size()
+
+        self._text_editor.show()
+        self._text_editor.setFocus()
+        self._text_editor.returnPressed.connect(self._finish_text_input)
+        self._text_editor.editingFinished.connect(self._finish_text_input)
 
     def _add_annotation(self, ann: dict) -> None:
         self.annotations.append(ann)
@@ -800,9 +842,73 @@ class PinWindow(QWidget):
         self._update_toolbar_undo_redo()
         self.update()
 
+    def _adjust_text_editor_size(self) -> None:
+        """Dynamically adjust text editor size to fit content."""
+        if not self._text_editor:
+            return
+        text = self._text_editor.text()
+        fm = self._text_editor.fontMetrics()
+
+        # Calculate width: text width + padding for cursor + buffer space
+        padding = 20
+        width = fm.horizontalAdvance(text) + padding if text else 50
+        height = fm.height() + 4
+
+        # Get fixed left position - ensures the editor expands to the right
+        current_pos = self._text_editor_window_pos or self._text_editor.pos()
+
+        # Resize first (expands rightward due to AlignLeft), then move to keep left edge fixed
+        self._text_editor.resize(max(width, 50), height)
+        self._text_editor.move(current_pos)
+
+    def _finish_text_input(self) -> None:
+        """Finalize text input from the inline editor."""
+        if not self._text_editor or self._text_editor_pos is None:
+            return
+
+        text = self._text_editor.text().strip()
+        if text:
+            # Update existing text annotation OR create new one
+            if self._editing_annotation_idx is not None:
+                idx = self._editing_annotation_idx
+                if 0 <= idx < len(self.annotations):
+                    ann = self.annotations[idx]
+                    ann["text"] = text
+                    ann["color"] = self.text_color.name()
+                    ann["font_family"] = self.text_font_family
+                    ann["font_size"] = self.text_font_size
+                    ann["bold"] = self.text_bold
+                    ann["italic"] = self.text_italic
+            else:
+                # Create new text annotation
+                ann = {
+                    "type": "text",
+                    "pos": (self._text_editor_pos.x(), self._text_editor_pos.y()),
+                    "text": text,
+                    "color": self.text_color.name(),
+                    "font_family": self.text_font_family,
+                    "font_size": self.text_font_size,
+                    "bold": self.text_bold,
+                    "italic": self.text_italic,
+                }
+                self._add_annotation(ann)
+
+        # Clean up text editor
+        if self._text_editor:
+            self._text_editor.hide()
+            self._text_editor.deleteLater()
+            self._text_editor = None
+            self._text_editor_pos = None
+            self._editing_annotation_idx = None
+
+        self.update()
+
     # ─── Toolbar Interface (called by OverlayToolbar) ────
 
     def _on_tool_selected(self, tool_id: str) -> None:
+        # Clean up text editor when switching tools
+        if self._text_editor:
+            self._finish_text_input()
         self.current_tool = tool_id
 
     def _apply_property_to_selected(self, prop: str, value) -> None:
@@ -890,6 +996,9 @@ class PinWindow(QWidget):
 
     def set_current_tool(self, tool_id: str) -> None:
         """Set current tool (used by toolbar)."""
+        # Clean up text editor when switching tools
+        if self._text_editor:
+            self._finish_text_input()
         self.current_tool = tool_id
 
     # ─── Toolbar Show / Hide ─────────────────────────────
@@ -1011,6 +1120,11 @@ class PinWindow(QWidget):
             self._original_pixmap = None
 
     def closeEvent(self, event) -> None:
+        # Clean up text editor if it exists
+        if self._text_editor:
+            self._text_editor.hide()
+            self._text_editor.deleteLater()
+            self._text_editor = None
         self._hide_toolbar()
         super().closeEvent(event)
 
