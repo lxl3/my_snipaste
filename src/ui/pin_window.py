@@ -2,9 +2,10 @@ import math
 from PIL import ImageFilter
 from PySide6.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QSize, Signal
 from PySide6.QtGui import QPixmap, QPainter, QAction, QColor, QPen, QFont, QPainterPath
-from PySide6.QtWidgets import QWidget, QMenu, QApplication, QInputDialog, QLineEdit
+from PySide6.QtWidgets import QWidget, QMenu, QApplication, QInputDialog, QLineEdit, QMessageBox
 
 from ..core.logger import setup_logger
+from ..ui.toast import ToastManager
 from ..core.settings import get_settings
 from ..core.i18n import _
 from ..overlay.toolbar import OverlayToolbar
@@ -89,6 +90,9 @@ class PinWindow(QWidget):
         self._text_editor_pos: QPointF | None = None
         self._text_editor_window_pos: QPoint | None = None
         self._editing_annotation_idx: int | None = None
+
+        # OCR worker
+        self._ocr_worker = None
 
         # --- Toolbar ---
         self._toolbar_obj: OverlayToolbar | None = None
@@ -1086,8 +1090,43 @@ class PinWindow(QWidget):
             self._toolbar_obj.update_undo_redo_state()
 
     def _on_ocr(self) -> None:
-        # OCR not supported in pin window mode - ignored
-        pass
+        """Perform OCR on the pinned image with annotations."""
+        ToastManager.show(_("OCR recognizing..."), "🔍", "info", parent=self)
+
+        # Render the current image with annotations
+        captured = self._render_annotated_pixmap()
+
+        # Convert to PIL image and perform OCR
+        from ..ocr.engine import OcrWorker
+        pil_image = qpixmap_to_pil(captured)
+
+        # Create OCR worker
+        self._ocr_worker = OcrWorker(pil_image)
+        self._ocr_worker.finished.connect(self._on_ocr_finished)
+        self._ocr_worker.error.connect(self._on_ocr_error)
+        self._ocr_worker.start()
+
+    def _on_ocr_finished(self, text: str) -> None:
+        """Handle OCR completion."""
+        self._cleanup_ocr()
+        if text:
+            ToastManager.show(_("Recognition complete"), "✓", "success", parent=self)
+            from ..ui.ocr_dialog import OcrResultDialog
+            OcrResultDialog(text, self).exec()
+        else:
+            QMessageBox.warning(self, _("OCR Result"), _("No text recognized"))
+
+    def _on_ocr_error(self, error_msg: str) -> None:
+        """Handle OCR error."""
+        self._cleanup_ocr()
+        QMessageBox.critical(self, _("OCR Error"), _("Text recognition failed:\n{error}").format(error=error_msg))
+
+    def _cleanup_ocr(self) -> None:
+        """Clean up OCR worker resources."""
+        if hasattr(self, '_ocr_worker') and self._ocr_worker:
+            self._ocr_worker.finished.disconnect()
+            self._ocr_worker.error.disconnect()
+            self._ocr_worker = None
 
     def _on_done_editing(self) -> None:
         """Called by toolbar 'Done' button. Hides the toolbar."""
@@ -1264,6 +1303,8 @@ class PinWindow(QWidget):
             self._text_editor.hide()
             self._text_editor.deleteLater()
             self._text_editor = None
+        # Clean up OCR worker if it exists
+        self._cleanup_ocr()
         self._hide_toolbar()
         super().closeEvent(event)
 
