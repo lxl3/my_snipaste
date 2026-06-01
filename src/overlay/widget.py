@@ -543,11 +543,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             if not self.selection_rect.isNull() and self.annotations:
                 hit_idx = self._hit_test_annotation(pos)
                 if hit_idx is not None:
-                    # Select & drag when using "select" or matching annotation tool
+                    # Select & drag when using "select" or matching annotation tool (Snipaste-style)
                     ann_type = self.annotations[hit_idx]["type"]
-                    drag_tools = {"magnifier", "mosaic", "blur"}
-                    if self.current_tool == "select" or \
-                       self.current_tool == ann_type and ann_type in drag_tools:
+                    if self.current_tool == "select" or self.current_tool == ann_type:
                         self._select_annotation(hit_idx, event.position())
                         return
                 # Click on empty space → deselect
