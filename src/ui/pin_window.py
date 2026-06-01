@@ -61,6 +61,10 @@ class PinWindow(QWidget):
         self._draw_points: list[QPointF] = []
         self._selected_annotation_index: int = -1
 
+        # Annotation dragging state
+        self._annotation_drag_orig: dict = {}
+        self._dragging_annotation: bool = False
+
         # Tool state (matching overlay toolbar expectations)
         self.current_tool: str = "select"
         self.current_color: QColor = QColor("#ff0000")
@@ -363,6 +367,92 @@ class PinWindow(QWidget):
         self.update()
         event.accept()
 
+    # ─── Annotation Selection & Dragging ─────────────────
+
+    def _hit_test_annotations(self, pos: QPointF) -> int | None:
+        """Return index of annotation at *pos*, or None. Test in reverse order (top first)."""
+        for i in range(len(self.annotations) - 1, -1, -1):
+            ann = self.annotations[i]
+            t = ann["type"]
+            try:
+                if t in ("rect", "ellipse", "highlighter", "mosaic", "blur", "magnifier"):
+                    r = QRectF(*ann["rect"])
+                    if r.contains(pos):
+                        return i
+                elif t in ("arrow", "line"):
+                    start = QPointF(*ann["start"])
+                    end = QPointF(*ann["end"])
+                    # Hit if close to line
+                    dist = self._point_to_line_distance(pos, start, end)
+                    if dist < 10:
+                        return i
+                elif t == "freehand":
+                    pts = [QPointF(*p) for p in ann["points"]]
+                    for p in pts:
+                        if (pos - p).manhattanLength() < 10:
+                            return i
+                elif t in ("text", "number_marker"):
+                    ann_pos = QPointF(*ann["pos"])
+                    if (pos - ann_pos).manhattanLength() < 20:
+                        return i
+            except Exception:
+                continue
+        return None
+
+    def _point_to_line_distance(self, p: QPointF, a: QPointF, b: QPointF) -> float:
+        """Distance from point p to line segment ab."""
+        ab = b - a
+        ap = p - a
+        if ab.manhattanLength() == 0:
+            return ap.manhattanLength()
+        t = max(0, min(1, (ap.x() * ab.x() + ap.y() * ab.y()) / (ab.x() * ab.x() + ab.y() * ab.y())))
+        proj = a + t * ab
+        return (p - proj).manhattanLength()
+
+    def _select_annotation(self, idx: int, event_pos: QPointF) -> None:
+        """Select annotation at *idx* and prepare for dragging."""
+        self._selected_annotation_index = idx
+        ann = self.annotations[idx]
+        # Snapshot original position data for drag delta calculation
+        self._annotation_drag_orig = {}
+        t = ann["type"]
+        if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
+            self._annotation_drag_orig["rect"] = QRectF(*ann["rect"])
+        elif t in ("arrow", "line"):
+            self._annotation_drag_orig["start"] = QPointF(*ann["start"])
+            self._annotation_drag_orig["end"] = QPointF(*ann["end"])
+        elif t == "freehand":
+            self._annotation_drag_orig["points"] = [QPointF(*p) for p in ann["points"]]
+        elif t in ("text", "number_marker"):
+            self._annotation_drag_orig["pos"] = QPointF(*ann["pos"])
+        self._drag_start = event_pos
+        self._dragging_annotation = True
+        self.update()
+
+    def _deselect_annotation(self) -> None:
+        """Deselect currently selected annotation."""
+        self._selected_annotation_index = -1
+        self._annotation_drag_orig = {}
+        self.update()
+
+    def _move_selected_annotation(self, delta: QPointF) -> None:
+        """Apply *delta* to the drag-origin snapshot of the selected annotation."""
+        if self._selected_annotation_index < 0:
+            return
+        ann = self.annotations[self._selected_annotation_index]
+        t = ann["type"]
+        orig = self._annotation_drag_orig
+        if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier") and "rect" in orig:
+            r = orig["rect"]
+            ann["rect"] = (r.x() + delta.x(), r.y() + delta.y(), r.width(), r.height())
+        elif t in ("arrow", "line") and "start" in orig and "end" in orig:
+            ann["start"] = (orig["start"].x() + delta.x(), orig["start"].y() + delta.y())
+            ann["end"] = (orig["end"].x() + delta.x(), orig["end"].y() + delta.y())
+        elif t == "freehand" and "points" in orig:
+            ann["points"] = [(p.x() + delta.x(), p.y() + delta.y()) for p in orig["points"]]
+        elif t in ("text", "number_marker") and "pos" in orig:
+            ann["pos"] = (orig["pos"].x() + delta.x(), orig["pos"].y() + delta.y())
+
     # ─── Mouse Events for Drawing ────────────────────────
 
     def mousePressEvent(self, event) -> None:
@@ -380,13 +470,30 @@ class PinWindow(QWidget):
             event.accept()
             return
 
-        if self._toolbar_shown and self.current_tool not in ("select", ""):
-            # Drawing mode: start annotation
-            self._start_drawing(event)
-            event.accept()
-            return
+        # Check annotation selection when toolbar is shown
+        if self._toolbar_shown:
+            pos = self._content_pos(event)
+            hit_idx = self._hit_test_annotations(pos)
 
-        # Default: drag
+            if hit_idx is not None:
+                # Check if we should select & drag (select tool or matching tool)
+                ann_type = self.annotations[hit_idx]["type"]
+                if self.current_tool == "select" or self.current_tool == ann_type:
+                    self._select_annotation(hit_idx, pos)
+                    event.accept()
+                    return
+
+            # Click on empty space → deselect
+            if self._selected_annotation_index >= 0:
+                self._deselect_annotation()
+
+            # Start drawing if not select tool
+            if self.current_tool not in ("select", ""):
+                self._start_drawing(event)
+                event.accept()
+                return
+
+        # Default: drag window
         self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
         self._dragging = True
         event.accept()
@@ -394,6 +501,13 @@ class PinWindow(QWidget):
     def mouseMoveEvent(self, event) -> None:
         if self._resizing and self._resize_dir:
             self._handle_resize(event.globalPosition().toPoint())
+            event.accept()
+        elif self._dragging_annotation:
+            # Dragging selected annotation
+            pos = self._content_pos(event)
+            delta = pos - self._drag_start
+            self._move_selected_annotation(delta)
+            self.update()
             event.accept()
         elif self._dragging:
             self.move(event.globalPosition().toPoint() - self._drag_pos)
@@ -406,14 +520,21 @@ class PinWindow(QWidget):
             self._update_cursor(resize_dir)
 
     def mouseReleaseEvent(self, event) -> None:
-        if event.button() == Qt.LeftButton and self._drawing and self._toolbar_shown:
-            self._finish_drawing()
-            event.accept()
-            return
-        elif event.button() == Qt.LeftButton:
-            self._dragging = False
-            self._resizing = False
-            event.accept()
+        if event.button() == Qt.LeftButton:
+            if self._drawing and self._toolbar_shown:
+                self._finish_drawing()
+                event.accept()
+                return
+            elif self._dragging_annotation:
+                # Finish dragging annotation
+                self._dragging_annotation = False
+                # Could add to undo stack here if needed
+                event.accept()
+                return
+            else:
+                self._dragging = False
+                self._resizing = False
+                event.accept()
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event) -> None:
