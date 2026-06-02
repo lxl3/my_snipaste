@@ -1,8 +1,10 @@
 from PySide6.QtWidgets import (
     QWidget, QApplication, QToolButton, QFrame, QHBoxLayout, QMenu,
     QWidgetAction, QPushButton, QSpinBox, QVBoxLayout,
-    QComboBox, QColorDialog, QLabel,
+    QComboBox, QLabel,
 )
+
+from ..ui.color_picker import get_color
 from PySide6.QtGui import QColor, QIcon
 from PySide6.QtCore import Qt, QPoint, QSize
 
@@ -587,6 +589,21 @@ class OverlayToolbar:
         toolbar_layout.addWidget(self._redo_btn)
 
     def _build_action_btns(self, toolbar_layout) -> None:
+        # ─── Transform buttons: crop only (rotate/flip are in PinWindow right-click menu) ───
+        if hasattr(self.overlay, '_crop'):
+            btn = QToolButton()
+            btn.setIcon(self._load_icon("crop"))
+            btn.setIconSize(QSize(16, 16))
+            btn.setToolTip(_("Crop to selection"))
+            btn.clicked.connect(self.overlay._crop)
+            toolbar_layout.addWidget(btn)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.VLine)
+        sep.setStyleSheet("color: #ddd; max-width: 1px;")
+        sep.setFixedWidth(1)
+        toolbar_layout.addWidget(sep)
+
         actions = []
         if not self.pin_window_mode:
             # 截图模式：显示关闭和贴图按钮
@@ -741,7 +758,7 @@ class OverlayToolbar:
 
 
     def _open_shape_color_picker(self) -> None:
-        color = QColorDialog.getColor(self.overlay.current_color, self.overlay, _("Select Color"))
+        color = get_color(self.overlay.current_color, self.overlay, _("Select Color"))
         if color.isValid():
             self._set_shape_color(color.name())
             # Color is already added to recent in _set_shape_color
@@ -788,7 +805,7 @@ class OverlayToolbar:
                     btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
 
     def _open_color_picker(self) -> None:
-        color = QColorDialog.getColor(self.overlay.text_color, self.overlay, _("Select Text Color"))
+        color = get_color(self.overlay.text_color, self.overlay, _("Select Text Color"))
         if color.isValid():
             self._set_text_color(color.name())
             # Color is already added to recent in _set_text_color

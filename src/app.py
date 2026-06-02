@@ -2,7 +2,7 @@ import os
 import sys
 from datetime import datetime
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QShortcut, QKeySequence, QPixmap, QAction
+from PySide6.QtGui import QShortcut, QKeySequence, QPixmap, QAction, QCursor
 from PySide6.QtWidgets import (
     QApplication, QMessageBox, QFileDialog, QWidget, QMenuBar, QMainWindow,
 )
@@ -23,6 +23,7 @@ from .core.permissions import (
     show_permission_dialog,
 )
 from .ui.pin_window import PinWindow
+from .ui.color_picker import ScreenColorPicker
 from .ui.tray import TrayManager
 from .ui.settings_dialog import SettingsDialog
 from .ui.countdown_overlay import CountdownOverlay
@@ -116,12 +117,14 @@ class SnipasteApp(QApplication):
             "delay_capture": self.settings.hotkey_delay,
             "pin_capture": self.settings.hotkey_pin,
             "full_capture": self.settings.hotkey_full,
+            "color_picker": self.settings.hotkey_color_picker,
         })
         self.hotkey_listener.capture_signal.connect(self.start_capture)
         self.hotkey_listener.ocr_signal.connect(self.ocr_clipboard)
         self.hotkey_listener.delay_capture_signal.connect(self._start_delayed_capture)
         self.hotkey_listener.pin_capture_signal.connect(self._capture_full_and_pin)
         self.hotkey_listener.full_capture_signal.connect(self._capture_full)
+        self.hotkey_listener.color_picker_signal.connect(self._open_color_picker)
 
         if have_hotkey:
             self.hotkey_listener.start()
@@ -451,6 +454,28 @@ class SnipasteApp(QApplication):
         except Exception:
             pass
 
+    def _open_color_picker(self) -> None:
+        """Open the screen color picker tool."""
+        logger.info("Color picker hotkey triggered")
+        _mac_activate_app()
+        if hasattr(self, '_color_picker') and self._color_picker:
+            try:
+                self._color_picker.close()
+            except Exception:
+                pass
+        self._color_picker = ScreenColorPicker()
+        self._color_picker.color_selected.connect(self._on_color_picked)
+        self._color_picker.destroyed.connect(lambda: setattr(self, '_color_picker', None))
+        self._color_picker.show()
+
+    def _on_color_picked(self, hex_color: str) -> None:
+        """Handle color picked from screen color picker."""
+        try:
+            from .ui.toast import ToastManager
+            ToastManager.show(_("Copied: {color}").format(color=hex_color), icon="🎨", toast_type="success")
+        except Exception:
+            pass
+
     def _open_settings(self) -> None:
         try:
             parent = getattr(self, '_menu_widget', None)
@@ -468,6 +493,7 @@ class SnipasteApp(QApplication):
                         "delay_capture": self.settings.hotkey_delay,
                         "pin_capture": self.settings.hotkey_pin,
                         "full_capture": self.settings.hotkey_full,
+                        "color_picker": self.settings.hotkey_color_picker,
                     })
         except Exception:
             logger.exception("settings error")

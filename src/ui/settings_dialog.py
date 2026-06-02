@@ -7,9 +7,10 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
     QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
     QCheckBox, QSlider, QFileDialog, QMessageBox, QGroupBox,
-    QFormLayout, QColorDialog, QScrollArea,
+    QFormLayout, QScrollArea,
 )
 from ..core.i18n import _, available_languages, load_translations
+from .color_picker import get_color
 from ..core.settings import AppSettings, get_settings
 from ..core.constants import PRESET_COLORS
 from ..core.logger import setup_logger
@@ -475,7 +476,7 @@ class SettingsDialog(QDialog):
     def _pick_custom_color(self) -> None:
         """Open color picker dialog for custom color selection."""
         current_color = QColor(self._color_combo.currentData() or PRESET_COLORS[0])
-        color = QColorDialog.getColor(current_color, self, _("Select Custom Color"))
+        color = get_color(current_color, self, _("Select Custom Color"))
 
         if color.isValid():
             hex_color = color.name()
@@ -565,8 +566,9 @@ class SettingsDialog(QDialog):
                 "ocr": "hotkey_ocr",
                 "delay_capture": "hotkey_delay",
                 "pin_capture": "hotkey_pin",
-                "full_capture": "hotkey_full",
-                "shortcut_rect": "shortcut_rect",
+            "full_capture": "hotkey_full",
+            "color_picker": "hotkey_color_picker",
+            "shortcut_rect": "shortcut_rect",
                 "shortcut_ellipse": "shortcut_ellipse",
                 "shortcut_arrow": "shortcut_arrow",
                 "shortcut_line": "shortcut_line",
@@ -691,6 +693,7 @@ class SettingsDialog(QDialog):
             ("delay_capture", _("Delayed Screenshot")),
             ("pin_capture", _("Capture && Pin")),
             ("full_capture", _("Full Screen Capture")),
+            ("color_picker", _("Screen Color Picker")),
         ]
         for key, label in global_items:
             rec = HotkeyRecorderWidget()
@@ -780,6 +783,7 @@ class SettingsDialog(QDialog):
             "delay_capture": "hotkey_delay",
             "pin_capture": "hotkey_pin",
             "full_capture": "hotkey_full",
+            "color_picker": "hotkey_color_picker",
             "shortcut_rect": "shortcut_rect",
             "shortcut_ellipse": "shortcut_ellipse",
             "shortcut_arrow": "shortcut_arrow",
@@ -833,8 +837,9 @@ class SettingsDialog(QDialog):
             "ocr": "hotkey_ocr",
             "delay_capture": "hotkey_delay",
             "pin_capture": "hotkey_pin",
-            "full_capture": "hotkey_full",
-            "shortcut_rect": "shortcut_rect",
+                "full_capture": "hotkey_full",
+                "color_picker": "hotkey_color_picker",
+                "shortcut_rect": "shortcut_rect",
             "shortcut_ellipse": "shortcut_ellipse",
             "shortcut_arrow": "shortcut_arrow",
             "shortcut_line": "shortcut_line",
