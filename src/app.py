@@ -13,6 +13,7 @@ from .core.i18n import _, load_translations
 from .core.utils import create_app_icon, ScreenCaptureError, capture_all_screens
 from .core.logger import setup_logger, apply_log_level
 from .core.settings import AppSettings, get_settings
+from .core.theme import theme as theme_manager
 from .core.hotkeys import MultiHotkeyListener
 from .core.permissions import (
     check_macos_accessibility,
@@ -93,6 +94,10 @@ class SnipasteApp(QApplication):
 
         # 加载翻译文件
         load_translations(self.settings.language)
+
+        # 初始化主题（必须在任何 UI 组件创建前）
+        theme_manager.set_mode(self.settings.theme)
+        theme_manager.apply_to_app(self)
 
         # 设置应用图标
         app_icon = create_app_icon()
@@ -484,6 +489,9 @@ class SnipasteApp(QApplication):
                 self.settings = result
                 logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
                 load_translations(self.settings.language)
+                # 重新应用主题
+                theme_manager.set_mode(self.settings.theme)
+                theme_manager.apply_to_app(self)
                 have_hotkey = check_macos_accessibility()
                 self.tray.refresh_menu_text(have_hotkey)
                 if self.hotkey_listener:

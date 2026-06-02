@@ -18,29 +18,32 @@ from ..core.constants import (
 )
 from ..core.logger import setup_logger
 from ..core.settings import get_settings
+from ..core.theme import theme as _t
 
 logger = setup_logger("overlay_toolbar")
 
-SUBMENU_STYLE = """
+def _submenu_style() -> str:
+    return _t.qss("""
     QToolButton {
-        border: 1px solid #ccc;
+        border: 1px solid $border;
         padding: 2px;
-        background: white;
+        background: $bg_toolbar_alt;
     }
-    QToolButton:hover { background: #e8e8e8; }
+    QToolButton:hover { background: $hover_bg; }
     QToolButton:checked {
-        background: #207ff0;
-        color: white;
-        border: 2px solid #1a6acc;
+        background: $accent;
+        color: $text_accent;
+        border: 2px solid $accent_hover;
     }
-"""
+""")
 
-TOOLBAR_STYLE = """
-    #overlayToolbar { background: white; border: 1px solid #ccc; }
-    QToolButton { color: #333; background: transparent; border: none; padding: 2px 4px; margin: 0px; min-width: 18px; min-height: 18px; }
-    QToolButton:hover { background: #e8e8e8; }
-    QToolButton:checked { background: #207ff0; color: white; }
-"""
+def _toolbar_style() -> str:
+    return _t.qss("""
+    #overlayToolbar { background: $bg_toolbar; border: 1px solid $border; }
+    QToolButton { color: $text_primary; background: transparent; border: none; padding: 2px 4px; margin: 0px; min-width: 18px; min-height: 18px; }
+    QToolButton:hover { background: $hover_bg; }
+    QToolButton:checked { background: $accent; color: $text_accent; }
+""")
 
 
 class OverlayToolbar:
@@ -65,7 +68,7 @@ class OverlayToolbar:
     def setup(self) -> None:
         self.toolbar = QFrame(self.overlay)
         self.toolbar.setObjectName("overlayToolbar")
-        self.toolbar.setStyleSheet(TOOLBAR_STYLE)
+        self.toolbar.setStyleSheet(_toolbar_style())
         self.toolbar.setFixedSize(420, 32)  # 固定尺寸，防止动态变化导致位置跳动
         toolbar_layout = QHBoxLayout(self.toolbar)
         toolbar_layout.setContentsMargins(0, 0, 0, 0)
@@ -74,7 +77,7 @@ class OverlayToolbar:
         def add_sep() -> None:
             sep = QFrame()
             sep.setFrameShape(QFrame.VLine)
-            sep.setStyleSheet("color: #ddd; max-width: 1px;")
+            sep.setStyleSheet(_t.qss("color: $border_light; max-width: 1px;"))
             sep.setFixedWidth(1)
             toolbar_layout.addWidget(sep)
 
@@ -98,7 +101,9 @@ class OverlayToolbar:
         for child in self.toolbar.findChildren(QWidget):
             child.installEventFilter(self.overlay)
 
-    def _load_icon(self, name: str, color: str = "#333333") -> QIcon:
+    def _load_icon(self, name: str, color: str = "") -> QIcon:
+        if not color:
+            color = _t.get("text_primary", "#333333")
         return load_icon_from_svg(TOOLBAR_ICONS.get(name, ""), color)
 
     def _make_submenu_btn(self, btn_icon: str, btn_tooltip: str, parent_layout, tool_ids=None):
@@ -126,7 +131,7 @@ class OverlayToolbar:
             tool_btn.setToolTip(item_tip)
             tool_btn.setCheckable(True)
             tool_btn.setProperty("tool_type", item_tool)
-            tool_btn.setStyleSheet(SUBMENU_STYLE)
+            tool_btn.setStyleSheet(_submenu_style())
             tool_btn.clicked.connect(
                 lambda checked, t=item_tool, b=main_btn, ic=item_icon, m=menu:
                 self._toggle_or_select_tool(t, b, ic, m)
@@ -165,18 +170,16 @@ class OverlayToolbar:
         is_current = (color.lower() == self.overlay.current_color.name().lower())
 
         if is_recent:
-            # Recent colors have a slightly different style with opacity
             if is_current:
-                border = "2px solid #0078d4"
+                border = _t.qss("2px solid $color_btn_border_on")
             else:
-                border = "1px solid #999"
-            btn.setStyleSheet(f"background: {color}; border: {border}; border-radius: 3px; opacity: 0.9;")
+                border = _t.qss("1px solid $color_btn_recent_border")
+            btn.setStyleSheet(f"background: {color}; border: {border}; border-radius: 3px;")
         else:
-            # Preset colors have standard style with rounded corners
             if is_current:
-                border = "2px solid #0078d4"
+                border = _t.qss("2px solid $color_btn_border_on")
             else:
-                border = "1px solid #ccc"
+                border = _t.qss("1px solid $color_btn_border")
             btn.setStyleSheet(f"background: {color}; border: {border}; border-radius: 3px;")
 
         return btn
@@ -184,17 +187,17 @@ class OverlayToolbar:
     def _add_separator(self, layout) -> None:
         sep = QFrame()
         sep.setFrameShape(QFrame.VLine)
-        sep.setStyleSheet("color: #ddd;")
+        sep.setStyleSheet(_t.qss("color: $border_light;"))
         sep.setFixedWidth(1)
         layout.addWidget(sep)
 
     def _add_color_picker_btn(self, layout, open_fn) -> None:
         btn = QPushButton("🎨")
         btn.setFixedSize(20, 20)
-        btn.setStyleSheet(
-            "QPushButton { border: 1px solid #ccc;  background: white; font-size: 12px; }"
-            "QPushButton:hover { background: #e8e8e8; }"
-        )
+        btn.setStyleSheet(_t.qss(
+            "QPushButton { border: 1px solid $border;  background: $bg_toolbar_alt; font-size: 12px; }"
+            "QPushButton:hover { background: $hover_bg; }"
+        ))
         btn.clicked.connect(lambda: open_fn())
         layout.addWidget(btn)
 
@@ -422,7 +425,10 @@ class OverlayToolbar:
             c = btn.property("color")
             if c:
                 is_current = c.lower() == current
-                border = "2px solid #0078d4" if is_current else "1px solid #ccc"
+                if is_current:
+                    border = _t.qss("2px solid $color_btn_border_on")
+                else:
+                    border = _t.qss("1px solid $color_btn_border")
                 btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
 
     def _build_magnifier_btn(self, toolbar_layout) -> None:
@@ -486,22 +492,22 @@ class OverlayToolbar:
         self._bold_btn = QPushButton("B")
         self._bold_btn.setFixedSize(20, 20)
         self._bold_btn.setCheckable(True)
-        self._bold_btn.setStyleSheet(
-            "QPushButton { font-weight: bold; border: 1px solid #ccc;  background: white; }"
-            "QPushButton:hover { background: #e8e8e8; }"
-            "QPushButton:checked { background: #207ff0; color: white; border: 2px solid #1a6acc; }"
-        )
+        self._bold_btn.setStyleSheet(_t.qss(
+            "QPushButton { font-weight: bold; border: 1px solid $border;  background: $bg_toolbar_alt; }"
+            "QPushButton:hover { background: $hover_bg; }"
+            "QPushButton:checked { background: $accent; color: $text_accent; border: 2px solid $accent_hover; }"
+        ))
         self._bold_btn.clicked.connect(self._toggle_bold)
         text_main_layout.addWidget(self._bold_btn)
 
         self._italic_btn = QPushButton("I")
         self._italic_btn.setFixedSize(20, 20)
         self._italic_btn.setCheckable(True)
-        self._italic_btn.setStyleSheet(
-            "QPushButton { font-style: italic; border: 1px solid #ccc;  background: white; }"
-            "QPushButton:hover { background: #e8e8e8; }"
-            "QPushButton:checked { background: #207ff0; color: white; border: 2px solid #1a6acc; }"
-        )
+        self._italic_btn.setStyleSheet(_t.qss(
+            "QPushButton { font-style: italic; border: 1px solid $border;  background: $bg_toolbar_alt; }"
+            "QPushButton:hover { background: $hover_bg; }"
+            "QPushButton:checked { background: $accent; color: $text_accent; border: 2px solid $accent_hover; }"
+        ))
         self._italic_btn.clicked.connect(self._toggle_italic)
         text_main_layout.addWidget(self._italic_btn)
 
@@ -536,7 +542,7 @@ class OverlayToolbar:
             tool_btn.setToolTip(tooltip)
             tool_btn.setCheckable(True)
             tool_btn.setProperty("tool_type", tool_id)
-            tool_btn.setStyleSheet(SUBMENU_STYLE)
+            tool_btn.setStyleSheet(_submenu_style())
             # keep tool active, do not revert to select
             tool_btn.clicked.connect(
                 lambda checked, t=tool_id, b=eraser_btn, ic=icon_key, m=eraser_menu:
@@ -575,7 +581,10 @@ class OverlayToolbar:
         self._undo_btn.setToolTip(_("Undo"))
         self._undo_btn.clicked.connect(self.overlay._undo)
         self._undo_btn.setEnabled(False)
-        self._undo_btn.setStyleSheet("QToolButton:enabled { opacity: 1.0; } QToolButton:disabled { opacity: 0.3; }")
+        self._undo_btn.setStyleSheet(_t.qss(
+            "QToolButton:enabled { color: $text_primary; }"
+            " QToolButton:disabled { color: $text_disabled; }"
+        ))
         toolbar_layout.addWidget(self._undo_btn)
 
     def _build_redo_btn(self, toolbar_layout) -> None:
@@ -585,7 +594,10 @@ class OverlayToolbar:
         self._redo_btn.setToolTip(_("Redo"))
         self._redo_btn.clicked.connect(self.overlay._redo)
         self._redo_btn.setEnabled(False)
-        self._redo_btn.setStyleSheet("QToolButton:enabled { opacity: 1.0; } QToolButton:disabled { opacity: 0.3; }")
+        self._redo_btn.setStyleSheet(_t.qss(
+            "QToolButton:enabled { color: $text_primary; }"
+            " QToolButton:disabled { color: $text_disabled; }"
+        ))
         toolbar_layout.addWidget(self._redo_btn)
 
     def _build_action_btns(self, toolbar_layout) -> None:
@@ -600,7 +612,7 @@ class OverlayToolbar:
 
         sep = QFrame()
         sep.setFrameShape(QFrame.VLine)
-        sep.setStyleSheet("color: #ddd; max-width: 1px;")
+        sep.setStyleSheet(_t.qss("color: $border_light; max-width: 1px;"))
         sep.setFixedWidth(1)
         toolbar_layout.addWidget(sep)
 
@@ -712,17 +724,13 @@ class OverlayToolbar:
                     c = child.property("color")
                     if c:
                         is_current = (c.lower() == self.overlay.current_color.name().lower())
-                        border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-                        # Check if this is a recent color button (has opacity)
-                        btn_style = child.styleSheet()
-                        if "opacity: 0.9" in btn_style:
-                            # Recent color button
-                            if not is_current:
-                                border = "1px solid #999"
-                            child.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px; opacity: 0.9;")
+                        if is_current:
+                            border = _t.qss("2px solid $color_btn_border_on")
                         else:
-                            # Preset color button
-                            child.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
+                            border = _t.qss("1px solid $color_btn_border")
+                        # Check if this is a recent color button (no "opacity" detection needed anymore)
+                        btn_style = child.styleSheet()
+                        child.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
 
     def _set_pen_color(self, color_hex: str) -> None:
         self._set_shape_color(color_hex)
@@ -744,17 +752,11 @@ class OverlayToolbar:
             c = btn.property("color")
             if c:
                 is_current = (c.lower() == color_hex.lower())
-                border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-                # Check if this button is a recent color button (has opacity)
-                btn_style = btn.styleSheet()
-                if "opacity: 0.9" in btn_style:
-                    # Recent color button
-                    if not is_current:
-                        border = "1px solid #999"
-                    btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px; opacity: 0.9;")
+                if is_current:
+                    border = _t.qss("2px solid $color_btn_border_on")
                 else:
-                    # Preset color button
-                    btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
+                    border = _t.qss("1px solid $color_btn_border")
+                btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
 
 
     def _open_shape_color_picker(self) -> None:
@@ -787,22 +789,16 @@ class OverlayToolbar:
         settings = get_settings()
         settings.add_recent_color(color_hex)
 
-        # Update button borders with proper styling for recent vs preset colors
+        # Update button borders
         for btn in self._text_color_buttons:
             c = btn.property("color")
             if c:
                 is_current = (c.lower() == color_hex.lower())
-                border = "2px solid #0078d4" if is_current else "1px solid #ccc"
-                # Check if this is a recent color button
-                btn_style = btn.styleSheet()
-                if "opacity: 0.9" in btn_style:
-                    # Recent color button
-                    if not is_current:
-                        border = "1px solid #999"
-                    btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px; opacity: 0.9;")
+                if is_current:
+                    border = _t.qss("2px solid $color_btn_border_on")
                 else:
-                    # Preset color button
-                    btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
+                    border = _t.qss("1px solid $color_btn_border")
+                btn.setStyleSheet(f"background: {c}; border: {border}; border-radius: 3px;")
 
     def _open_color_picker(self) -> None:
         color = get_color(self.overlay.text_color, self.overlay, _("Select Text Color"))

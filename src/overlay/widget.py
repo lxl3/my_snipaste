@@ -25,12 +25,13 @@ from .drawing import OverlayDrawingMixin
 from .ocr_mixin import OcrMixin
 from .hotkey_panel import HotkeyHelpPanel
 from ..core.constants import (
-    DEFAULT_ANNOTATION_COLOR, SELECTION_BORDER_COLOR, DIM_OVERLAY_COLOR,
+    DEFAULT_ANNOTATION_COLOR,
     HANDLE_SIZE, MIN_SELECTION_SIZE, MIN_DRAW_THRESHOLD,
     DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, DEFAULT_LINE_WIDTH,
 )
 from ..core.i18n import _
 from ..core.logger import setup_logger
+from ..core.theme import theme as _tw
 
 logger = setup_logger("overlay")
 
@@ -213,13 +214,17 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self.full_screenshot)
 
+        # Theme-aware overlay colors (re-evaluated each paint for dynamic theme switching)
+        _dim_color = QColor(_tw.get("overlay_dim"))
+        _sel_color = QColor(_tw.get("sel_border"))
+
         # Window/element auto-detect highlight (before any selection)
         if self._detected_window_rect is not None and self.selection_rect.isNull():
             wr = self._detected_window_rect
             # Semi-transparent blue fill
             painter.fillRect(wr, QColor(0, 120, 215, 30))
             # 2px blue border
-            painter.setPen(QPen(QColor(0, 120, 215), 2))
+            painter.setPen(QPen(QColor(_tw.get("sel_border", "rgba(0, 120, 215, 255)")), 2))
             painter.setBrush(Qt.NoBrush)
             painter.drawRect(wr)
 
@@ -228,10 +233,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             # 4 semi-transparent dimming strips around the selection
             w = self.width()
             h = self.height()
-            painter.fillRect(0, 0, w, rect.top(), DIM_OVERLAY_COLOR)
-            painter.fillRect(0, rect.bottom() + 1, w, h - rect.bottom() - 1, DIM_OVERLAY_COLOR)
-            painter.fillRect(0, rect.top(), rect.left(), rect.height(), DIM_OVERLAY_COLOR)
-            painter.fillRect(rect.right() + 1, rect.top(), w - rect.right() - 1, rect.height(), DIM_OVERLAY_COLOR)
+            painter.fillRect(0, 0, w, rect.top(), _dim_color)
+            painter.fillRect(0, rect.bottom() + 1, w, h - rect.bottom() - 1, _dim_color)
+            painter.fillRect(0, rect.top(), rect.left(), rect.height(), _dim_color)
+            painter.fillRect(rect.right() + 1, rect.top(), w - rect.right() - 1, rect.height(), _dim_color)
 
             self._draw_annotations(painter, rect.size(), rect.topLeft())
 
@@ -243,25 +248,25 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 except IndexError:
                     self._deselect_annotation()
 
-            painter.setPen(QPen(SELECTION_BORDER_COLOR, 2))
+            painter.setPen(QPen(_sel_color, 2))
             painter.setBrush(Qt.NoBrush)
             painter.drawRect(rect)
 
             for h_rect in self._get_all_handles(rect):
-                painter.fillRect(h_rect, SELECTION_BORDER_COLOR)
+                painter.fillRect(h_rect, _sel_color)
                 painter.setPen(QPen(Qt.white, 1))
                 painter.drawRect(h_rect)
 
             self._draw_size_info(painter, rect)
             self._draw_auto_action_hint(painter, rect)
         else:
-            painter.fillRect(self.rect(), DIM_OVERLAY_COLOR)
+            painter.fillRect(self.rect(), _dim_color)
 
         if self.current_tool == "eraser_dot" and not self.selection_rect.isNull():
-            painter.setPen(QPen(QColor(255, 255, 255, 180), 2))
-            painter.setBrush(QColor(255, 255, 255, 40))
+            painter.setPen(QPen(QColor(_tw.get("handle_border", "rgba(255,255,255,180)")), 2))
+            painter.setBrush(QColor(_tw.get("handle_fill", "rgba(255,255,255,40)")))
             painter.drawEllipse(self.current_mouse_pos, self.eraser_size, self.eraser_size)
-            painter.setPen(QPen(QColor(0, 0, 0, 120), 1))
+            painter.setPen(QPen(QColor(_tw.get("sel_dash", "rgba(0,0,0,120)")), 1))
             painter.setBrush(Qt.NoBrush)
             painter.drawEllipse(self.current_mouse_pos, self.eraser_size, self.eraser_size)
 

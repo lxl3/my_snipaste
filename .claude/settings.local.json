@@ -33,7 +33,8 @@
       "Bash(xargs -r kill)",
       "Bash(pkill -f \"python main.py\")",
       "Bash(tee /tmp/pin_debug.log)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(awk '/def _build_general_tab/,/def _build_capture_tab/ {if \\(/def _build_capture_tab/\\) exit; print NR}' \"D:\\\\project\\\\my_snipaste\\\\src\\\\ui\\\\settings_dialog.py\")"
     ]
   },
   "mcpServers": {

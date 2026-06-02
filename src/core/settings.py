@@ -89,6 +89,9 @@ class AppSettings:
     shortcut_select: str = "v"
     shortcut_grid: str = "g"
 
+    # 主题设置
+    theme: str = "light"  # "light", "dark", "system"
+
     # Pin 窗口设置
     pin_window_geometry: str = ""  # Stores "x,y,width,height" as string
 

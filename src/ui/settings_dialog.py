@@ -14,6 +14,7 @@ from .color_picker import get_color
 from ..core.settings import AppSettings, get_settings
 from ..core.constants import PRESET_COLORS
 from ..core.logger import setup_logger
+from ..core.theme import theme as _theme
 
 logger = setup_logger("settings_dialog")
 
@@ -305,6 +306,17 @@ class SettingsDialog(QDialog):
         lang_layout.addRow(self._lang_combo)
         layout.addWidget(lang_group)
 
+        # Theme
+        theme_group = QGroupBox(_("Theme"))
+        theme_layout = QFormLayout(theme_group)
+        self._theme_combo = QComboBox()
+        self._theme_combo.addItem(_("Light"), "light")
+        self._theme_combo.addItem(_("Dark"), "dark")
+        self._theme_combo.addItem(_("Follow System"), "system")
+        self._theme_combo.currentDataChanged.connect(self._on_theme_preview)
+        theme_layout.addRow(self._theme_combo)
+        layout.addWidget(theme_group)
+
         # macOS-specific settings
         if sys.platform == "darwin":
             # Permissions status
@@ -495,6 +507,13 @@ class SettingsDialog(QDialog):
                 self._color_combo.setCurrentIndex(self._color_combo.count() - 1)
 
             logger.debug(f"Custom color selected: {hex_color}")
+
+    def _on_theme_preview(self) -> None:
+        """Preview theme when combo box changes."""
+        theme_mode = self._theme_combo.currentData()
+        if theme_mode:
+            _theme.set_mode(theme_mode)
+            _theme.apply_to_app(QApplication.instance())
 
     def _open_permission_settings(self) -> None:
         """Open macOS System Settings for permissions."""
@@ -701,7 +720,7 @@ class SettingsDialog(QDialog):
             global_layout.addRow(label + ":", rec)
             # Add conflict warning placeholder
             warn = QLabel("")
-            warn.setStyleSheet("color: #cc0000; font-size: 11px;")
+            warn.setStyleSheet(_theme.qss("color: $hotkey_conflict; font-size: 11px;"))
             warn.setVisible(False)
             global_layout.addRow("", warn)
 
@@ -768,6 +787,10 @@ class SettingsDialog(QDialog):
         if lang_idx >= 0:
             self._lang_combo.setCurrentIndex(lang_idx)
 
+        theme_idx = self._theme_combo.findData(s.theme)
+        if theme_idx >= 0:
+            self._theme_combo.setCurrentIndex(theme_idx)
+
         if hasattr(self, '_launch_checkbox'):
             self._launch_checkbox.setChecked(s.launch_at_startup)
 
@@ -823,6 +846,7 @@ class SettingsDialog(QDialog):
         s.capture_after_action = self._after_action_combo.currentData()
 
         s.language = self._lang_combo.currentData() or "zh_CN"
+        s.theme = self._theme_combo.currentData() or "light"
 
         if hasattr(self, '_launch_checkbox'):
             s.launch_at_startup = self._launch_checkbox.isChecked()
