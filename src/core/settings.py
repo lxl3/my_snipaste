@@ -74,6 +74,7 @@ class AppSettings:
     hotkey_delay: str = "ctrl+shift+d"  # 延迟截图
     hotkey_pin: str = "ctrl+shift+p"  # 固定窗口截图
     hotkey_full: str = "ctrl+shift+f"  # 全屏截图
+    hotkey_color_picker: str = "ctrl+shift+c"  # 屏幕取色
 
     # ─── 编辑器内工具快捷键 (5.2) ───
     shortcut_rect: str = "r"

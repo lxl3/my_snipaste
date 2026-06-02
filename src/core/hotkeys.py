@@ -200,6 +200,7 @@ class MultiHotkeyListener(QObject):
     delay_capture_signal = Signal()
     pin_capture_signal = Signal()
     full_capture_signal = Signal()
+    color_picker_signal = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -236,6 +237,7 @@ class MultiHotkeyListener(QObject):
             "delay_capture": self.delay_capture_signal,
             "pin_capture": self.pin_capture_signal,
             "full_capture": self.full_capture_signal,
+            "color_picker": self.color_picker_signal,
         }
         # Connect matched signals
         self._listener.hotkey_triggered.connect(self._on_hotkey_triggered)

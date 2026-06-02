@@ -52,6 +52,10 @@ class TrayManager(QObject):
         self._ocr_action = QAction(_("OCR Clipboard Image"), self.app)
         self._ocr_action.triggered.connect(self.app.ocr_clipboard)
         menu.addAction(self._ocr_action)
+
+        self._color_picker_action = QAction(_("Screen Color Picker"), self.app)
+        self._color_picker_action.triggered.connect(self.app._open_color_picker)
+        menu.addAction(self._color_picker_action)
         menu.addSeparator()
 
         # Recent screenshots submenu (dynamic - rebuilds on show)

@@ -98,13 +98,8 @@ TOOLBAR_ICONS = {
 </svg>""",
 
     "done": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="10"/>
-  <polyline points="8 12 11 15 16 9" stroke-width="2.5"/>
-</svg>""",
-
-    "copy": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  <path d="M9 11l3 3L22 4"/>
+  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
 </svg>""",
 
     "ellipse": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -135,28 +130,45 @@ TOOLBAR_ICONS = {
   <line x1="11" y1="8" x2="11" y2="14"/>
 </svg>""",
 
-    "OCR": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">                                                                                                                                                <!-- 左上角角标 -->
-            <path d="M3 7V3h4"/>
-            <!-- 右上角角标 -->
-            <path d="M21 7V3h-4"/>
-            <!-- 左下角角标 -->
-            <path d="M3 17v4h4"/>
-            <!-- 右下角角标 -->
-            <path d="M21 17v4h-4"/>
-            <!-- 中间的 T 字母 -->
-            <path d="M12 8v8M8 8h8"/>
+    "OCR": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 7V3h4"/>
+  <path d="M21 7V3h-4"/>
+  <path d="M3 17v4h4"/>
+  <path d="M21 17v4h-4"/>
+  <path d="M12 8v8M8 8h8"/>
 </svg>""",
-            "icon": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0    
-     24 24" fill="#fff" stroke="#000000" stroke-width="1">   
-       <!-- 左上矩形 -->                                     
-       <rect x="5" y="4" width="6" height="7" rx="1"/>       
-       <!-- 右上矩形 -->                                     
-       <rect x="13" y="4" width="6" height="7" rx="1"/>      
-       <!-- 左下旗帜 -->                                     
-       <path d="M5 13h6v8l-3-3L5 26z"/>                      
-       <!-- 右下旗帜 -->                                     
-       <path d="M19 13h-6v8l3-3L19 26z"/>                 
-     </svg>"""
+
+    "copy": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+</svg>""",
+
+    "crop": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 2v14a2 2 0 0 0 2 2h14"/>
+  <path d="M18 22V8a2 2 0 0 0-2-2H2"/>
+</svg>""",
+
+    "rotate_cw": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21 2v6h-6"/>
+  <path d="M21 8A10 10 0 1 1 3 12a9.98 9.98 0 0 1 7.5-9.64"/>
+</svg>""",
+
+    "rotate_ccw": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 2v6h6"/>
+  <path d="M3 8A10 10 0 1 0 12 3a9.98 9.98 0 0 0-7.5 3.36"/>
+</svg>""",
+
+    "flip_h": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 12h18"/>
+  <path d="M7 16l-4-4 4-4"/>
+  <path d="M17 8l4 4-4 4"/>
+</svg>""",
+
+    "flip_v": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3v18"/>
+  <path d="M16 7l-4-4-4 4"/>
+  <path d="M8 17l4 4 4-4"/>
+</svg>""",
 }
 
 # ... existing code ...
