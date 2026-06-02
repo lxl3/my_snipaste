@@ -16,6 +16,7 @@ from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, Q
 
 from ..core.utils import capture_all_screens
 from ..core.settings import get_settings
+from ..core.window_detector import detect_window_under_cursor
 from .toolbar import OverlayToolbar
 from .rendering import OverlayRenderingMixin
 from .actions import OverlayActionsMixin
@@ -69,6 +70,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.end_point: QPoint = QPoint()
         self.selection_rect: QRect = QRect()
         self.current_mouse_pos: QPoint = QPoint()
+        self._detected_window_rect: QRect | None = None
+        self._window_snap_rect: QRect | None = None  # pending single-click window snap
 
         self._drag_mode: tuple | None = None
         self._drag_start_pos: QPointF = QPointF()
@@ -210,6 +213,16 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self.full_screenshot)
 
+        # Window/element auto-detect highlight (before any selection)
+        if self._detected_window_rect is not None and self.selection_rect.isNull():
+            wr = self._detected_window_rect
+            # Semi-transparent blue fill
+            painter.fillRect(wr, QColor(0, 120, 215, 30))
+            # 2px blue border
+            painter.setPen(QPen(QColor(0, 120, 215), 2))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRect(wr)
+
         rect = self.selection_rect
         if not rect.isNull():
             # 4 semi-transparent dimming strips around the selection
@@ -309,12 +322,20 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.toolbar.toolbar.hide()
                 self.setCursor(Qt.CrossCursor)
                 self.update()
+            self._detected_window_rect = None
+            self._window_snap_rect = None
             # 标记在右键释放时关闭，避免释放事件传递到底层窗口
             self._closing_on_release = True
             return
 
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
+            # Window/element snap: save detected rect for later; don't snap
+            # yet so the user can still drag to create a free-form selection.
+            # The snap is applied in mouseReleaseEvent only on single-click.
+            if self._detected_window_rect is not None and self.selection_rect.isNull():
+                self._window_snap_rect = self._detected_window_rect
+                self._detected_window_rect = None
             # dot eraser: erase annotations under cursor immediately
             if not self.selection_rect.isNull() and self.current_tool == "eraser_dot":
                 logger.debug(f"dot erase at {pos}, annotations={len(self.annotations)}")
@@ -336,6 +357,14 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             if not self.selection_rect.isNull() and self.annotations:
                 hit_idx = self._hit_test_annotation(pos)
                 if hit_idx is not None:
+                    # Check if clicking on a resize handle of the already-selected annotation
+                    if hit_idx == self._selected_annotation_idx:
+                        handle = self._annotation_handle_at_pos(
+                            self.annotations[hit_idx], pos, self.selection_rect.topLeft()
+                        )
+                        if handle:
+                            self._begin_annotation_resize(hit_idx, handle, event.position())
+                            return
                     # Select & drag when using "select" or matching annotation tool (Snipaste-style)
                     ann_type = self.annotations[hit_idx]["type"]
                     if self.current_tool == "select" or self.current_tool == ann_type:
@@ -345,14 +374,17 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 if self._selected_annotation_idx is not None:
                     self._deselect_annotation()
 
-            if not self.selection_rect.isNull() and self.current_tool != "select":
-                self._start_drawing(pos)
-                return
             if not self.selection_rect.isNull():
+                # 优先检测选区手柄（无论当前工具是什么）
                 handle = self._handle_at_pos(pos)
                 if handle:
                     self._begin_drag(("resize", handle), event)
                     return
+                # 非 select 工具且没点到手柄 → 开始画图
+                if self.current_tool != "select":
+                    self._start_drawing(pos)
+                    return
+                # select 工具 → 拖动选区
                 if self.selection_rect.contains(pos):
                     self._begin_drag(("move",), event)
                     return
@@ -381,10 +413,32 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             rect = QRect(self.start_point, self.end_point).normalized()
             self.selection_rect = self._constrain_rect_to_screen(rect)
             self.update()
+        elif self.selection_rect.isNull() and self._selected_annotation_idx is None:
+            # Window/element auto-detect (only before any selection/annotation)
+            win_rect = detect_window_under_cursor(self.current_mouse_pos)
+            if win_rect is not None and win_rect.isValid():
+                win_rect = win_rect.intersected(self.rect())  # clip to overlay
+                if win_rect != self._detected_window_rect:
+                    self._detected_window_rect = win_rect
+                    self.setCursor(Qt.CrossCursor)
+                    self.update()
+            else:
+                if self._detected_window_rect is not None:
+                    self._detected_window_rect = None
+                    self.update()
         elif not self.selection_rect.isNull():
             # Check if hovering over annotation border first (Snipaste-style)
             hit_idx = self._hit_test_annotation(self.current_mouse_pos)
             if hit_idx is not None:
+                # If hovering over selected annotation, check for resize handles first
+                if hit_idx == self._selected_annotation_idx:
+                    handle = self._annotation_handle_at_pos(
+                        self.annotations[hit_idx], self.current_mouse_pos, self.selection_rect.topLeft()
+                    )
+                    if handle:
+                        self.setCursor(self._cursor_for_annotation_handle(handle))
+                        self.update()
+                        return
                 ann_type = self.annotations[hit_idx]["type"]
                 # Show move cursor (four-way arrows) if select tool or matching tool
                 if self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
@@ -419,8 +473,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             return
         if self._drag_mode:
             mode = self._drag_mode[0]
-            # Commit annotation move to undo stack
-            if mode == "move_annotation" and self._selected_annotation_idx is not None:
+            # Commit annotation resize/move to undo stack
+            if mode in ("move_annotation", "resize_annotation") and self._selected_annotation_idx is not None:
                 self._redo_stack.clear()  # new action invalidates redo
                 self.toolbar.update_undo_redo_state()
                 # Auto-deselect after drag (Snipaste-style)
@@ -432,6 +486,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if self.is_selecting:
             self.is_selecting = False
             if self.selection_rect.width() > MIN_SELECTION_SIZE and self.selection_rect.height() > MIN_SELECTION_SIZE:
+                self._position_toolbar()
+            elif self._window_snap_rect is not None:
+                # Single click on detected window (no significant drag) → snap
+                self.selection_rect = self._window_snap_rect
+                self._window_snap_rect = None
                 self._position_toolbar()
             else:
                 self.selection_rect = QRect()

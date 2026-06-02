@@ -1,12 +1,14 @@
-"""Pin window action methods (text, eraser, undo/redo, toolbar)."""
+"""Pin window action methods (text, eraser, undo/redo, transform, toolbar)."""
 
 import math
 
-from PySide6.QtWidgets import QLineEdit
-from PySide6.QtGui import QColor, QFont, QFontMetrics
+from PIL import Image
 from PySide6.QtCore import Qt, QRectF, QPointF, QPoint
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPixmap, QPainter
+from PySide6.QtWidgets import QLineEdit
 
 from ..core.logger import setup_logger
+from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
 
 logger = setup_logger("pin_actions")
 
@@ -348,3 +350,204 @@ class PinWindowActionsMixin:
     def _update_toolbar_undo_redo(self) -> None:
         if self._toolbar_obj:
             self._toolbar_obj.update_undo_redo_state()
+
+    # ─── Image transforms (rotate / flip) ─────────────────
+
+    def _transform_annotations(self, xform) -> None:
+        """Apply *xform(x, y) → (x', y')* to every annotation's coordinates.
+        Annotations in PinWindow use tuple coords relative to image (0,0).
+        """
+        for ann in self.annotations:
+            t = ann["type"]
+            if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
+                x, y, w, h = ann["rect"]
+                nx, ny = xform(x, y)
+                ann["rect"] = (nx, ny, w, h)
+                ann.pop("_cached", None)
+            elif t in ("arrow", "line"):
+                ann["start"] = xform(*ann["start"])
+                ann["end"] = xform(*ann["end"])
+            elif t == "freehand":
+                ann["points"] = [xform(*p) for p in ann["points"]]
+                ann.pop("_path", None)
+            elif t in ("text", "number_marker"):
+                ann["pos"] = xform(*ann["pos"])
+
+    def _rotate_cw(self) -> None:
+        """Rotate image and annotations 90° clockwise."""
+        pil_img = qpixmap_to_pil(self.pixmap)
+        rotated = pil_img.rotate(-90, expand=True, fillcolor=(0, 0, 0, 0))
+        self.pixmap = pil_to_qpixmap(rotated)
+        self.pixmap.setDevicePixelRatio(self.pixmap.devicePixelRatio())
+
+        old_w, old_h = self._base_img_w, self._base_img_h
+        self._base_img_w, self._base_img_h = old_h, old_w
+
+        def xform(x, y):
+            return old_h - y, x
+
+        self._transform_annotations(xform)
+        self._after_transform()
+
+    def _rotate_ccw(self) -> None:
+        """Rotate image and annotations 90° counter-clockwise."""
+        pil_img = qpixmap_to_pil(self.pixmap)
+        rotated = pil_img.rotate(90, expand=True, fillcolor=(0, 0, 0, 0))
+        self.pixmap = pil_to_qpixmap(rotated)
+        self.pixmap.setDevicePixelRatio(self.pixmap.devicePixelRatio())
+
+        old_w, old_h = self._base_img_w, self._base_img_h
+        self._base_img_w, self._base_img_h = old_h, old_w
+
+        def xform(x, y):
+            return y, old_w - x
+
+        self._transform_annotations(xform)
+        self._after_transform()
+
+    def _flip_h(self) -> None:
+        """Flip image and annotations horizontally."""
+        pil_img = qpixmap_to_pil(self.pixmap)
+        flipped = pil_img.transpose(Image.FLIP_LEFT_RIGHT)
+        self.pixmap = pil_to_qpixmap(flipped)
+        self.pixmap.setDevicePixelRatio(self.pixmap.devicePixelRatio())
+
+        w = self._base_img_w
+
+        def xform(x, y):
+            return w - x, y
+
+        self._transform_annotations(xform)
+        self._after_transform()
+
+    def _flip_v(self) -> None:
+        """Flip image and annotations vertically."""
+        pil_img = qpixmap_to_pil(self.pixmap)
+        flipped = pil_img.transpose(Image.FLIP_TOP_BOTTOM)
+        self.pixmap = pil_to_qpixmap(flipped)
+        self.pixmap.setDevicePixelRatio(self.pixmap.devicePixelRatio())
+
+        h = self._base_img_h
+
+        def xform(x, y):
+            return x, h - y
+
+        self._transform_annotations(xform)
+        self._after_transform()
+
+    # ─── Crop ────────────────────────────────────────────
+
+    def _crop(self) -> None:
+        """Crop the pinned image to the selected annotation rectangle.
+
+        If not in edit mode (toolbar hidden), enters edit mode so the user
+        can draw a rectangle annotation and then click the toolbar crop button.
+
+        In edit mode, crops to the currently selected rectangle/ellipse
+        annotation, or the first rect/ellipse found.  Does nothing silently
+        if no suitable annotation exists.
+        """
+        # Not in edit mode → show toolbar so user can draw a selection
+        if not self._toolbar_shown:
+            self._show_toolbar()
+            self._on_tool_selected("select")
+            return
+
+        # In edit mode → find a rect annotation to crop to
+        ann = None
+        if 0 <= self._selected_annotation_index < len(self.annotations):
+            ann = self.annotations[self._selected_annotation_index]
+        if ann is None or ann["type"] not in ("rect", "ellipse"):
+            for a in self.annotations:
+                if a["type"] in ("rect", "ellipse"):
+                    ann = a
+                    break
+        if ann is None:
+            return  # nothing to crop to – silently ignored
+
+        rect_data = ann["rect"]
+        if isinstance(rect_data, QRectF):
+            x, y, w, h = rect_data.x(), rect_data.y(), rect_data.width(), rect_data.height()
+        else:
+            x, y, w, h = rect_data
+
+        if w <= 1 or h <= 1:
+            return
+
+        pil_img = qpixmap_to_pil(self.pixmap)
+        dpr = self.pixmap.devicePixelRatio()
+        crop_box = (int(x * dpr), int(y * dpr),
+                    int((x + w) * dpr), int((y + h) * dpr))
+        cropped = pil_img.crop(crop_box)
+        self.pixmap = pil_to_qpixmap(cropped)
+        self.pixmap.setDevicePixelRatio(dpr)
+
+        new_w = int(w)
+        new_h = int(h)
+        crop_rect = QRectF(0, 0, new_w, new_h)
+
+        # Filter & offset surviving annotations
+        surviving = []
+        for a in self.annotations:
+            if a is ann:
+                continue  # drop the crop-target annotation itself
+            t = a["type"]
+            keep = False
+            if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
+                r = a["rect"]
+                r_rect = QRectF(r) if isinstance(r, QRectF) else QRectF(*r)
+                keep = r_rect.intersects(crop_rect)
+                if keep:
+                    a["rect"] = (r_rect.x() - x, r_rect.y() - y,
+                                 r_rect.width(), r_rect.height())
+                if t in ("mosaic", "blur", "magnifier"):
+                    a.pop("_cached", None)
+            elif t in ("arrow", "line"):
+                sd, ed = a["start"], a["end"]
+                sp = sd if isinstance(sd, QPointF) else QPointF(*sd)
+                ep = ed if isinstance(ed, QPointF) else QPointF(*ed)
+                keep = crop_rect.contains(sp) or crop_rect.contains(ep)
+                if keep:
+                    a["start"] = (sp.x() - x, sp.y() - y)
+                    a["end"] = (ep.x() - x, ep.y() - y)
+            elif t == "freehand":
+                pts = [p if isinstance(p, QPointF) else QPointF(*p) for p in a["points"]]
+                keep = any(crop_rect.contains(p) for p in pts)
+                if keep:
+                    a["points"] = [(p.x() - x, p.y() - y) for p in pts]
+                a.pop("_path", None)
+            elif t in ("text", "number_marker"):
+                pd = a["pos"]
+                pos = QPointF(*pd) if isinstance(pd, (list, tuple)) else QPointF(pd)
+                keep = crop_rect.contains(pos)
+                if keep:
+                    a["pos"] = (pos.x() - x, pos.y() - y)
+            if keep:
+                surviving.append(a)
+
+        self.annotations = surviving
+        self._selected_annotation_index = -1
+        self._after_transform()
+
+        from ..core.i18n import _
+        from ..ui.toast import ToastManager
+        ToastManager.show(
+            _("Cropped to {w} × {h}").format(w=new_w, h=new_h),
+            "✂", "success", parent=self
+        )
+
+    def _after_transform(self) -> None:
+        """Common post-transform steps: reset zoom, resize window, clear undo/redo."""
+        self._zoom_factor = 1.0
+        self._img_w = self._base_img_w
+        self._img_h = self._base_img_h
+        self.setFixedSize(self._img_w + self.SHADOW * 2,
+                          self._img_h + self.SHADOW * 2)
+        if self._toolbar_obj and self._toolbar_shown:
+            self._position_toolbar()
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+        if self._toolbar_obj:
+            self._toolbar_obj.update_undo_redo_state()
+        self.update()
+        logger.info("Image transformed")

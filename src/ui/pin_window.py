@@ -884,6 +884,28 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
         menu.addSeparator()
 
+        crop_action = QAction(_("Crop to selection"), self)
+        crop_action.triggered.connect(self._crop)
+        menu.addAction(crop_action)
+
+        menu.addSeparator()
+
+        # ─── Image Transform submenu ───
+        transform_menu = menu.addMenu(_("Image Transform"))
+        rotate_cw_act = QAction(_("Rotate 90° Clockwise"), self)
+        rotate_cw_act.triggered.connect(self._rotate_cw)
+        transform_menu.addAction(rotate_cw_act)
+        rotate_ccw_act = QAction(_("Rotate 90° Counter-Clockwise"), self)
+        rotate_ccw_act.triggered.connect(self._rotate_ccw)
+        transform_menu.addAction(rotate_ccw_act)
+        transform_menu.addSeparator()
+        flip_h_act = QAction(_("Flip Horizontally"), self)
+        flip_h_act.triggered.connect(self._flip_h)
+        transform_menu.addAction(flip_h_act)
+        flip_v_act = QAction(_("Flip Vertically"), self)
+        flip_v_act.triggered.connect(self._flip_v)
+        transform_menu.addAction(flip_v_act)
+
         close_action = QAction(_("Close"), self)
         close_action.triggered.connect(self.close)
         menu.addAction(close_action)

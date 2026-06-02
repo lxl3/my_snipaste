@@ -206,6 +206,140 @@ class OverlaySelectionMixin:
             ann["pos"] = QPointF(orig["pos"].x() + delta.x(),
                                   orig["pos"].y() + delta.y())
 
+    # ─── Annotation resize handles ───
+
+    def _get_annotation_handles(self, ann: dict, offset: QPoint) -> list[QRect]:
+        """Return 8 resize handle rects in screen coords around an annotation."""
+        bounds = self._get_annotation_bounds_local(ann)
+        if bounds.isNull():
+            return []
+        gb = bounds.translated(offset)  # global (screen) coords
+        half = HANDLE_SIZE // 2
+        return [
+            QRect(int(gb.left()) - half, int(gb.top()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(gb.right()) - half, int(gb.top()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(gb.left()) - half, int(gb.bottom()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(gb.right()) - half, int(gb.bottom()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(gb.center().x()) - half, int(gb.top()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(gb.center().x()) - half, int(gb.bottom()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(gb.left()) - half, int(gb.center().y()) - half, HANDLE_SIZE, HANDLE_SIZE),
+            QRect(int(gb.right()) - half, int(gb.center().y()) - half, HANDLE_SIZE, HANDLE_SIZE),
+        ]
+
+    _ANNOTATION_HANDLE_NAMES = [
+        "tl", "tr", "bl", "br",
+        "tc", "bc", "lc", "rc",
+    ]
+
+    def _annotation_handle_at_pos(self, ann: dict, pos: QPoint, offset: QPoint) -> str | None:
+        """Return handle name at *pos* (screen coords), or None."""
+        handles = self._get_annotation_handles(ann, offset)
+        for h_rect, name in zip(handles, self._ANNOTATION_HANDLE_NAMES):
+            if h_rect.contains(pos):
+                return name
+        return None
+
+    def _cursor_for_annotation_handle(self, handle_name: str | None) -> Qt.CursorShape:
+        mapping = {
+            "tl": Qt.SizeFDiagCursor, "br": Qt.SizeFDiagCursor,
+            "tr": Qt.SizeBDiagCursor, "bl": Qt.SizeBDiagCursor,
+            "tc": Qt.SizeVerCursor, "bc": Qt.SizeVerCursor,
+            "lc": Qt.SizeHorCursor, "rc": Qt.SizeHorCursor,
+        }
+        return mapping.get(handle_name, Qt.ArrowCursor)
+
+    def _begin_annotation_resize(self, idx: int, handle: str, event_pos: QPointF) -> None:
+        """Start resize-drag of an annotation handle."""
+        ann = self.annotations[idx]
+        self._selected_annotation_idx = idx
+        self._annotation_drag_orig = {}
+        t = ann["type"]
+        if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
+            self._annotation_drag_orig["rect"] = QRectF(ann["rect"])
+        elif t in ("arrow", "line"):
+            self._annotation_drag_orig["start"] = QPointF(ann["start"])
+            self._annotation_drag_orig["end"] = QPointF(ann["end"])
+        elif t == "number_marker":
+            self._annotation_drag_orig["pos"] = QPointF(ann["pos"])
+            self._annotation_drag_orig["radius"] = ann.get("radius", 14)
+        elif t == "text":
+            self._annotation_drag_orig["pos"] = QPointF(ann["pos"])
+        self._drag_start_pos = event_pos
+        self._drag_mode = ("resize_annotation", handle)
+        self.update()
+
+    def _resize_annotation(self, ann: dict, delta: QPointF, handle: str) -> None:
+        """Apply *delta* to annotation on the given handle side."""
+        t = ann["type"]
+        orig = self._annotation_drag_orig
+
+        if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
+            r = QRectF(orig["rect"])
+            dx, dy = delta.x(), delta.y()
+            if handle == "tl":
+                r.setLeft(r.left() + dx)
+                r.setTop(r.top() + dy)
+            elif handle == "tr":
+                r.setRight(r.right() + dx)
+                r.setTop(r.top() + dy)
+            elif handle == "bl":
+                r.setLeft(r.left() + dx)
+                r.setBottom(r.bottom() + dy)
+            elif handle == "br":
+                r.setRight(r.right() + dx)
+                r.setBottom(r.bottom() + dy)
+            elif handle == "tc":
+                r.setTop(r.top() + dy)
+            elif handle == "bc":
+                r.setBottom(r.bottom() + dy)
+            elif handle == "lc":
+                r.setLeft(r.left() + dx)
+            elif handle == "rc":
+                r.setRight(r.right() + dx)
+            ann["rect"] = r.normalized()
+            if t in ("mosaic", "blur", "magnifier"):
+                ann.pop("_cached", None)
+
+        elif t in ("arrow", "line"):
+            start = QPointF(orig["start"])
+            end = QPointF(orig["end"])
+            # Determine which endpoint is closer to the handle corner
+            bounds = self._get_annotation_bounds_local(ann)
+            # Map handle name to target corner point of the bounding box
+            corner_map = {
+                "tl": bounds.topLeft(), "tr": bounds.topRight(),
+                "bl": bounds.bottomLeft(), "br": bounds.bottomRight(),
+                "tc": QPointF(bounds.center().x(), bounds.top()),
+                "bc": QPointF(bounds.center().x(), bounds.bottom()),
+                "lc": QPointF(bounds.left(), bounds.center().y()),
+                "rc": QPointF(bounds.right(), bounds.center().y()),
+            }
+            target = corner_map.get(handle)
+            if target:
+                d_to_start = (target - orig["start"]).manhattanLength() if "start" in orig else float('inf')
+                d_to_end = (target - orig["end"]).manhattanLength() if "end" in orig else float('inf')
+                if d_to_start <= d_to_end:
+                    ann["start"] = QPointF(start.x() + delta.x(), start.y() + delta.y())
+                else:
+                    ann["end"] = QPointF(end.x() + delta.x(), end.y() + delta.y())
+
+        elif t == "text":
+            # Text annotations: handles just move (same as drag)
+            if "pos" in orig:
+                ann["pos"] = QPointF(orig["pos"].x() + delta.x(),
+                                      orig["pos"].y() + delta.y())
+
+        elif t == "number_marker":
+            pos = QPointF(orig["pos"])
+            orig_r = orig.get("radius", 14)
+            # Corner handles change radius; edge handles move
+            if handle in ("tl", "tr", "bl", "br"):
+                diag = max(abs(delta.x()), abs(delta.y()))
+                sign = 1 if (delta.x() + delta.y()) > 0 else -1
+                ann["radius"] = max(4, int(orig_r + sign * diag))
+            else:
+                ann["pos"] = QPointF(pos.x() + delta.x(), pos.y() + delta.y())
+
     # ─── Selection rectangle handle detection ───
 
     def _get_all_handles(self, rect: QRect) -> list[QRect]:

@@ -202,6 +202,8 @@ class OverlayDrawingMixin:
         self.is_selecting = True
         self.toolbar.toolbar.hide()
         self._deselect_annotation()
+        self._detected_window_rect = None  # clear window highlight
+        self._window_snap_rect = None  # clear pending snap
         self.annotations.clear()
         self.start_point = pos
         self.end_point = self.start_point
@@ -241,6 +243,12 @@ class OverlayDrawingMixin:
             self.selection_rect = self._constrain_rect_to_screen(r.normalized())
         elif mode == "move_annotation":
             self._move_selected_annotation(delta)
+        elif mode == "resize_annotation":
+            if self._selected_annotation_idx is not None:
+                self._resize_annotation(
+                    self.annotations[self._selected_annotation_idx],
+                    delta, self._drag_mode[1]
+                )
         self.update()
 
     # ─── Tool Settings ───
