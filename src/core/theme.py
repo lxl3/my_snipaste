@@ -68,8 +68,8 @@ HANDLE_BORDER    = "handle_border"     # 控制点边框
 LIGHT_TOKENS: dict[str, str] = {
     BG_PRIMARY:       "#FFFFFF",
     BG_SECONDARY:     "#F5F5F5",
-    BG_TOOLBAR:       "#FFFFFF",
-    BG_TOOLBAR_ALT:   "#FFFFFF",
+    BG_TOOLBAR:       "rgba(255, 255, 255, 215)",  # 半透明毛玻璃效果
+    BG_TOOLBAR_ALT:   "rgba(255, 255, 255, 230)",
     BG_OVERLAY:       "rgba(0, 0, 0, 140)",
     BG_INPUT:         "#FFFFFF",
     BG_MENU:          "#FFFFFF",
@@ -116,8 +116,8 @@ LIGHT_TOKENS: dict[str, str] = {
 DARK_TOKENS: dict[str, str] = {
     BG_PRIMARY:       "#1E1E1E",
     BG_SECONDARY:     "#252526",
-    BG_TOOLBAR:       "#2D2D2D",
-    BG_TOOLBAR_ALT:   "#333333",
+    BG_TOOLBAR:       "rgba(45, 45, 45, 215)",  # 半透明毛玻璃效果
+    BG_TOOLBAR_ALT:   "rgba(51, 51, 51, 230)",
     BG_OVERLAY:       "rgba(0, 0, 0, 180)",
     BG_INPUT:         "#3C3C3C",
     BG_MENU:          "#2D2D2D",

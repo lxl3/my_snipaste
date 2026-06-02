@@ -25,23 +25,37 @@ logger = setup_logger("overlay_toolbar")
 def _submenu_style() -> str:
     return _t.qss("""
     QToolButton {
-        border: 1px solid $border;
+        border: 1px solid rgba(128,128,128,60);
+        border-radius: 4px;
         padding: 2px;
         background: $bg_toolbar_alt;
     }
-    QToolButton:hover { background: $hover_bg; }
+    QToolButton:hover { background: rgba(128,128,128,40); }
     QToolButton:checked {
         background: $accent;
         color: $text_accent;
-        border: 2px solid $accent_hover;
+        border-color: $accent_hover;
     }
 """)
 
 def _toolbar_style() -> str:
     return _t.qss("""
-    #overlayToolbar { background: $bg_toolbar; border: 1px solid $border; }
-    QToolButton { color: $text_primary; background: transparent; border: none; padding: 2px 4px; margin: 0px; min-width: 18px; min-height: 18px; }
-    QToolButton:hover { background: $hover_bg; }
+    #overlayToolbar {
+        background: $bg_toolbar;
+        border: 1px solid rgba(128,128,128,80);
+        border-radius: 6px;
+    }
+    QToolButton {
+        color: $text_primary;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        padding: 2px 4px;
+        margin: 1px;
+        min-width: 18px;
+        min-height: 18px;
+    }
+    QToolButton:hover { background: rgba(128,128,128,40); }
     QToolButton:checked { background: $accent; color: $text_accent; }
 """)
 
