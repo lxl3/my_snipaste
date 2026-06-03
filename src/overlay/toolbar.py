@@ -24,8 +24,20 @@ logger = setup_logger("overlay_toolbar")
 
 def _submenu_style() -> str:
     """Submenu 按钮样式（QMenu 提供毛玻璃背景，按钮自身透明）。"""
-    return _t.qss("""
-    QToolButton {
+    is_dark = _t.is_dark()
+    if is_dark:
+        btn_hover_bg = "rgba(255,255,255,10)"
+        btn_hover_border = "rgba(255,255,255,15)"
+        btn_checked_bg = "rgba(32,127,240,0.18)"
+        btn_pressed_bg = "rgba(255,255,255,8)"
+    else:
+        btn_hover_bg = "rgba(128,128,128,25)"
+        btn_hover_border = "rgba(128,128,128,15)"
+        btn_checked_bg = "rgba(32,127,240,0.10)"
+        btn_pressed_bg = "rgba(128,128,128,45)"
+
+    return _t.qss(f"""
+    QToolButton {{
         color: $text_primary;
         background: transparent;
         border: 1px solid transparent;
@@ -34,18 +46,18 @@ def _submenu_style() -> str:
         margin: 1px;
         min-width: 20px;
         min-height: 20px;
-    }
-    QToolButton:hover {
-        background: rgba(128,128,128,25);
-        border: 1px solid rgba(128,128,128,15);
-    }
-    QToolButton:checked {
-        background: rgba(32,127,240,0.10);
+    }}
+    QToolButton:hover {{
+        background: {btn_hover_bg};
+        border: 1px solid {btn_hover_border};
+    }}
+    QToolButton:checked {{
+        background: {btn_checked_bg};
         border: 1px solid $accent;
-    }
-    QToolButton:pressed {
-        background: rgba(128,128,128,45);
-    }
+    }}
+    QToolButton:pressed {{
+        background: {btn_pressed_bg};
+    }}
 """)
 
 
@@ -64,12 +76,26 @@ def _popup_style() -> str:
                     f" stop:1 rgba({r},{g},{b},{bottom_a}))")
     except Exception:
         gradient = "$bg_toolbar"
+
+    # 暗色/亮色模式边框差异化
+    is_dark = _t.is_dark()
+    if is_dark:
+        # 暗色模式：柔和高光 + 深阴影
+        border_top = "rgba(255,255,255,50)"
+        border_bottom = "rgba(0,0,0,100)"
+        border_main = "rgba(80,80,80,80)"
+    else:
+        # 亮色模式：明显高光 + 浅阴影
+        border_top = "rgba(255,255,255,200)"
+        border_bottom = "rgba(0,0,0,30)"
+        border_main = "rgba(128,128,128,60)"
+
     return _t.qss(f"""
     QMenu {{
         background: {gradient};
-        border: 1px solid rgba(128,128,128,60);
-        border-top: 2px solid rgba(255,255,255,200);
-        border-bottom: 1px solid rgba(0,0,0,30);
+        border: 1px solid {border_main};
+        border-top: 2px solid {border_top};
+        border-bottom: 1px solid {border_bottom};
         border-radius: 6px;
         padding: 4px;
     }}
@@ -94,12 +120,34 @@ def _toolbar_style() -> str:
                     f" stop:1 rgba({r},{g},{b},{bottom_a}));")
     except Exception:
         gradient = "background: $bg_toolbar;"  # fallback: flat color
+
+    # 暗色/亮色模式差异化设计
+    is_dark = _t.is_dark()
+    if is_dark:
+        # 暗色模式：精致科技感
+        border_top = "rgba(255,255,255,50)"      # 柔和高光
+        border_bottom = "rgba(0,0,0,100)"        # 深阴影
+        border_main = "rgba(80,80,80,80)"        # 主边框
+        btn_hover_bg = "rgba(255,255,255,10)"    # 按钮悬停
+        btn_hover_border = "rgba(255,255,255,15)"
+        btn_checked_bg = "rgba(32,127,240,0.18)" # 选中背景（更明显）
+        btn_pressed_bg = "rgba(255,255,255,8)"   # 按下
+    else:
+        # 亮色模式：明亮清新
+        border_top = "rgba(255,255,255,200)"
+        border_bottom = "rgba(0,0,0,30)"
+        border_main = "rgba(128,128,128,60)"
+        btn_hover_bg = "rgba(128,128,128,25)"
+        btn_hover_border = "rgba(128,128,128,15)"
+        btn_checked_bg = "rgba(32,127,240,0.10)"
+        btn_pressed_bg = "rgba(128,128,128,45)"
+
     return _t.qss(f"""
     #overlayToolbar {{
         {gradient}
-        border: 1px solid rgba(128,128,128,60);
-        border-top: 2px solid rgba(255,255,255,200);
-        border-bottom: 1px solid rgba(0,0,0,30);
+        border: 1px solid {border_main};
+        border-top: 2px solid {border_top};
+        border-bottom: 1px solid {border_bottom};
         border-radius: 6px;
     }}
     QToolButton {{
@@ -113,15 +161,15 @@ def _toolbar_style() -> str:
         min-height: 18px;
     }}
     QToolButton:hover {{
-        background: rgba(128,128,128,25);
-        border: 1px solid rgba(128,128,128,15);
+        background: {btn_hover_bg};
+        border: 1px solid {btn_hover_border};
     }}
     QToolButton:checked {{
-        background: rgba(32,127,240,0.10);
+        background: {btn_checked_bg};
         border: 1px solid $accent;
     }}
     QToolButton:pressed {{
-        background: rgba(128,128,128,45);
+        background: {btn_pressed_bg};
     }}
 """)
 
@@ -183,6 +231,9 @@ class OverlayToolbar:
         for child in self.toolbar.findChildren(QWidget):
             child.installEventFilter(self.overlay)
 
+        # 监听主题变化，刷新图标颜色
+        _t.theme_changed.connect(self._refresh_icons)
+
     def animate_show(self) -> None:
         """工具栏入场淡入动画。"""
         if not self.toolbar or not self.toolbar.isVisible():
@@ -204,6 +255,65 @@ class OverlayToolbar:
             color = _t.get("text_primary", "#333333")
         return load_icon_from_svg(TOOLBAR_ICONS.get(name, ""), color)
 
+    def _refresh_icons(self) -> None:
+        """主题切换时刷新所有图标颜色"""
+        if not self.toolbar:
+            return
+
+        # 刷新工具栏样式
+        self.toolbar.setStyleSheet(_toolbar_style())
+
+        # 刷新所有 QToolButton 的图标（遍历所有子控件）
+        for btn in self.toolbar.findChildren(QToolButton):
+            # 检查是否保存了图标名称
+            icon_name = btn.property("iconName")
+            if icon_name:
+                btn.setIcon(self._load_icon(icon_name))
+                continue
+
+            # 如果没有保存，尝试通过 tooltip 推断
+            tooltip = btn.toolTip()
+            icon_map = {
+                _("Rectangle"): "rectangle",
+                _("Circle"): "circle",
+                _("Line"): "line",
+                _("Arrow"): "arrow",
+                _("Pen"): "pen",
+                _("Text"): "text",
+                _("Mosaic"): "mosaic",
+                _("Magnifier"): "magnifier",
+                _("Eraser"): "eraser",
+                _("Text Recognition"): "OCR",
+                _("Undo"): "undo",
+                _("Redo"): "redo",
+                _("Crop to selection"): "crop",
+                _("Pin"): "pin",
+                _("Copy"): "copy",
+                _("Save"): "save",
+                _("Cancel"): "close",
+                _("Highlighter"): "highlighter",
+            }
+            for tip, name in icon_map.items():
+                if tooltip == tip:
+                    btn.setIcon(self._load_icon(name))
+                    break
+
+        # 刷新主工具按钮
+        for tool_id, btn in self._tool_btns.items():
+            btn.setIcon(self._load_icon(tool_id))
+
+        # 刷新样式相关的控件
+        if self._undo_btn:
+            self._undo_btn.setStyleSheet(_t.qss(
+                "QToolButton:enabled { color: $text_primary; }"
+                " QToolButton:disabled { color: $text_disabled; }"
+            ))
+        if self._redo_btn:
+            self._redo_btn.setStyleSheet(_t.qss(
+                "QToolButton:enabled { color: $text_primary; }"
+                " QToolButton:disabled { color: $text_disabled; }"
+            ))
+
     def _make_submenu_btn(self, btn_icon: str, btn_tooltip: str, parent_layout, tool_ids=None):
         btn = QToolButton()
         btn.setIcon(self._load_icon(btn_icon))
@@ -211,6 +321,7 @@ class OverlayToolbar:
         btn.setToolTip(btn_tooltip)
         btn.setCheckable(True)
         btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        btn.setProperty("iconName", btn_icon)  # 保存图标名称以便刷新
         menu = QMenu(self.overlay)
         menu.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         menu.setStyleSheet(_popup_style())
@@ -228,6 +339,7 @@ class OverlayToolbar:
             tool_btn.setIconSize(QSize(20, 20))
             tool_btn.setFixedSize(24, 24)
             tool_btn.setToolTip(item_tip)
+            tool_btn.setProperty("iconName", item_icon)
             tool_btn.setCheckable(True)
             tool_btn.setProperty("tool_type", item_tool)
             tool_btn.setStyleSheet(_submenu_style())
@@ -639,6 +751,7 @@ class OverlayToolbar:
             tool_btn.setIconSize(QSize(20, 20))
             tool_btn.setFixedSize(28, 28)
             tool_btn.setToolTip(tooltip)
+            tool_btn.setProperty("iconName", icon_key)
             tool_btn.setCheckable(True)
             tool_btn.setProperty("tool_type", tool_id)
             tool_btn.setStyleSheet(_submenu_style())
@@ -670,6 +783,7 @@ class OverlayToolbar:
         ocr_btn.setIcon(self._load_icon("OCR"))
         ocr_btn.setIconSize(QSize(16, 16))
         ocr_btn.setToolTip(_("Text Recognition"))
+        ocr_btn.setProperty("iconName", "OCR")
         ocr_btn.clicked.connect(lambda: (self._close_current_menu(), self.overlay._on_ocr()))
         toolbar_layout.addWidget(ocr_btn)
 
@@ -678,6 +792,7 @@ class OverlayToolbar:
         self._undo_btn.setIcon(self._load_icon("undo"))
         self._undo_btn.setIconSize(QSize(16, 16))
         self._undo_btn.setToolTip(_("Undo"))
+        self._undo_btn.setProperty("iconName", "undo")
         self._undo_btn.clicked.connect(self.overlay._undo)
         self._undo_btn.setEnabled(False)
         self._undo_btn.setStyleSheet(_t.qss(
@@ -691,6 +806,7 @@ class OverlayToolbar:
         self._redo_btn.setIcon(self._load_icon("redo"))
         self._redo_btn.setIconSize(QSize(16, 16))
         self._redo_btn.setToolTip(_("Redo"))
+        self._redo_btn.setProperty("iconName", "redo")
         self._redo_btn.clicked.connect(self.overlay._redo)
         self._redo_btn.setEnabled(False)
         self._redo_btn.setStyleSheet(_t.qss(
@@ -706,6 +822,7 @@ class OverlayToolbar:
             btn.setIcon(self._load_icon("crop"))
             btn.setIconSize(QSize(16, 16))
             btn.setToolTip(_("Crop to selection"))
+            btn.setProperty("iconName", "crop")
             btn.clicked.connect(self.overlay._crop)
             toolbar_layout.addWidget(btn)
 
@@ -735,6 +852,7 @@ class OverlayToolbar:
             btn.setIcon(self._load_icon(icon))
             btn.setIconSize(QSize(16, 16))
             btn.setToolTip(tooltip)
+            btn.setProperty("iconName", icon)
             btn.clicked.connect(fn)
             toolbar_layout.addWidget(btn)
 
