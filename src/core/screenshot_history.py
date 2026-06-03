@@ -15,6 +15,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 
 from .logger import setup_logger
+from .i18n import _
 
 logger = setup_logger("screenshot_history")
 
@@ -193,26 +194,22 @@ class ScreenshotHistory:
             timestamp: Unix timestamp in seconds.
 
         Returns:
-            str: Human-readable time string in Chinese.
-                - < 1 min: "刚才"
-                - < 60 min: "X分钟前"
-                - < 24 hours: "X小时前"
-                - >= 24 hours: "X天前"
+            str: Human-readable time string (translated via i18n).
         """
         now = int(time.time())
         diff = now - timestamp
 
         if diff < 60:
-            return "刚才"
+            return _("Just now")
         elif diff < 3600:  # < 1 hour
             minutes = diff // 60
-            return f"{minutes}分钟前"
+            return _("{minutes} minutes ago").format(minutes=minutes)
         elif diff < 86400:  # < 24 hours
             hours = diff // 3600
-            return f"{hours}小时前"
+            return _("{hours} hours ago").format(hours=hours)
         else:
             days = diff // 86400
-            return f"{days}天前"
+            return _("{days} days ago").format(days=days)
 
     def add_screenshot(self, pixmap: QPixmap, has_annotations: bool) -> str:
         """Add screenshot to history.

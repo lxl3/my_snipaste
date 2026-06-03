@@ -39,6 +39,9 @@ skills-lock.json
 coverage/
 htmlcov/
 
+# Code analysis tool
+.codegraph/
+
 # Build artifacts
 *.spec
 icon.icns

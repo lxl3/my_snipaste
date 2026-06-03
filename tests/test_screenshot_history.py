@@ -354,7 +354,7 @@ class TestTimeAgoFormatting:
         history.add_screenshot(sample_pixmap, has_annotations=False)
 
         recent = history.get_recent(count=1)
-        assert recent[0]["time_ago"] == "刚才"
+        assert recent[0]["time_ago"] == "Just now"
 
     def test_format_minutes_ago(self, temp_history_dir):
         """Test time ago formatting for minutes."""
@@ -374,7 +374,7 @@ class TestTimeAgoFormatting:
         })
 
         recent = history.get_recent(count=1)
-        assert recent[0]["time_ago"] == "5分钟前"
+        assert recent[0]["time_ago"] == "5 minutes ago"
 
     def test_format_hours_ago(self, temp_history_dir):
         """Test time ago formatting for hours."""
@@ -393,7 +393,7 @@ class TestTimeAgoFormatting:
         })
 
         recent = history.get_recent(count=1)
-        assert recent[0]["time_ago"] == "3小时前"
+        assert recent[0]["time_ago"] == "3 hours ago"
 
     def test_format_days_ago(self, temp_history_dir):
         """Test time ago formatting for days."""
@@ -412,4 +412,4 @@ class TestTimeAgoFormatting:
         })
 
         recent = history.get_recent(count=1)
-        assert recent[0]["time_ago"] == "2天前"
+        assert recent[0]["time_ago"] == "2 days ago"

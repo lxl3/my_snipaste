@@ -9,10 +9,13 @@
 """
 
 import sys
+import logging
 from typing import Literal
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QPalette, QColor
 from PySide6.QtWidgets import QApplication
+
+logger = logging.getLogger("theme")
 
 
 # ─── Token Keys（供 IDE 补全 / 防 typo） ───
@@ -349,3 +352,42 @@ class ThemeManager(QObject):
 theme = ThemeManager()
 get = theme.get
 qss = theme.qss
+
+
+def apply_dark_title_bar(window, dark: bool = True) -> None:
+    """Set dark title bar color on supported platforms.
+
+    Windows 10 20H1+ / Windows 11 — uses DWM immersive dark mode.
+    macOS / Linux — no-op (system handles it automatically).
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+        dwmapi = ctypes.windll.dwmapi
+        user32 = ctypes.windll.user32
+
+        hwnd = wintypes.HWND(int(window.winId()))
+        if not hwnd:
+            logger.debug("apply_dark_title_bar: invalid window handle")
+            return
+        value = ctypes.c_int(1 if dark else 0)
+        # 兼容 Windows 10 20H1+ (20) 和更早版本 (19)
+        for attr_id in (20, 19):
+            dwmapi.DwmSetWindowAttribute(
+                hwnd,
+                wintypes.DWORD(attr_id),
+                ctypes.byref(value),
+                ctypes.sizeof(value),
+            )
+        # 强制 DWM 重绘框架
+        SWP_FRAMECHANGED = 0x0020
+        user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+                            SWP_FRAMECHANGED | 0x0002 | 0x0001 | 0x0004)
+        # 通知 DWM 重绘
+        WM_DWMCOMPOSITIONCHANGED = 0x031E
+        user32.SendMessageW(hwnd, WM_DWMCOMPOSITIONCHANGED, 0, 0)
+        logger.debug(f"apply_dark_title_bar: dark={dark}")
+    except Exception as e:
+        logger.debug(f"apply_dark_title_bar failed: {e}")

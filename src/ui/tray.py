@@ -60,9 +60,9 @@ class TrayManager(QObject):
         menu.addSeparator()
 
         # Recent screenshots submenu (dynamic - rebuilds on show)
-        recent_menu = QMenu(_("Recent Screenshots"), menu)
-        recent_menu.aboutToShow.connect(lambda: self._populate_recent_menu(recent_menu))
-        menu.addMenu(recent_menu)
+        self._recent_menu = QMenu(_("Recent Screenshots"), menu)
+        self._recent_menu.aboutToShow.connect(lambda: self._populate_recent_menu(self._recent_menu))
+        menu.addMenu(self._recent_menu)
         menu.addSeparator()
 
         self._settings_action = QAction(_("Settings..."), self.app)
@@ -110,6 +110,10 @@ class TrayManager(QObject):
             self._capture_action.setText(_("Capture ({hotkey})").format(hotkey=hotkey_display))
         if self._ocr_action:
             self._ocr_action.setText(_("OCR Clipboard Image"))
+        if self._color_picker_action:
+            self._color_picker_action.setText(_("Screen Color Picker"))
+        if self._recent_menu:
+            self._recent_menu.setTitle(_("Recent Screenshots"))
         if self._settings_action:
             self._settings_action.setText(_("Settings..."))
         if self._check_perm_action:

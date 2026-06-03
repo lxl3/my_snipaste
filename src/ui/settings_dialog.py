@@ -1,5 +1,6 @@
 import sys
 import subprocess
+import json
 
 from PySide6.QtCore import Qt, Signal, QEvent
 from PySide6.QtGui import QColor, QPixmap, QIcon, QKeyEvent
@@ -17,6 +18,57 @@ from ..core.logger import setup_logger
 from ..core.theme import theme as _theme
 
 logger = setup_logger("settings_dialog")
+
+
+class TitleBar(QWidget):
+    """Custom frameless window title bar with drag, minimize, and close."""
+
+    def __init__(self, parent, title="", show_minimize=True):
+        super().__init__(parent)
+        self._drag_pos = None
+        self.setFixedHeight(32)
+        self.setAttribute(Qt.WA_StyledBackground)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 0, 4, 0)
+        layout.setSpacing(2)
+
+        self._title_label = QLabel(title)
+        layout.addWidget(self._title_label)
+        layout.addStretch()
+
+        if show_minimize:
+            self._min_btn = QPushButton("─")
+            self._min_btn.setFixedSize(32, 24)
+            self._min_btn.setFocusPolicy(Qt.NoFocus)
+            self._min_btn.clicked.connect(parent.showMinimized)
+            layout.addWidget(self._min_btn)
+
+        self._close_btn = QPushButton("✕")
+        self._close_btn.setFixedSize(32, 24)
+        self._close_btn.setFocusPolicy(Qt.NoFocus)
+        self._close_btn.clicked.connect(parent.close)
+        layout.addWidget(self._close_btn)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.LeftButton and self._drag_pos is not None:
+            parent = self.parent()
+            if parent is None:
+                return
+            delta = event.globalPosition().toPoint() - self._drag_pos
+            parent.move(parent.pos() + delta)
+            self._drag_pos = event.globalPosition().toPoint()
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._drag_pos = None
+            event.accept()
 
 
 class HotkeyRecorderWidget(QWidget):
@@ -206,6 +258,8 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._settings: AppSettings = get_settings()
+        # 保存需要动态更新主题样式的 widgets (widget, style_template)
+        self._themed_widgets: list[tuple[QWidget, str]] = []
         self._build_ui()
         self._load_settings()
         # 主题切换时刷新样式
@@ -215,28 +269,66 @@ class SettingsDialog(QDialog):
         self.setWindowTitle(_("MySnipaste Settings"))
         self.setMinimumSize(520, 420)
         self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WA_StyledBackground)
+        self.setAutoFillBackground(True)
+        # 无边框窗口：自定义标题栏代替原生标题栏（支持暗色模式）
+        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
 
-        layout = QVBoxLayout(self)
+        # 外层布局：标题栏 + 内容区域（零边距）
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # 自定义标题栏
+        self._title_bar = TitleBar(self, _("MySnipaste Settings"))
+        outer.addWidget(self._title_bar)
+
+        # 内容容器（保留原始边距），QSS 提供主题背景
+        content = QWidget()
+        content.setObjectName("settingsContent")
+        content.setAttribute(Qt.WA_StyledBackground)
+        layout = QVBoxLayout(content)
         layout.setContentsMargins(12, 12, 12, 12)
 
         self._tabs = QTabWidget()
+        self._tabs.setAttribute(Qt.WA_StyledBackground)
+        self._tabs.setAutoFillBackground(True)
         self._tabs.addTab(self._build_general_tab(), _("General"))
         self._tabs.addTab(self._build_capture_tab(), _("Capture"))
         self._tabs.addTab(self._build_annotation_tab(), _("Annotation"))
         self._tabs.addTab(self._build_hotkeys_tab(), _("Shortcuts"))
         self._tabs.addTab(self._build_ocr_tab(), _("OCR"))
         self._tabs.addTab(self._build_advanced_tab(), _("Advanced"))
+        for i in range(self._tabs.count()):
+            tab_widget = self._tabs.widget(i)
+            if tab_widget:
+                tab_widget.setAttribute(Qt.WA_StyledBackground)
+                tab_widget.setAutoFillBackground(True)
         layout.addWidget(self._tabs)
+
+        # Search bar
+        self._search_input = QLineEdit()
+        self._search_input.setPlaceholderText(_("Search settings..."))
+        self._search_input.textChanged.connect(self._filter_settings)
+        layout.addWidget(self._search_input)
 
         btn_layout = QHBoxLayout()
 
-        # Reset to defaults button
         reset_btn = QPushButton(_("Reset to Defaults"))
         reset_btn.clicked.connect(self._reset_to_defaults)
-        reset_btn.setStyleSheet(_theme.qss("color: $text_secondary;"))
+        self._add_themed_widget(reset_btn, "color: $text_secondary;")
         btn_layout.addWidget(reset_btn)
 
         btn_layout.addStretch()
+
+        export_btn = QPushButton(_("Export..."))
+        export_btn.clicked.connect(self._export_settings)
+        btn_layout.addWidget(export_btn)
+
+        import_btn = QPushButton(_("Import..."))
+        import_btn.clicked.connect(self._import_settings)
+        btn_layout.addWidget(import_btn)
+
         save_btn = QPushButton(_("Save"))
         save_btn.clicked.connect(self._save_and_close)
         cancel_btn = QPushButton(_("Cancel"))
@@ -245,13 +337,49 @@ class SettingsDialog(QDialog):
         btn_layout.addWidget(cancel_btn)
         layout.addLayout(btn_layout)
 
+        outer.addWidget(content, stretch=1)
+
+        _theme.apply_to_widget(self)
         self._build_stylesheet_qss()
+
+    def _add_themed_widget(self, widget: QWidget, style_template: str) -> None:
+        """注册需要动态更新主题样式的 widget。"""
+        self._themed_widgets.append((widget, style_template))
+        widget.setStyleSheet(_theme.qss(style_template))
 
     def _build_stylesheet_qss(self) -> None:
         """用主题 token 构建 QSS 并应用，确保暗/亮模式都正确。"""
         self.setStyleSheet(_theme.qss("""
             QDialog {
                 background: $bg_primary;
+                border: 1px solid $border;
+            }
+            #settingsContent {
+                background: $bg_primary;
+            }
+            TitleBar {
+                background: $bg_secondary;
+                border-bottom: 1px solid $border;
+            }
+            TitleBar QLabel {
+                color: $text_primary;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            TitleBar QPushButton {
+                background: transparent;
+                border: none;
+                color: $text_primary;
+                font-size: 14px;
+                padding: 2px 8px;
+                border-radius: 2px;
+            }
+            TitleBar QPushButton:hover {
+                background: $hover_bg;
+            }
+            TitleBar QPushButton:pressed {
+                background: $accent;
+                color: $text_accent;
             }
             QTabWidget::pane {
                 border: 1px solid $border;
@@ -435,17 +563,46 @@ class SettingsDialog(QDialog):
 
     def _on_theme_changed(self, mode: str) -> None:
         """主题切换时刷新整个对话框的样式。"""
+        logger.info(f"🎨 主题切换: {mode}，正在刷新设置对话框...")
+
+        # 步骤 0：设置 QPalette（比 QSS 更底层，更可靠）
+        _theme.apply_to_widget(self)
+        _theme.apply_to_widget(self._tabs)
+        for i in range(self._tabs.count()):
+            tab_widget = self._tabs.widget(i)
+            if tab_widget:
+                _theme.apply_to_widget(tab_widget)
+        logger.debug("✓ QPalette 已应用（对话框 + TabWidget + 所有 Tab 页面）")
+
+        # 步骤 1：清空样式表，强制 Qt 清除缓存的样式
+        self.setStyleSheet("")
+
+        # 步骤 2：重新构建并应用样式表
         self._build_stylesheet_qss()
-        # 强制 Qt 重新计算所有 widget 样式（包括子 widget）
-        for w in [self] + self.findChildren(QWidget):
+        logger.debug("✓ 样式表已重新构建")
+
+        # 步骤 3：更新所有保存的动态样式 widget
+        for widget, style_template in self._themed_widgets:
+            widget.setStyleSheet(_theme.qss(style_template))
+
+        # 步骤 4：强制 Qt 重新计算所有 widget 样式（包括子 widget）
+        all_widgets = [self] + self.findChildren(QWidget)
+        for w in all_widgets:
             w.style().unpolish(w)
             w.style().polish(w)
-        # 单独修复 QScrollArea viewport 背景（QSS 级联对 viewport 不可靠）
+
+        # 步骤 5：单独修复 QScrollArea viewport 背景（QSS 级联对 viewport 不可靠）
         for sa in self.findChildren(QScrollArea):
             vp = sa.viewport()
             vp.setStyleSheet(_theme.qss("background: $bg_primary;"))
             vp.style().unpolish(vp)
             vp.style().polish(vp)
+
+        # 步骤 6：强制重绘整个对话框（确保背景色立即生效）
+        self.update()
+        self.repaint()
+
+        logger.debug("✓ 主题刷新完成")
 
     # ─── General Tab ───
 
@@ -460,7 +617,7 @@ class SettingsDialog(QDialog):
         self._hotkey_recorder = HotkeyRecorderWidget()
         hotkey_layout.addRow(_("Shortcut:"), self._hotkey_recorder)
         hint = QLabel(_("Click 'Record' and press your desired key combination"))
-        hint.setStyleSheet(_theme.qss("color: $text_placeholder; font-size: 11px;"))
+        self._add_themed_widget(hint, "color: $text_placeholder; font-size: 11px;")
         hotkey_layout.addRow("", hint)
         layout.addWidget(hotkey_group)
 
@@ -534,6 +691,11 @@ class SettingsDialog(QDialog):
             startup_layout.addWidget(self._launch_checkbox)
             layout.addWidget(startup_group)
 
+        reset_btn = QPushButton(_("Reset Tab"))
+        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.clicked.connect(lambda: self._reset_tab_general())
+        layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
+
         layout.addStretch()
         return tab
 
@@ -590,6 +752,11 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(behavior_group)
 
+        reset_btn = QPushButton(_("Reset Tab"))
+        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.clicked.connect(lambda: self._reset_tab_capture())
+        layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
+
         layout.addStretch()
         return tab
 
@@ -626,7 +793,7 @@ class SettingsDialog(QDialog):
               "Common: eng, chi_sim, jpn, fra, deu, spa\n"
               "Run 'tesseract --list-langs' to see installed.")
         )
-        lang_hint.setStyleSheet(_theme.qss("color: $text_placeholder; font-size: 11px;"))
+        self._add_themed_widget(lang_hint, "color: $text_placeholder; font-size: 11px;")
         form.addRow(_("Languages:"), self._ocr_lang_input)
         form.addRow("", lang_hint)
         layout.addWidget(group)
@@ -638,6 +805,11 @@ class SettingsDialog(QDialog):
         test_btn.clicked.connect(self._test_ocr)
         test_layout.addWidget(test_btn)
         layout.addLayout(test_layout)
+
+        reset_btn = QPushButton(_("Reset Tab"))
+        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.clicked.connect(lambda: self._reset_tab_ocr())
+        layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
         layout.addStretch()
         return tab
@@ -679,8 +851,11 @@ class SettingsDialog(QDialog):
         """Preview theme when combo box changes."""
         theme_mode = self._theme_combo.currentData()
         if theme_mode:
+            logger.info(f"👁️ 主题预览切换: {theme_mode}")
             _theme.set_mode(theme_mode)
             _theme.apply_to_app(QApplication.instance())
+            # 直接调用刷新，确保对话框立即更新（不依赖信号时序）
+            self._on_theme_changed(_theme.resolved)
 
     def _open_permission_settings(self) -> None:
         """Open macOS System Settings for permissions."""
@@ -773,6 +948,281 @@ class SettingsDialog(QDialog):
             logger.info("Settings reset to defaults")
             QMessageBox.information(self, _("Reset Complete"), _("Settings have been reset to default values."))
 
+    # ─── Settings Search ───
+
+    def _filter_settings(self, text: str) -> None:
+        """Filter QGroupBox widgets in the current tab by search text."""
+        tab = self._tabs.currentWidget()
+        if not tab:
+            return
+        text = text.strip().lower()
+        for group in tab.findChildren(QGroupBox):
+            if not text:
+                group.show()
+                continue
+            # Check group title
+            title = group.title().lower()
+            if text in title:
+                group.show()
+                continue
+            # Check child label/checkbox text
+            found = False
+            for label in group.findChildren(QLabel):
+                if text in label.text().lower():
+                    found = True
+                    break
+            if not found:
+                for cb in group.findChildren(QCheckBox):
+                    if text in cb.text().lower():
+                        found = True
+                        break
+            group.setVisible(found)
+
+    # ─── Export / Import ───
+
+    def _export_settings(self) -> None:
+        """Export current settings to a JSON file."""
+        path, _selected_filter = QFileDialog.getSaveFileName(
+            self, _("Export Settings"),
+            "mysnipaste_settings.json",
+            _("JSON Files (*.json)")
+        )
+        if not path:
+            return
+
+        # Gather current widget values into a dict
+        data: dict = {}
+        s = self._settings
+
+        # General
+        data["hotkey"] = self._hotkey_recorder.get_hotkey() or s.hotkey
+        data["language"] = self._lang_combo.currentData() or "zh_CN"
+        data["theme"] = self._theme_combo.currentData() or "light"
+        if hasattr(self, "_launch_checkbox"):
+            data["launch_at_startup"] = self._launch_checkbox.isChecked()
+
+        # Capture
+        data["auto_save_dir"] = self._save_dir_input.text().strip() if self._auto_save_checkbox.isChecked() else ""
+        data["auto_save_format"] = self._format_combo.currentText().lower()
+        data["capture_sound"] = self._sound_checkbox.isChecked()
+        data["capture_cursor"] = self._cursor_checkbox.isChecked()
+        data["capture_delay"] = self._delay_spin.value()
+        data["capture_after_action"] = self._after_action_combo.currentData()
+
+        # Annotation
+        data["default_color"] = self._color_combo.currentData() or PRESET_COLORS[0]
+        data["default_line_width"] = self._width_spin.value()
+        data["default_font_family"] = self._font_combo.currentText()
+        data["default_font_size"] = self._font_size_spin.value()
+
+        # Shortcuts
+        shortcut_keys = [
+            "hotkey", "hotkey_ocr", "hotkey_delay", "hotkey_pin",
+            "hotkey_full", "hotkey_color_picker",
+            "shortcut_rect", "shortcut_ellipse", "shortcut_arrow",
+            "shortcut_line", "shortcut_pen", "shortcut_text",
+            "shortcut_highlighter", "shortcut_blur",
+            "shortcut_number_marker", "shortcut_select",
+        ]
+        for sk in shortcut_keys:
+            data[sk] = getattr(s, sk, "")
+
+        # OCR
+        data["ocr_language"] = self._ocr_lang_input.text().strip() or "eng+chi_sim"
+
+        # Advanced
+        data["pin_window_opacity"] = self._opacity_slider.value()
+        data["log_level"] = self._log_level_combo.currentText()
+
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            logger.info(f"Settings exported to {path}")
+            QMessageBox.information(self, _("Export"), _("Settings exported successfully."))
+        except Exception as e:
+            logger.error(f"Failed to export settings: {e}")
+            QMessageBox.warning(self, _("Export Error"), _("Failed to export settings:\n{error}").format(error=e))
+
+    def _import_settings(self) -> None:
+        """Import settings from a JSON file and update UI."""
+        path, _selected_filter = QFileDialog.getOpenFileName(
+            self, _("Import Settings"),
+            "", _("JSON Files (*.json)")
+        )
+        if not path:
+            return
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to read import file: {e}")
+            QMessageBox.warning(self, _("Import Error"),
+                                _("Failed to read file:\n{error}").format(error=e))
+            return
+
+        if not isinstance(data, dict):
+            QMessageBox.warning(self, _("Import Error"), _("Invalid settings file format."))
+            return
+
+        # Apply loaded values to widgets
+        s = self._settings
+
+        # General
+        if "hotkey" in data:
+            self._hotkey_recorder.set_hotkey(str(data["hotkey"]))
+        if "language" in data:
+            idx = self._lang_combo.findData(data["language"])
+            if idx >= 0:
+                self._lang_combo.setCurrentIndex(idx)
+        if "theme" in data:
+            tidx = self._theme_combo.findData(data["theme"])
+            if tidx >= 0:
+                self._theme_combo.setCurrentIndex(tidx)
+        if hasattr(self, "_launch_checkbox") and "launch_at_startup" in data:
+            self._launch_checkbox.setChecked(bool(data["launch_at_startup"]))
+
+        # Capture
+        if "auto_save_dir" in data and data["auto_save_dir"]:
+            self._save_dir_input.setText(str(data["auto_save_dir"]))
+            self._auto_save_checkbox.setChecked(True)
+        else:
+            self._save_dir_input.clear()
+            self._auto_save_checkbox.setChecked(False)
+        if "auto_save_format" in data:
+            fidx = self._format_combo.findText(str(data["auto_save_format"]).upper())
+            if fidx >= 0:
+                self._format_combo.setCurrentIndex(fidx)
+        if "capture_sound" in data:
+            self._sound_checkbox.setChecked(bool(data["capture_sound"]))
+        if "capture_cursor" in data:
+            self._cursor_checkbox.setChecked(bool(data["capture_cursor"]))
+        if "capture_delay" in data:
+            self._delay_spin.setValue(int(data["capture_delay"]))
+        if "capture_after_action" in data:
+            aidx = self._after_action_combo.findData(data["capture_after_action"])
+            if aidx >= 0:
+                self._after_action_combo.setCurrentIndex(aidx)
+
+        # Annotation
+        if "default_color" in data:
+            cidx = self._color_combo.findData(data["default_color"])
+            if cidx >= 0:
+                self._color_combo.setCurrentIndex(cidx)
+        if "default_line_width" in data:
+            self._width_spin.setValue(int(data["default_line_width"]))
+        if "default_font_family" in data:
+            self._font_combo.setCurrentText(str(data["default_font_family"]))
+        if "default_font_size" in data:
+            self._font_size_spin.setValue(int(data["default_font_size"]))
+
+        # Shortcuts
+        shortcut_keys = {
+            "capture": "hotkey", "ocr": "hotkey_ocr",
+            "delay_capture": "hotkey_delay", "pin_capture": "hotkey_pin",
+            "full_capture": "hotkey_full", "color_picker": "hotkey_color_picker",
+            "shortcut_rect": "shortcut_rect", "shortcut_ellipse": "shortcut_ellipse",
+            "shortcut_arrow": "shortcut_arrow", "shortcut_line": "shortcut_line",
+            "shortcut_pen": "shortcut_pen", "shortcut_text": "shortcut_text",
+            "shortcut_highlighter": "shortcut_highlighter",
+            "shortcut_blur": "shortcut_blur",
+            "shortcut_number_marker": "shortcut_number_marker",
+            "shortcut_select": "shortcut_select",
+        }
+        for widget_key, attr in shortcut_keys.items():
+            if attr in data:
+                widget = self._shortcut_widgets.get(widget_key)
+                if widget:
+                    widget.set_hotkey(str(data[attr]))
+
+        # OCR
+        if "ocr_language" in data:
+            self._ocr_lang_input.setText(str(data["ocr_language"]))
+
+        # Advanced
+        if "pin_window_opacity" in data:
+            self._opacity_slider.setValue(int(data["pin_window_opacity"]))
+        if "log_level" in data:
+            lidx = self._log_level_combo.findText(str(data["log_level"]))
+            if lidx >= 0:
+                self._log_level_combo.setCurrentIndex(lidx)
+
+        logger.info(f"Settings imported from {path}")
+        QMessageBox.information(self, _("Import"), _("Settings imported successfully.\nClick Save to apply them."))
+
+    # ─── Per-Tab Reset ───
+
+    def _reset_tab_general(self) -> None:
+        """Reset General tab settings to defaults."""
+        defaults = AppSettings()
+        self._hotkey_recorder.set_hotkey(defaults.hotkey)
+        lidx = self._lang_combo.findData(defaults.language)
+        if lidx >= 0:
+            self._lang_combo.setCurrentIndex(lidx)
+        tidx = self._theme_combo.findData("light")
+        if tidx >= 0:
+            self._theme_combo.setCurrentIndex(tidx)
+        if hasattr(self, "_launch_checkbox"):
+            self._launch_checkbox.setChecked(defaults.launch_at_startup)
+
+    def _reset_tab_capture(self) -> None:
+        """Reset Capture tab settings to defaults."""
+        defaults = AppSettings()
+        self._save_dir_input.clear()
+        self._auto_save_checkbox.setChecked(False)
+        fidx = self._format_combo.findText(defaults.auto_save_format.upper())
+        if fidx >= 0:
+            self._format_combo.setCurrentIndex(fidx)
+        self._sound_checkbox.setChecked(defaults.capture_sound)
+        self._cursor_checkbox.setChecked(defaults.capture_cursor)
+        self._delay_spin.setValue(defaults.capture_delay)
+        aidx = self._after_action_combo.findData(defaults.capture_after_action)
+        if aidx >= 0:
+            self._after_action_combo.setCurrentIndex(aidx)
+
+    def _reset_tab_annotation(self) -> None:
+        """Reset Annotation tab settings to defaults."""
+        defaults = AppSettings()
+        cidx = self._color_combo.findData(defaults.default_color)
+        if cidx >= 0:
+            self._color_combo.setCurrentIndex(cidx)
+        self._width_spin.setValue(defaults.default_line_width)
+        self._font_combo.setCurrentText(defaults.default_font_family)
+        self._font_size_spin.setValue(defaults.default_font_size)
+
+    def _reset_tab_hotkeys(self) -> None:
+        """Reset Shortcuts tab settings to defaults."""
+        defaults = AppSettings()
+        shortcut_map = {
+            "capture": "hotkey", "ocr": "hotkey_ocr",
+            "delay_capture": "hotkey_delay", "pin_capture": "hotkey_pin",
+            "full_capture": "hotkey_full", "color_picker": "hotkey_color_picker",
+            "shortcut_rect": "shortcut_rect", "shortcut_ellipse": "shortcut_ellipse",
+            "shortcut_arrow": "shortcut_arrow", "shortcut_line": "shortcut_line",
+            "shortcut_pen": "shortcut_pen", "shortcut_text": "shortcut_text",
+            "shortcut_highlighter": "shortcut_highlighter",
+            "shortcut_blur": "shortcut_blur",
+            "shortcut_number_marker": "shortcut_number_marker",
+            "shortcut_select": "shortcut_select",
+        }
+        for widget_key, attr in shortcut_map.items():
+            widget = self._shortcut_widgets.get(widget_key)
+            if widget:
+                widget.set_hotkey(getattr(defaults, attr, ""))
+
+    def _reset_tab_ocr(self) -> None:
+        """Reset OCR tab settings to defaults."""
+        defaults = AppSettings()
+        self._ocr_lang_input.setText(defaults.ocr_language)
+
+    def _reset_tab_advanced(self) -> None:
+        """Reset Advanced tab settings to defaults."""
+        defaults = AppSettings()
+        self._opacity_slider.setValue(defaults.pin_window_opacity)
+        lidx = self._log_level_combo.findText(defaults.log_level)
+        if lidx >= 0:
+            self._log_level_combo.setCurrentIndex(lidx)
+
     # ─── Annotation Tab ───
 
     def _build_annotation_tab(self) -> QWidget:
@@ -813,6 +1263,12 @@ class SettingsDialog(QDialog):
         form.addRow(_("Font Size:"), self._font_size_spin)
 
         layout.addWidget(group)
+
+        reset_btn = QPushButton(_("Reset Tab"))
+        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.clicked.connect(lambda: self._reset_tab_annotation())
+        layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
+
         layout.addStretch()
         return tab
 
@@ -846,6 +1302,11 @@ class SettingsDialog(QDialog):
         log_form.addRow(_("Log Level:"), self._log_level_combo)
         layout.addWidget(log_group)
 
+        reset_btn = QPushButton(_("Reset Tab"))
+        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.clicked.connect(lambda: self._reset_tab_advanced())
+        layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
+
         layout.addStretch()
         return tab
 
@@ -860,7 +1321,7 @@ class SettingsDialog(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.viewport().setStyleSheet(_theme.qss("background: $bg_primary;"))
+        self._add_themed_widget(scroll.viewport(), "background: $bg_primary;")
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setSpacing(8)
@@ -888,7 +1349,7 @@ class SettingsDialog(QDialog):
             global_layout.addRow(label + ":", rec)
             # Add conflict warning placeholder
             warn = QLabel("")
-            warn.setStyleSheet(_theme.qss("color: $hotkey_conflict; font-size: 11px;"))
+            self._add_themed_widget(warn, "color: $hotkey_conflict; font-size: 11px;")
             warn.setVisible(False)
             global_layout.addRow("", warn)
 
@@ -921,6 +1382,12 @@ class SettingsDialog(QDialog):
 
         scroll.setWidget(scroll_content)
         layout.addWidget(scroll)
+
+        reset_btn = QPushButton(_("Reset Tab"))
+        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.clicked.connect(lambda: self._reset_tab_hotkeys())
+        layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
+
         return tab
 
     # ─── Load / Save ───

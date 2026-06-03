@@ -4,7 +4,8 @@ from datetime import datetime
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence, QPixmap, QAction, QCursor
 from PySide6.QtWidgets import (
-    QApplication, QMessageBox, QFileDialog, QWidget, QMenuBar, QMainWindow,
+    QApplication, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QMessageBox, QFileDialog, QWidget, QMenuBar, QMainWindow,
 )
 
 from .overlay.widget import CaptureOverlay
@@ -42,6 +43,26 @@ def _show_dialog(icon: QMessageBox.Icon, title: str, text: str) -> None:
     msg.setText(text)
     msg.setStandardButtons(QMessageBox.Ok)
     msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
+    msg.setAttribute(Qt.WA_StyledBackground)
+    msg.setStyleSheet(theme_manager.qss("""
+        QMessageBox {
+            background: $bg_primary;
+            color: $text_primary;
+        }
+        QMessageBox QLabel {
+            color: $text_primary;
+        }
+        QMessageBox QPushButton {
+            padding: 6px 20px;
+            border: 1px solid $border;
+            border-radius: 4px;
+            background: $bg_secondary;
+            color: $text_primary;
+        }
+        QMessageBox QPushButton:hover {
+            background: $hover_bg;
+        }
+    """))
     msg.exec()
 
 
@@ -74,6 +95,7 @@ class SnipasteApp(QApplication):
         self.pin_windows: list = []
         self.settings: AppSettings = get_settings()
         self.hotkey_listener: MultiHotkeyListener | None = None
+        self.startup_message: QMessageBox | None = None  # 保存启动提示框引用以支持主题切换
 
         apply_log_level(self.settings.log_level)
 
@@ -169,29 +191,259 @@ class SnipasteApp(QApplication):
 
     def _show_startup_notification(self) -> None:
         from .core.hotkeys import get_default_hotkey
+        from .core.theme import theme as _t
+        from PySide6.QtCore import QPropertyAnimation, QEasingCurve
+
         hotkey_display = get_default_hotkey().upper().replace('+', ' + ')
 
-        # Platform-specific settings shortcut display
         if sys.platform == 'darwin':
             settings_key = '⌘,'
         else:
             settings_key = 'Ctrl+,'
 
-        msg = QMessageBox()
-        msg.setWindowTitle("MySnipaste")
-        msg.setText(_("MySnipaste Started"))
-        msg.setInformativeText(
-            _("Press {hotkey} to capture\nPress {settings_key} to open Settings").format(
-                hotkey=hotkey_display,
-                settings_key=settings_key
-            )
+        dialog = QDialog()
+        dialog.setWindowTitle("MySnipaste")
+        dialog.setWindowFlags(
+            Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
         )
-        msg.setIcon(QMessageBox.Information)
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
-        QTimer.singleShot(3000, msg.close)
-        msg.exec()
-        logger.info("启动提示框已关闭")
+        dialog.setFixedSize(360, 260)
+        dialog.setAttribute(Qt.WA_StyledBackground)
+
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Close button
+        close_btn = QPushButton("×")
+        close_btn.setObjectName("close_btn")
+        close_btn.setFixedSize(28, 28)
+        close_btn.clicked.connect(dialog.accept)
+        close_btn.setCursor(Qt.PointingHandCursor)
+
+        # Header
+        header = QWidget()
+        header.setObjectName("header")
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.addStretch()
+        header_layout.addWidget(close_btn)
+        layout.addWidget(header)
+
+        # Content
+        content = QWidget()
+        content.setObjectName("content")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(24, 0, 24, 24)
+        content_layout.setSpacing(18)
+
+        # Title
+        title = QLabel("MySnipaste")
+        title.setObjectName("title")
+        title.setAlignment(Qt.AlignCenter)
+        content_layout.addWidget(title)
+
+        # Cards
+        cards_layout = QVBoxLayout()
+        cards_layout.setSpacing(10)
+
+        # Screenshot card
+        capture_card = QWidget()
+        capture_card.setObjectName("card")
+        capture_layout = QVBoxLayout(capture_card)
+        capture_layout.setContentsMargins(16, 14, 16, 14)
+        capture_layout.setSpacing(6)
+
+        capture_title = QLabel("📸  " + _("Screenshot"))
+        capture_title.setObjectName("card_title")
+        capture_layout.addWidget(capture_title)
+
+        capture_key = QLabel(hotkey_display)
+        capture_key.setObjectName("card_key")
+        capture_layout.addWidget(capture_key)
+
+        cards_layout.addWidget(capture_card)
+
+        # Settings card
+        settings_card = QWidget()
+        settings_card.setObjectName("card")
+        settings_layout = QVBoxLayout(settings_card)
+        settings_layout.setContentsMargins(16, 14, 16, 14)
+        settings_layout.setSpacing(6)
+
+        settings_title = QLabel("⚙️  " + _("Settings"))
+        settings_title.setObjectName("card_title")
+        settings_layout.addWidget(settings_title)
+
+        settings_key_label = QLabel(settings_key)
+        settings_key_label.setObjectName("card_key")
+        settings_layout.addWidget(settings_key_label)
+
+        cards_layout.addWidget(settings_card)
+
+        content_layout.addLayout(cards_layout)
+        layout.addWidget(content, 1)
+
+        # Crisp, high-contrast theme
+        qss_tpl = """
+            QDialog {
+                background: $bg;
+                border: 1px solid $border;
+                border-radius: 16px;
+            }
+
+            #header {
+                background: transparent;
+                padding: 8px 8px 0 0;
+            }
+
+            #close_btn {
+                background: transparent;
+                border: none;
+                color: $text_secondary;
+                font-size: 22px;
+                font-weight: 300;
+                border-radius: 14px;
+            }
+
+            #close_btn:hover {
+                background: $hover;
+                color: $text_primary;
+            }
+
+            #content {
+                background: transparent;
+            }
+
+            #title {
+                font-size: 26px;
+                font-weight: 900;
+                color: $accent;
+                letter-spacing: -0.8px;
+            }
+
+            #card {
+                background: $card_bg;
+                border: 2px solid $card_border;
+                border-radius: 10px;
+            }
+
+            #card:hover {
+                background: $card_hover;
+                border-color: $accent;
+            }
+
+            #card_title {
+                font-size: 15px;
+                font-weight: 700;
+                color: $text_primary;
+            }
+
+            #card_key {
+                font-size: 18px;
+                font-weight: 800;
+                color: $accent;
+                font-family: 'Consolas', 'SF Mono', 'Monaco', monospace;
+                letter-spacing: 1.5px;
+            }
+        """
+
+        # High contrast colors
+        if _t.is_dark():
+            theme_vars = {
+                'bg': '#1A1A1A',
+                'border': '#333333',
+                'text_primary': '#FFFFFF',
+                'text_secondary': '#999999',
+                'accent': '#60A5FA',
+                'hover': 'rgba(255, 255, 255, 0.08)',
+                'card_bg': '#242424',
+                'card_border': '#333333',
+                'card_hover': '#2A2A2A',
+            }
+        else:
+            theme_vars = {
+                'bg': '#FFFFFF',
+                'border': '#E5E5E5',
+                'text_primary': '#000000',
+                'text_secondary': '#666666',
+                'accent': '#2563EB',
+                'hover': 'rgba(0, 0, 0, 0.05)',
+                'card_bg': '#F8F8F8',
+                'card_border': '#E5E5E5',
+                'card_hover': '#F0F0F0',
+            }
+
+        styled_qss = qss_tpl
+        for key, value in theme_vars.items():
+            styled_qss = styled_qss.replace(f'${key}', value)
+
+        dialog.setStyleSheet(styled_qss)
+
+        # Entrance animation
+        dialog.setWindowOpacity(0)
+        fade_in = QPropertyAnimation(dialog, b"windowOpacity")
+        fade_in.setDuration(300)
+        fade_in.setStartValue(0.0)
+        fade_in.setEndValue(1.0)
+        fade_in.setEasingCurve(QEasingCurve.OutCubic)
+        fade_in.start()
+
+        # Center on screen
+        screen = QApplication.primaryScreen().geometry()
+        dialog.move(
+            screen.center().x() - dialog.width() // 2,
+            screen.center().y() - dialog.height() // 2
+        )
+
+        self.startup_message = dialog
+
+        def update_startup_style():
+            if self.startup_message:
+                if _t.is_dark():
+                    theme_vars_updated = {
+                        'bg': '#1A1A1A',
+                        'border': '#333333',
+                        'text_primary': '#FFFFFF',
+                        'text_secondary': '#999999',
+                        'accent': '#60A5FA',
+                        'hover': 'rgba(255, 255, 255, 0.08)',
+                        'card_bg': '#242424',
+                        'card_border': '#333333',
+                        'card_hover': '#2A2A2A',
+                    }
+                else:
+                    theme_vars_updated = {
+                        'bg': '#FFFFFF',
+                        'border': '#E5E5E5',
+                        'text_primary': '#000000',
+                        'text_secondary': '#666666',
+                        'accent': '#2563EB',
+                        'hover': 'rgba(0, 0, 0, 0.05)',
+                        'card_bg': '#F8F8F8',
+                        'card_border': '#E5E5E5',
+                        'card_hover': '#F0F0F0',
+                    }
+
+                updated_qss = qss_tpl
+                for key, value in theme_vars_updated.items():
+                    updated_qss = updated_qss.replace(f'${key}', value)
+                self.startup_message.setStyleSheet(updated_qss)
+
+        _t.theme_changed.connect(update_startup_style)
+
+        def cleanup():
+            if self.startup_message:
+                try:
+                    _t.theme_changed.disconnect(update_startup_style)
+                except (TypeError, RuntimeError):
+                    pass
+                self.startup_message = None
+            logger.info("启动提示框已关闭")
+
+        dialog.finished.connect(cleanup)
+
+        QTimer.singleShot(3000, dialog.close)
+        dialog.exec()
 
     def _show_permission_required_notification(self) -> None:
         """Show permission dialog when Input Monitoring permission is not granted."""
