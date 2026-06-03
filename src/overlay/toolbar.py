@@ -23,43 +23,43 @@ from ..core.theme import theme as _t
 logger = setup_logger("overlay_toolbar")
 
 def _submenu_style() -> str:
-    """Submenu 按钮样式 - 精致浮动面板设计（更大、更清晰、微妙动画）。"""
+    """Submenu 按钮样式 - 精致浮动面板设计（紧凑对齐、清晰反馈）。"""
     is_dark = _t.is_dark()
     if is_dark:
         # 暗色模式：亮色悬停 + 强调发光
-        btn_bg = "rgba(255,255,255,0.04)"
-        btn_hover_bg = "rgba(255,255,255,0.12)"
-        btn_hover_border = "rgba(255,255,255,0.20)"
-        btn_checked_bg = "rgba(32,127,240,0.22)"
+        btn_bg = "rgba(255,255,255,0.03)"
+        btn_hover_bg = "rgba(255,255,255,0.10)"
+        btn_hover_border = "rgba(255,255,255,0.18)"
+        btn_checked_bg = "rgba(32,127,240,0.20)"
         btn_checked_border = "$accent"
-        btn_pressed_bg = "rgba(255,255,255,0.10)"
+        btn_pressed_bg = "rgba(255,255,255,0.08)"
     else:
         # 亮色模式：柔和悬停
         btn_bg = "rgba(0,0,0,0.02)"
-        btn_hover_bg = "rgba(128,128,128,0.15)"
-        btn_hover_border = "rgba(128,128,128,0.25)"
-        btn_checked_bg = "rgba(32,127,240,0.12)"
+        btn_hover_bg = "rgba(128,128,128,0.12)"
+        btn_hover_border = "rgba(128,128,128,0.20)"
+        btn_checked_bg = "rgba(32,127,240,0.10)"
         btn_checked_border = "$accent"
-        btn_pressed_bg = "rgba(128,128,128,0.25)"
+        btn_pressed_bg = "rgba(128,128,128,0.20)"
 
     return _t.qss(f"""
     QToolButton {{
         color: $text_primary;
         background: {btn_bg};
-        border: 2px solid transparent;
-        border-radius: 6px;
-        padding: 4px;
-        margin: 2px;
-        min-width: 28px;
-        min-height: 28px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        padding: 2px;
+        margin: 1px;
+        min-width: 20px;
+        min-height: 20px;
     }}
     QToolButton:hover {{
         background: {btn_hover_bg};
-        border: 2px solid {btn_hover_border};
+        border: 1px solid {btn_hover_border};
     }}
     QToolButton:checked {{
         background: {btn_checked_bg};
-        border: 2px solid {btn_checked_border};
+        border: 1px solid {btn_checked_border};
     }}
     QToolButton:pressed {{
         background: {btn_pressed_bg};
