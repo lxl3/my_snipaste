@@ -47,11 +47,11 @@ def _submenu_style() -> str:
         color: $text_primary;
         background: {btn_bg};
         border: 1px solid transparent;
-        border-radius: 4px;
-        padding: 2px;
-        margin: 1px;
-        min-width: 20px;
-        min-height: 20px;
+        border-radius: 2px;
+        padding: 1px;
+        margin: 0px;
+        min-width: 18px;
+        min-height: 18px;
     }}
     QToolButton:hover {{
         background: {btn_hover_bg};
@@ -104,12 +104,12 @@ def _popup_style() -> str:
         border: 1px solid {border_main};
         border-top: 2px solid {border_top};
         border-bottom: 2px solid {border_bottom};
-        border-radius: 10px;
-        padding: 8px;
+        border-radius: 0px;
+        padding: 4px;
     }}
     QMenu::item {{
         background: transparent;
-        padding: 2px;
+        padding: 0px;
     }}
 """)
 
@@ -145,9 +145,9 @@ def _control_style() -> str:
         color: {text_color};
         background: {bg};
         border: 1px solid {border};
-        border-radius: 4px;
-        padding: 3px 6px;
-        min-height: 18px;
+        border-radius: 2px;
+        padding: 2px 4px;
+        min-height: 16px;
         font-size: 12px;
     }}
     QComboBox:hover {{
@@ -182,9 +182,9 @@ def _control_style() -> str:
         color: {text_color};
         background: {bg};
         border: 1px solid {border};
-        border-radius: 4px;
-        padding: 3px 6px;
-        min-height: 18px;
+        border-radius: 2px;
+        padding: 2px 4px;
+        min-height: 16px;
         font-size: 12px;
     }}
     QSpinBox:hover {{
@@ -465,8 +465,8 @@ class OverlayToolbar:
         for item_icon, item_tool, item_tip in items:
             tool_btn = QToolButton()
             tool_btn.setIcon(self._load_icon(item_icon))
-            tool_btn.setIconSize(QSize(20, 20))
-            tool_btn.setFixedSize(24, 24)
+            tool_btn.setIconSize(QSize(16, 16))
+            tool_btn.setFixedSize(18, 18)
             tool_btn.setToolTip(item_tip)
             tool_btn.setProperty("iconName", item_icon)
             tool_btn.setCheckable(True)
@@ -546,8 +546,8 @@ class OverlayToolbar:
         shape_action = QWidgetAction(shape_menu)
         shape_container = QWidget()
         shape_layout = QHBoxLayout(shape_container)
-        shape_layout.setContentsMargins(3, 3, 3, 3)
-        shape_layout.setSpacing(3)
+        shape_layout.setContentsMargins(2, 2, 2, 2)
+        shape_layout.setSpacing(2)
         shape_layout.setAlignment(Qt.AlignVCenter)
 
         self._add_tool_buttons_to_submenu(shape_layout, [("rectangle", "rect", _("Rectangle")), ("ellipse", "ellipse", _("Ellipse"))], shape_btn, shape_menu)
@@ -572,8 +572,8 @@ class OverlayToolbar:
         arrow_action = QWidgetAction(arrow_menu)
         arrow_container = QWidget()
         arrow_layout = QHBoxLayout(arrow_container)
-        arrow_layout.setContentsMargins(3, 3, 3, 3)
-        arrow_layout.setSpacing(3)
+        arrow_layout.setContentsMargins(2, 2, 2, 2)
+        arrow_layout.setSpacing(2)
         arrow_layout.setAlignment(Qt.AlignVCenter)
 
         self._add_tool_buttons_to_submenu(arrow_layout, [("arrow", "arrow", _("Arrow")), ("line", "line", _("Line"))], arrow_btn, arrow_menu)
@@ -598,8 +598,8 @@ class OverlayToolbar:
         pen_action = QWidgetAction(pen_menu)
         pen_container = QWidget()
         container_layout = QHBoxLayout(pen_container)
-        container_layout.setContentsMargins(3, 3, 3, 3)
-        container_layout.setSpacing(4)
+        container_layout.setContentsMargins(2, 2, 2, 2)
+        container_layout.setSpacing(3)
         container_layout.setAlignment(Qt.AlignVCenter)
 
         self._add_color_buttons_to_submenu(container_layout, PRESET_COLORS, self._color_buttons, self._set_pen_color)
@@ -631,37 +631,35 @@ class OverlayToolbar:
         mosaic_action = QWidgetAction(mosaic_menu)
         mosaic_container = QWidget()
         mosaic_layout = QHBoxLayout(mosaic_container)
-        mosaic_layout.setContentsMargins(3, 3, 3, 3)
-        mosaic_layout.setSpacing(4)
+        mosaic_layout.setContentsMargins(2, 2, 2, 2)
+        mosaic_layout.setSpacing(3)
         mosaic_layout.setAlignment(Qt.AlignVCenter)
 
+        # 工具按钮
         self._add_tool_buttons_to_submenu(mosaic_layout, [
             ("mosaic", "mosaic", _("Mosaic")),
             ("blur", "blur", _("Blur")),
         ], mosaic_btn, mosaic_menu)
 
-        mosaic_action.setDefaultWidget(mosaic_container)
-        mosaic_menu.addAction(mosaic_action)
+        # 分隔符
+        sep = QFrame()
+        sep.setFrameShape(QFrame.VLine)
+        sep.setStyleSheet(_t.qss("color: $border_light;"))
+        sep.setFixedWidth(1)
+        mosaic_layout.addWidget(sep)
 
-        # ── Blur / Mosaic control row (second row, shared row for both controls) ──
-        self._adjust_act = QWidgetAction(mosaic_menu)
-        self._adjust_ctrl = QWidget()
-        ctrl_layout = QHBoxLayout(self._adjust_ctrl)
-        ctrl_layout.setContentsMargins(6, 2, 6, 2)
-        ctrl_layout.setSpacing(4)
-
-        # Blur controls (inside a sub-widget for batch hide/show)
+        # Blur controls (inline)
         self._blur_group = QWidget()
         blur_group_layout = QHBoxLayout(self._blur_group)
         blur_group_layout.setContentsMargins(0, 0, 0, 0)
-        blur_group_layout.setSpacing(4)
+        blur_group_layout.setSpacing(2)
         radius_label = QLabel(_("Blur:"))
         radius_label.setStyleSheet(_control_style())
         blur_group_layout.addWidget(radius_label)
         self._blur_radius_spinbox = QSpinBox()
         self._blur_radius_spinbox.setRange(1, 50)
         self._blur_radius_spinbox.setValue(self.overlay.current_blur_radius)
-        self._blur_radius_spinbox.setFixedWidth(55)
+        self._blur_radius_spinbox.setFixedWidth(45)
         self._blur_radius_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
         self._blur_radius_spinbox.setStyleSheet(_control_style())
         self._blur_radius_spinbox.valueChanged.connect(
@@ -669,19 +667,20 @@ class OverlayToolbar:
                        self.overlay._apply_property_to_selected("blur_radius", v))
         )
         blur_group_layout.addWidget(self._blur_radius_spinbox)
+        mosaic_layout.addWidget(self._blur_group)
 
-        # Mosaic controls (inside a sub-widget for batch hide/show)
+        # Mosaic controls (inline)
         self._mosaic_group = QWidget()
         mosaic_group_layout = QHBoxLayout(self._mosaic_group)
         mosaic_group_layout.setContentsMargins(0, 0, 0, 0)
-        mosaic_group_layout.setSpacing(4)
+        mosaic_group_layout.setSpacing(2)
         scale_label = QLabel(_("Mosaic:"))
         scale_label.setStyleSheet(_control_style())
         mosaic_group_layout.addWidget(scale_label)
         self._mosaic_scale_spinbox = QSpinBox()
         self._mosaic_scale_spinbox.setRange(2, 30)
         self._mosaic_scale_spinbox.setValue(self.overlay.current_mosaic_scale)
-        self._mosaic_scale_spinbox.setFixedWidth(55)
+        self._mosaic_scale_spinbox.setFixedWidth(45)
         self._mosaic_scale_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
         self._mosaic_scale_spinbox.setStyleSheet(_control_style())
         self._mosaic_scale_spinbox.valueChanged.connect(
@@ -689,11 +688,10 @@ class OverlayToolbar:
                        self.overlay._apply_property_to_selected("mosaic_scale", v))
         )
         mosaic_group_layout.addWidget(self._mosaic_scale_spinbox)
+        mosaic_layout.addWidget(self._mosaic_group)
 
-        ctrl_layout.addWidget(self._blur_group)
-        ctrl_layout.addWidget(self._mosaic_group)
-        self._adjust_act.setDefaultWidget(self._adjust_ctrl)
-        mosaic_menu.addAction(self._adjust_act)
+        mosaic_action.setDefaultWidget(mosaic_container)
+        mosaic_menu.addAction(mosaic_action)
 
         def _update_controls():
             """Show blur or mosaic controls based on active sub-tool."""
@@ -730,8 +728,8 @@ class OverlayToolbar:
         hl_action = QWidgetAction(hl_menu)
         hl_container = QWidget()
         hl_layout = QHBoxLayout(hl_container)
-        hl_layout.setContentsMargins(3, 3, 3, 3)
-        hl_layout.setSpacing(4)
+        hl_layout.setContentsMargins(2, 2, 2, 2)
+        hl_layout.setSpacing(3)
         hl_layout.setAlignment(Qt.AlignVCenter)
 
         # Sub-tools: highlighter, number marker
@@ -787,8 +785,8 @@ class OverlayToolbar:
         zoom_action = QWidgetAction(mag_menu)
         zoom_container = QWidget()
         zoom_layout = QHBoxLayout(zoom_container)
-        zoom_layout.setContentsMargins(6, 4, 6, 4)
-        zoom_layout.setSpacing(4)
+        zoom_layout.setContentsMargins(4, 2, 4, 2)
+        zoom_layout.setSpacing(3)
         zoom_layout.setAlignment(Qt.AlignVCenter)
 
         zoom_label = QLabel(_("Zoom:"))
@@ -823,8 +821,8 @@ class OverlayToolbar:
         text_action = QWidgetAction(text_menu)
         text_container = QWidget()
         text_main_layout = QHBoxLayout(text_container)
-        text_main_layout.setContentsMargins(3, 3, 3, 3)
-        text_main_layout.setSpacing(4)
+        text_main_layout.setContentsMargins(2, 2, 2, 2)
+        text_main_layout.setSpacing(3)
         text_main_layout.setAlignment(Qt.AlignVCenter)
 
         self._font_combo = QComboBox()
@@ -883,8 +881,8 @@ class OverlayToolbar:
         eraser_action = QWidgetAction(eraser_menu)
         eraser_container = QWidget()
         eraser_layout = QHBoxLayout(eraser_container)
-        eraser_layout.setContentsMargins(6, 4, 6, 4)
-        eraser_layout.setSpacing(6)
+        eraser_layout.setContentsMargins(4, 2, 4, 2)
+        eraser_layout.setSpacing(4)
         eraser_layout.setAlignment(Qt.AlignVCenter)
 
         for icon_key, tool_id, tooltip in [
@@ -893,8 +891,8 @@ class OverlayToolbar:
         ]:
             tool_btn = QToolButton()
             tool_btn.setIcon(self._load_icon(icon_key))
-            tool_btn.setIconSize(QSize(20, 20))
-            tool_btn.setFixedSize(28, 28)
+            tool_btn.setIconSize(QSize(16, 16))
+            tool_btn.setFixedSize(18, 18)
             tool_btn.setToolTip(tooltip)
             tool_btn.setProperty("iconName", icon_key)
             tool_btn.setCheckable(True)
