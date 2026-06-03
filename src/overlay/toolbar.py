@@ -1,11 +1,11 @@
+from PySide6.QtGui import QColor, QIcon
 from PySide6.QtWidgets import (
     QWidget, QApplication, QToolButton, QFrame, QHBoxLayout, QMenu,
     QWidgetAction, QPushButton, QSpinBox, QVBoxLayout,
-    QComboBox, QLabel, QGraphicsOpacityEffect, QToolTip,
+    QComboBox, QLabel, QGraphicsOpacityEffect,
 )
 
 from ..ui.color_picker import get_color
-from PySide6.QtGui import QColor, QIcon
 from PySide6.QtCore import Qt, QPoint, QSize, QPropertyAnimation, QAbstractAnimation
 
 from ..resources.icons.toolbar_icons import TOOLBAR_ICONS
@@ -270,6 +270,14 @@ def _toolbar_style() -> str:
         border-top: 2px solid {border_top};
         border-bottom: 1px solid {border_bottom};
         border-radius: 6px;
+    }}
+    QToolTip {{
+        background: {"#2D2D2D" if is_dark else "#FFFFFF"};
+        color: {"#CCCCCC" if is_dark else "#333333"};
+        border: {"1px solid #555555" if is_dark else "1px solid #CCCCCC"};
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
     }}
     QToolButton {{
         color: $text_primary;
