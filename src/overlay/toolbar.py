@@ -125,8 +125,9 @@ def _control_style() -> str:
         border = "rgba(255,255,255,0.15)"
         border_focus = "rgba(32,127,240,0.6)"
         text_color = "#EEEEEE"  # 高对比度白色文字
-        button_bg = "rgba(255,255,255,0.10)"
-        arrow_color = "#CCCCCC"
+        button_bg = "rgba(255,255,255,0.12)"
+        button_hover_bg = "rgba(255,255,255,0.18)"
+        arrow_color = "#EEEEEE"  # 更亮的箭头
     else:
         # 亮色模式：清晰文字 + 柔和背景
         bg = "rgba(0,0,0,0.04)"
@@ -134,8 +135,9 @@ def _control_style() -> str:
         border = "rgba(0,0,0,0.15)"
         border_focus = "rgba(32,127,240,0.6)"
         text_color = "#222222"  # 高对比度黑色文字
-        button_bg = "rgba(0,0,0,0.06)"
-        arrow_color = "#555555"
+        button_bg = "rgba(0,0,0,0.08)"
+        button_hover_bg = "rgba(0,0,0,0.12)"
+        arrow_color = "#333333"  # 更深的箭头
 
     return _t.qss(f"""
     /* QComboBox */
@@ -195,24 +197,25 @@ def _control_style() -> str:
     QSpinBox::up-button, QSpinBox::down-button {{
         background: {button_bg};
         border: none;
-        width: 16px;
-        border-radius: 2px;
+        width: 18px;
+        border-radius: 3px;
+        margin: 1px;
     }}
     QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
-        background: {bg_hover};
+        background: {button_hover_bg};
     }}
     QSpinBox::up-arrow {{
         image: none;
-        border-left: 3px solid transparent;
-        border-right: 3px solid transparent;
-        border-bottom: 4px solid {arrow_color};
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-bottom: 5px solid {arrow_color};
         margin-bottom: 1px;
     }}
     QSpinBox::down-arrow {{
         image: none;
-        border-left: 3px solid transparent;
-        border-right: 3px solid transparent;
-        border-top: 4px solid {arrow_color};
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid {arrow_color};
         margin-top: 1px;
     }}
 
@@ -380,59 +383,64 @@ class OverlayToolbar:
         if not self.toolbar:
             return
 
-        # 刷新工具栏样式
-        self.toolbar.setStyleSheet(_toolbar_style())
+        try:
+            # 刷新工具栏样式
+            self.toolbar.setStyleSheet(_toolbar_style())
 
-        # 刷新所有 QToolButton 的图标（遍历所有子控件）
-        for btn in self.toolbar.findChildren(QToolButton):
-            # 检查是否保存了图标名称
-            icon_name = btn.property("iconName")
-            if icon_name:
-                btn.setIcon(self._load_icon(icon_name))
-                continue
+            # 刷新所有 QToolButton 的图标（遍历所有子控件）
+            for btn in self.toolbar.findChildren(QToolButton):
+                # 检查是否保存了图标名称
+                icon_name = btn.property("iconName")
+                if icon_name:
+                    btn.setIcon(self._load_icon(icon_name))
+                    continue
 
-            # 如果没有保存，尝试通过 tooltip 推断
-            tooltip = btn.toolTip()
-            icon_map = {
-                _("Rectangle"): "rectangle",
-                _("Circle"): "circle",
-                _("Line"): "line",
-                _("Arrow"): "arrow",
-                _("Pen"): "pen",
-                _("Text"): "text",
-                _("Mosaic"): "mosaic",
-                _("Magnifier"): "magnifier",
-                _("Eraser"): "eraser",
-                _("Text Recognition"): "OCR",
-                _("Undo"): "undo",
-                _("Redo"): "redo",
-                _("Crop to selection"): "crop",
-                _("Pin"): "pin",
-                _("Copy"): "copy",
-                _("Save"): "save",
-                _("Cancel"): "close",
-                _("Highlighter"): "highlighter",
-            }
-            for tip, name in icon_map.items():
-                if tooltip == tip:
-                    btn.setIcon(self._load_icon(name))
-                    break
+                # 如果没有保存，尝试通过 tooltip 推断
+                tooltip = btn.toolTip()
+                icon_map = {
+                    _("Rectangle"): "rectangle",
+                    _("Circle"): "circle",
+                    _("Line"): "line",
+                    _("Arrow"): "arrow",
+                    _("Pen"): "pen",
+                    _("Text"): "text",
+                    _("Mosaic"): "mosaic",
+                    _("Magnifier"): "magnifier",
+                    _("Eraser"): "eraser",
+                    _("Text Recognition"): "OCR",
+                    _("Undo"): "undo",
+                    _("Redo"): "redo",
+                    _("Crop to selection"): "crop",
+                    _("Pin"): "pin",
+                    _("Copy"): "copy",
+                    _("Save"): "save",
+                    _("Cancel"): "close",
+                    _("Highlighter"): "highlighter",
+                }
+                for tip, name in icon_map.items():
+                    if tooltip == tip:
+                        btn.setIcon(self._load_icon(name))
+                        break
 
-        # 刷新主工具按钮
-        for tool_id, btn in self._tool_btns.items():
-            btn.setIcon(self._load_icon(tool_id))
+            # 刷新主工具按钮
+            for tool_id, btn in self._tool_btns.items():
+                btn.setIcon(self._load_icon(tool_id))
 
-        # 刷新样式相关的控件
-        if self._undo_btn:
-            self._undo_btn.setStyleSheet(_t.qss(
-                "QToolButton:enabled { color: $text_primary; }"
-                " QToolButton:disabled { color: $text_disabled; }"
-            ))
-        if self._redo_btn:
-            self._redo_btn.setStyleSheet(_t.qss(
-                "QToolButton:enabled { color: $text_primary; }"
-                " QToolButton:disabled { color: $text_disabled; }"
-            ))
+            # 刷新样式相关的控件
+            if self._undo_btn:
+                self._undo_btn.setStyleSheet(_t.qss(
+                    "QToolButton:enabled { color: $text_primary; }"
+                    " QToolButton:disabled { color: $text_disabled; }"
+                ))
+            if self._redo_btn:
+                self._redo_btn.setStyleSheet(_t.qss(
+                    "QToolButton:enabled { color: $text_primary; }"
+                    " QToolButton:disabled { color: $text_disabled; }"
+                ))
+        except RuntimeError as e:
+            # C++ 对象已被删除，忽略错误
+            logger.debug(f"Failed to refresh icons: {e}")
+            return
 
     def _make_submenu_btn(self, btn_icon: str, btn_tooltip: str, parent_layout, tool_ids=None):
         btn = QToolButton()
@@ -444,6 +452,7 @@ class OverlayToolbar:
         btn.setProperty("iconName", btn_icon)  # 保存图标名称以便刷新
         menu = QMenu(self.overlay)
         menu.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        menu.setAttribute(Qt.WA_TranslucentBackground)
         menu.setStyleSheet(_popup_style())
         if tool_ids:
             btn.clicked.connect(lambda: self._toggle_or_open_menu(menu, btn, tool_ids))
@@ -539,7 +548,7 @@ class OverlayToolbar:
         shape_layout = QHBoxLayout(shape_container)
         shape_layout.setContentsMargins(3, 3, 3, 3)
         shape_layout.setSpacing(3)
-        shape_layout.setAlignment(Qt.AlignCenter)
+        shape_layout.setAlignment(Qt.AlignVCenter)
 
         self._add_tool_buttons_to_submenu(shape_layout, [("rectangle", "rect", _("Rectangle")), ("ellipse", "ellipse", _("Ellipse"))], shape_btn, shape_menu)
         self._add_separator(shape_layout)
@@ -565,7 +574,7 @@ class OverlayToolbar:
         arrow_layout = QHBoxLayout(arrow_container)
         arrow_layout.setContentsMargins(3, 3, 3, 3)
         arrow_layout.setSpacing(3)
-        arrow_layout.setAlignment(Qt.AlignCenter)
+        arrow_layout.setAlignment(Qt.AlignVCenter)
 
         self._add_tool_buttons_to_submenu(arrow_layout, [("arrow", "arrow", _("Arrow")), ("line", "line", _("Line"))], arrow_btn, arrow_menu)
         self._add_separator(arrow_layout)
@@ -591,7 +600,7 @@ class OverlayToolbar:
         container_layout = QHBoxLayout(pen_container)
         container_layout.setContentsMargins(3, 3, 3, 3)
         container_layout.setSpacing(4)
-        container_layout.setAlignment(Qt.AlignCenter)
+        container_layout.setAlignment(Qt.AlignVCenter)
 
         self._add_color_buttons_to_submenu(container_layout, PRESET_COLORS, self._color_buttons, self._set_pen_color)
         self._add_separator(container_layout)
@@ -624,7 +633,7 @@ class OverlayToolbar:
         mosaic_layout = QHBoxLayout(mosaic_container)
         mosaic_layout.setContentsMargins(3, 3, 3, 3)
         mosaic_layout.setSpacing(4)
-        mosaic_layout.setAlignment(Qt.AlignCenter)
+        mosaic_layout.setAlignment(Qt.AlignVCenter)
 
         self._add_tool_buttons_to_submenu(mosaic_layout, [
             ("mosaic", "mosaic", _("Mosaic")),
@@ -723,7 +732,7 @@ class OverlayToolbar:
         hl_layout = QHBoxLayout(hl_container)
         hl_layout.setContentsMargins(3, 3, 3, 3)
         hl_layout.setSpacing(4)
-        hl_layout.setAlignment(Qt.AlignCenter)
+        hl_layout.setAlignment(Qt.AlignVCenter)
 
         # Sub-tools: highlighter, number marker
         self._add_tool_buttons_to_submenu(hl_layout, [
@@ -780,7 +789,7 @@ class OverlayToolbar:
         zoom_layout = QHBoxLayout(zoom_container)
         zoom_layout.setContentsMargins(6, 4, 6, 4)
         zoom_layout.setSpacing(4)
-        zoom_layout.setAlignment(Qt.AlignCenter)
+        zoom_layout.setAlignment(Qt.AlignVCenter)
 
         zoom_label = QLabel(_("Zoom:"))
         zoom_label.setStyleSheet(_control_style())
@@ -816,7 +825,7 @@ class OverlayToolbar:
         text_main_layout = QHBoxLayout(text_container)
         text_main_layout.setContentsMargins(3, 3, 3, 3)
         text_main_layout.setSpacing(4)
-        text_main_layout.setAlignment(Qt.AlignCenter)
+        text_main_layout.setAlignment(Qt.AlignVCenter)
 
         self._font_combo = QComboBox()
         self._font_combo.addItems(["Segoe UI", "Arial", "微软雅黑", "宋体", "黑体", "楷体"])
@@ -876,7 +885,7 @@ class OverlayToolbar:
         eraser_layout = QHBoxLayout(eraser_container)
         eraser_layout.setContentsMargins(6, 4, 6, 4)
         eraser_layout.setSpacing(6)
-        eraser_layout.setAlignment(Qt.AlignCenter)
+        eraser_layout.setAlignment(Qt.AlignVCenter)
 
         for icon_key, tool_id, tooltip in [
             ("eraser_dot", "eraser_dot", _("Dot Erase")),
