@@ -4,8 +4,8 @@ import subprocess
 from PySide6.QtCore import Qt, Signal, QEvent
 from PySide6.QtGui import QColor, QPixmap, QIcon, QKeyEvent
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
-    QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
+    QApplication, QDialog, QVBoxLayout, QHBoxLayout, QTabWidget,
+    QWidget, QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
     QCheckBox, QSlider, QFileDialog, QMessageBox, QGroupBox,
     QFormLayout, QScrollArea,
 )
@@ -36,21 +36,6 @@ class HotkeyRecorderWidget(QWidget):
         self._display = QLineEdit()
         self._display.setReadOnly(True)
         self._display.setPlaceholderText(_("Click 'Record' and press keys..."))
-        self._display.setStyleSheet("""
-            QLineEdit {
-                padding: 4px 8px;
-                border: 1px solid palette(mid);
-                border-radius: 4px;
-                background: palette(base);
-                color: palette(text);
-            }
-            QLineEdit:focus {
-                border-color: palette(highlight);
-            }
-            QLineEdit::placeholder {
-                color: palette(placeholder-text);
-            }
-        """)
         layout.addWidget(self._display, 1)
 
         self._record_btn = QPushButton(_("Record"))
@@ -75,14 +60,14 @@ class HotkeyRecorderWidget(QWidget):
         self._recording = not self._recording
         if self._recording:
             self._record_btn.setText(_("Stop"))
-            self._record_btn.setStyleSheet("""
+            self._record_btn.setStyleSheet(_theme.qss("""
                 QPushButton {
-                    background-color: palette(highlight);
-                    color: palette(highlighted-text);
+                    background: $accent;
+                    color: $text_accent;
                     border-radius: 4px;
                     padding: 6px 20px;
                 }
-            """)
+            """))
             self._display.setText(_("Press keys..."))
             self._current_keys.clear()
             self.setFocus()
@@ -223,6 +208,8 @@ class SettingsDialog(QDialog):
         self._settings: AppSettings = get_settings()
         self._build_ui()
         self._load_settings()
+        # 主题切换时刷新样式
+        _theme.theme_changed.connect(self._on_theme_changed)
 
     def _build_ui(self) -> None:
         self.setWindowTitle(_("MySnipaste Settings"))
@@ -246,7 +233,7 @@ class SettingsDialog(QDialog):
         # Reset to defaults button
         reset_btn = QPushButton(_("Reset to Defaults"))
         reset_btn.clicked.connect(self._reset_to_defaults)
-        reset_btn.setStyleSheet("color: palette(dark);")
+        reset_btn.setStyleSheet(_theme.qss("color: $text_secondary;"))
         btn_layout.addWidget(reset_btn)
 
         btn_layout.addStretch()
@@ -258,27 +245,207 @@ class SettingsDialog(QDialog):
         btn_layout.addWidget(cancel_btn)
         layout.addLayout(btn_layout)
 
-        self.setStyleSheet("""
-            QTabWidget::pane { border: 1px solid palette(mid); border-radius: 4px; padding: 8px; }
-            QTabBar::tab { padding: 6px 16px; margin: 1px; }
-            QTabBar::tab:selected { background: palette(highlight); color: palette(highlighted-text); border-bottom: 2px solid palette(highlight); }
-            QTabBar::tab:!selected { color: palette(text); }
-            QGroupBox { font-weight: 600; border: 1px solid palette(mid); border-radius: 6px; margin-top: 12px; padding: 16px 12px 12px; }
-            QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; }
-            QLineEdit { padding: 4px 8px; border: 1px solid palette(mid); border-radius: 4px; background: palette(base); color: palette(text); }
-            QLineEdit:focus { border-color: palette(highlight); }
-            QSpinBox { padding: 4px; border: 1px solid palette(mid); border-radius: 4px; background: palette(base); color: palette(text); }
-            QPushButton { padding: 6px 20px; border: 1px solid palette(mid); border-radius: 4px; background: palette(button); color: palette(button-text); }
-            QPushButton:hover { background: palette(midlight); }
-            QPushButton:pressed { background: palette(middark); }
+        self._build_stylesheet_qss()
+
+    def _build_stylesheet_qss(self) -> None:
+        """用主题 token 构建 QSS 并应用，确保暗/亮模式都正确。"""
+        self.setStyleSheet(_theme.qss("""
+            QDialog {
+                background: $bg_primary;
+            }
+            QTabWidget::pane {
+                border: 1px solid $border;
+                border-radius: 4px;
+                padding: 8px;
+                background: $bg_primary;
+            }
+            QTabWidget QStackedWidget {
+                background: $bg_primary;
+            }
+            QTabBar::tab {
+                padding: 6px 16px;
+                margin: 1px;
+                color: $text_primary;
+                background: transparent;
+            }
+            QTabBar::tab:selected {
+                background: $accent;
+                color: $text_accent;
+            }
+            QTabBar::tab:hover:!selected {
+                background: $hover_bg;
+            }
+            QGroupBox {
+                font-weight: 600;
+                border: 1px solid $border;
+                border-radius: 6px;
+                margin-top: 12px;
+                padding: 16px 12px 12px;
+                background: transparent;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 4px;
+                color: $text_primary;
+            }
+            QLineEdit {
+                padding: 4px 8px;
+                border: 1px solid $border;
+                border-radius: 4px;
+                background: $bg_input;
+                color: $text_primary;
+            }
+            QLineEdit:focus {
+                border-color: $accent;
+            }
+            QLineEdit[readOnly="true"] {
+                background: $bg_secondary;
+            }
+            QLineEdit::placeholder {
+                color: $text_placeholder;
+            }
+            QSpinBox {
+                padding: 4px;
+                border: 1px solid $border;
+                border-radius: 4px;
+                background: $bg_input;
+                color: $text_primary;
+            }
+            QSpinBox::up-button, QSpinBox::down-button {
+                border: none;
+                background: transparent;
+                width: 16px;
+            }
+            QSpinBox::up-arrow {
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-bottom: 5px solid $text_primary;
+                margin-bottom: 2px;
+            }
+            QSpinBox::down-arrow {
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 5px solid $text_primary;
+                margin-top: 2px;
+            }
+            QPushButton {
+                padding: 6px 20px;
+                border: 1px solid $border;
+                border-radius: 4px;
+                background: $bg_secondary;
+                color: $text_primary;
+            }
+            QPushButton:hover {
+                background: $hover_bg;
+            }
+            QPushButton:pressed {
+                background: $bg_primary;
+            }
+            QCheckBox { color: $text_primary; }
             QCheckBox::indicator { width: 16px; height: 16px; }
-            QCheckBox::indicator:unchecked { border: 1px solid palette(mid); border-radius: 3px; background: palette(base); }
-            QCheckBox::indicator:checked { border: 1px solid palette(highlight); border-radius: 3px; background: palette(highlight); }
-            QComboBox { padding: 4px 8px; border: 1px solid palette(mid); border-radius: 4px; background: palette(base); color: palette(text); }
+            QCheckBox::indicator:unchecked {
+                border: 1px solid $border;
+                border-radius: 3px;
+                background: $bg_input;
+            }
+            QCheckBox::indicator:checked {
+                border: 1px solid $accent;
+                border-radius: 3px;
+                background: $accent;
+            }
+            QComboBox {
+                padding: 4px 8px;
+                border: 1px solid $border;
+                border-radius: 4px;
+                background: $bg_input;
+                color: $text_primary;
+            }
             QComboBox::drop-down { border: none; }
-            QComboBox::down-arrow { image: none; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid palette(text); margin-right: 5px; }
-            QLabel { color: palette(text); }
-        """)
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid $text_primary;
+                margin-right: 5px;
+            }
+            QComboBox QAbstractItemView {
+                background: $bg_input;
+                color: $text_primary;
+                selection-background-color: $accent;
+                selection-color: $text_accent;
+                border: 1px solid $border;
+                outline: none;
+            }
+            QLabel { color: $text_primary; }
+            QScrollArea { border: none; background: transparent; }
+            QScrollArea > QWidget { background: transparent; }
+            QSlider::groove:horizontal { height: 6px; background: $border; border-radius: 3px; }
+            QSlider::handle:horizontal {
+                background: $accent;
+                width: 14px;
+                height: 14px;
+                margin: -4px 0;
+                border-radius: 7px;
+            }
+            QSlider::sub-page:horizontal { background: $accent; border-radius: 3px; }
+            QScrollBar:vertical {
+                width: 8px;
+                background: transparent;
+                margin: 0;
+            }
+            QScrollBar::handle:vertical {
+                background: $border;
+                min-height: 30px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: $text_placeholder;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0;
+                border: none;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+            QScrollBar:horizontal {
+                height: 8px;
+                background: transparent;
+                margin: 0;
+            }
+            QScrollBar::handle:horizontal {
+                background: $border;
+                min-width: 30px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: $text_placeholder;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0;
+                border: none;
+            }
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                background: none;
+            }
+        """))
+
+    def _on_theme_changed(self, mode: str) -> None:
+        """主题切换时刷新整个对话框的样式。"""
+        self._build_stylesheet_qss()
+        # 强制 Qt 重新计算所有 widget 样式（包括子 widget）
+        for w in [self] + self.findChildren(QWidget):
+            w.style().unpolish(w)
+            w.style().polish(w)
+        # 单独修复 QScrollArea viewport 背景（QSS 级联对 viewport 不可靠）
+        for sa in self.findChildren(QScrollArea):
+            vp = sa.viewport()
+            vp.setStyleSheet(_theme.qss("background: $bg_primary;"))
+            vp.style().unpolish(vp)
+            vp.style().polish(vp)
 
     # ─── General Tab ───
 
@@ -293,7 +460,7 @@ class SettingsDialog(QDialog):
         self._hotkey_recorder = HotkeyRecorderWidget()
         hotkey_layout.addRow(_("Shortcut:"), self._hotkey_recorder)
         hint = QLabel(_("Click 'Record' and press your desired key combination"))
-        hint.setStyleSheet("color: palette(mid); font-size: 11px;")
+        hint.setStyleSheet(_theme.qss("color: $text_placeholder; font-size: 11px;"))
         hotkey_layout.addRow("", hint)
         layout.addWidget(hotkey_group)
 
@@ -313,7 +480,7 @@ class SettingsDialog(QDialog):
         self._theme_combo.addItem(_("Light"), "light")
         self._theme_combo.addItem(_("Dark"), "dark")
         self._theme_combo.addItem(_("Follow System"), "system")
-        self._theme_combo.currentDataChanged.connect(self._on_theme_preview)
+        self._theme_combo.currentIndexChanged.connect(self._on_theme_preview)
         theme_layout.addRow(self._theme_combo)
         layout.addWidget(theme_group)
 
@@ -331,23 +498,23 @@ class SettingsDialog(QDialog):
             input_label = QLabel()
             if status["input_monitoring"]:
                 input_label.setText("✓ " + _("Input Monitoring: Granted"))
-                input_label.setStyleSheet("color: palette(dark-green); font-weight: 600;")
+                input_label.setStyleSheet("color: #4CAF50; font-weight: 600;")
             else:
                 input_label.setText("✗ " + _("Input Monitoring: Not Granted"))
-                input_label.setStyleSheet("color: palette(red); font-weight: 600;")
+                input_label.setStyleSheet("color: #E53935; font-weight: 600;")
             perm_layout.addWidget(input_label)
 
             # Screen Recording
             screen_label = QLabel()
             if status["screen_recording"]:
                 screen_label.setText("✓ " + _("Screen Recording: Granted"))
-                screen_label.setStyleSheet("color: palette(dark-green);")
+                screen_label.setStyleSheet("color: #4CAF50;")
             elif status["screen_recording"] is None:
                 screen_label.setText("• " + _("Screen Recording: Unknown"))
-                screen_label.setStyleSheet("color: palette(mid);")
+                screen_label.setStyleSheet(_theme.qss("color: $text_placeholder;"))
             else:
                 screen_label.setText("✗ " + _("Screen Recording: Not Granted"))
-                screen_label.setStyleSheet("color: palette(red);")
+                screen_label.setStyleSheet("color: #E53935;")
             perm_layout.addWidget(screen_label)
 
             # Open settings button
@@ -459,7 +626,7 @@ class SettingsDialog(QDialog):
               "Common: eng, chi_sim, jpn, fra, deu, spa\n"
               "Run 'tesseract --list-langs' to see installed.")
         )
-        lang_hint.setStyleSheet("color: palette(mid); font-size: 11px;")
+        lang_hint.setStyleSheet(_theme.qss("color: $text_placeholder; font-size: 11px;"))
         form.addRow(_("Languages:"), self._ocr_lang_input)
         form.addRow("", lang_hint)
         layout.addWidget(group)
@@ -693,6 +860,7 @@ class SettingsDialog(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.viewport().setStyleSheet(_theme.qss("background: $bg_primary;"))
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setSpacing(8)
