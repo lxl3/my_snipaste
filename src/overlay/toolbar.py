@@ -23,37 +23,43 @@ from ..core.theme import theme as _t
 logger = setup_logger("overlay_toolbar")
 
 def _submenu_style() -> str:
-    """Submenu 按钮样式（QMenu 提供毛玻璃背景，按钮自身透明）。"""
+    """Submenu 按钮样式 - 精致浮动面板设计（更大、更清晰、微妙动画）。"""
     is_dark = _t.is_dark()
     if is_dark:
-        btn_hover_bg = "rgba(255,255,255,10)"
-        btn_hover_border = "rgba(255,255,255,15)"
-        btn_checked_bg = "rgba(32,127,240,0.18)"
-        btn_pressed_bg = "rgba(255,255,255,8)"
+        # 暗色模式：亮色悬停 + 强调发光
+        btn_bg = "rgba(255,255,255,0.04)"
+        btn_hover_bg = "rgba(255,255,255,0.12)"
+        btn_hover_border = "rgba(255,255,255,0.20)"
+        btn_checked_bg = "rgba(32,127,240,0.22)"
+        btn_checked_border = "$accent"
+        btn_pressed_bg = "rgba(255,255,255,0.10)"
     else:
-        btn_hover_bg = "rgba(128,128,128,25)"
-        btn_hover_border = "rgba(128,128,128,15)"
-        btn_checked_bg = "rgba(32,127,240,0.10)"
-        btn_pressed_bg = "rgba(128,128,128,45)"
+        # 亮色模式：柔和悬停
+        btn_bg = "rgba(0,0,0,0.02)"
+        btn_hover_bg = "rgba(128,128,128,0.15)"
+        btn_hover_border = "rgba(128,128,128,0.25)"
+        btn_checked_bg = "rgba(32,127,240,0.12)"
+        btn_checked_border = "$accent"
+        btn_pressed_bg = "rgba(128,128,128,0.25)"
 
     return _t.qss(f"""
     QToolButton {{
         color: $text_primary;
-        background: transparent;
-        border: 1px solid transparent;
-        border-radius: 4px;
-        padding: 2px;
-        margin: 1px;
-        min-width: 20px;
-        min-height: 20px;
+        background: {btn_bg};
+        border: 2px solid transparent;
+        border-radius: 6px;
+        padding: 4px;
+        margin: 2px;
+        min-width: 28px;
+        min-height: 28px;
     }}
     QToolButton:hover {{
         background: {btn_hover_bg};
-        border: 1px solid {btn_hover_border};
+        border: 2px solid {btn_hover_border};
     }}
     QToolButton:checked {{
         background: {btn_checked_bg};
-        border: 1px solid $accent;
+        border: 2px solid {btn_checked_border};
     }}
     QToolButton:pressed {{
         background: {btn_pressed_bg};
@@ -62,7 +68,7 @@ def _submenu_style() -> str:
 
 
 def _popup_style() -> str:
-    """子菜单弹出面板的毛玻璃背景（匹配工具栏）。"""
+    """子菜单弹出面板的毛玻璃背景（精致浮动面板设计）。"""
     try:
         bg_hex = _t.get("bg_toolbar", "#FFFFFFD7")
         r = int(bg_hex[1:3], 16)
@@ -77,30 +83,33 @@ def _popup_style() -> str:
     except Exception:
         gradient = "$bg_toolbar"
 
-    # 暗色/亮色模式边框差异化
+    # 暗色/亮色模式差异化
     is_dark = _t.is_dark()
     if is_dark:
-        # 暗色模式：柔和高光 + 深阴影
-        border_top = "rgba(255,255,255,50)"
-        border_bottom = "rgba(0,0,0,100)"
-        border_main = "rgba(80,80,80,80)"
+        # 暗色模式：柔和高光 + 深阴影 + 更强的外发光
+        border_top = "rgba(255,255,255,60)"
+        border_bottom = "rgba(0,0,0,120)"
+        border_main = "rgba(90,90,90,100)"
+        shadow = "0 8px 32px rgba(0,0,0,0.4)"
     else:
-        # 亮色模式：明显高光 + 浅阴影
-        border_top = "rgba(255,255,255,200)"
-        border_bottom = "rgba(0,0,0,30)"
-        border_main = "rgba(128,128,128,60)"
+        # 亮色模式：明显高光 + 浅阴影 + 柔和外发光
+        border_top = "rgba(255,255,255,220)"
+        border_bottom = "rgba(0,0,0,40)"
+        border_main = "rgba(128,128,128,70)"
+        shadow = "0 8px 24px rgba(0,0,0,0.15)"
 
     return _t.qss(f"""
     QMenu {{
         background: {gradient};
         border: 1px solid {border_main};
         border-top: 2px solid {border_top};
-        border-bottom: 1px solid {border_bottom};
-        border-radius: 6px;
-        padding: 4px;
+        border-bottom: 2px solid {border_bottom};
+        border-radius: 10px;
+        padding: 8px;
     }}
     QMenu::item {{
         background: transparent;
+        padding: 2px;
     }}
 """)
 
