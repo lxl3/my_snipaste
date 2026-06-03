@@ -204,34 +204,40 @@ def create_app_icon() -> QIcon:
     return QIcon(pixmap)
 
 
-def create_emoji_icon(emoji: str, size: int = 16) -> QIcon:
+def create_emoji_icon(emoji: str, size: int = 20) -> QIcon:
     """Create a QIcon from an emoji string.
 
     Args:
         emoji: Emoji character(s) to render
-        size: Icon size in pixels (default: 16)
+        size: Icon size in pixels (default: 20)
 
     Returns:
         QIcon: Icon with the emoji rendered
     """
-    pixmap = QPixmap(size, size)
+    # Get device pixel ratio for high DPI support
+    dpr = QApplication.primaryScreen().devicePixelRatio()
+
+    # Create pixmap at higher resolution for better quality
+    physical_size = int(size * dpr)
+    pixmap = QPixmap(physical_size, physical_size)
     pixmap.fill(Qt.transparent)
 
     painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.Antialiasing)
-    painter.setRenderHint(QPainter.TextAntialiasing)
+    painter.setRenderHint(QPainter.Antialiasing, True)
+    painter.setRenderHint(QPainter.TextAntialiasing, True)
+    painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
 
-    # Use system font for emoji rendering
+    # Use system font for emoji rendering with better quality
     font = QFont()
-    font.setPointSize(int(size * 0.65))  # Slightly smaller than icon size for padding
+    font.setPixelSize(int(physical_size * 0.7))  # 70% of icon size
+    font.setHintingPreference(QFont.PreferNoHinting)
     painter.setFont(font)
 
     # Draw emoji centered
-    painter.drawText(QRect(0, 0, size, size), Qt.AlignCenter, emoji)
+    painter.drawText(QRect(0, 0, physical_size, physical_size), Qt.AlignCenter, emoji)
     painter.end()
 
-    # Set device pixel ratio for high DPI
-    dpr = QApplication.primaryScreen().devicePixelRatio()
+    # Set device pixel ratio
     pixmap.setDevicePixelRatio(dpr)
 
     return QIcon(pixmap)
