@@ -11,6 +11,7 @@ from ..core.utils import create_app_icon
 from ..core.logger import setup_logger, get_current_log_path, get_log_dir
 from ..core.hotkeys import get_default_hotkey
 from ..core.screenshot_history import ScreenshotHistory
+from ..core.theme import theme as theme_mgr
 
 logger = setup_logger("tray")
 
@@ -92,6 +93,8 @@ class TrayManager(QObject):
 
         self.tray_icon.setContextMenu(menu)
         self._menu = menu
+        self._apply_menu_style()
+        theme_mgr.theme_changed.connect(self._on_theme_changed)
 
         if platform.system() == "Darwin":
             self.tray_icon.activated.connect(self._on_tray_mac)
@@ -123,6 +126,26 @@ class TrayManager(QObject):
                 if have_hotkey
                 else _("MySnipaste - Click tray icon to capture")
             )
+
+    def _apply_menu_style(self) -> None:
+        """Apply theme tokens to tray menu QSS."""
+        if self._menu is None:
+            return
+        qss = (
+            f"QMenu {{ background: {theme_mgr.get('bg_menu')}; "
+            f"border: 1px solid {theme_mgr.get('border')}; "
+            f"padding: 4px; }}"
+            f"QMenu::item {{ padding: 6px 24px; color: {theme_mgr.get('text_primary')}; }}"
+            f"QMenu::item:selected {{ background: {theme_mgr.get('accent')}; "
+            f"color: {theme_mgr.get('text_accent')}; }}"
+            f"QMenu::separator {{ height: 1px; "
+            f"background: {theme_mgr.get('border')}; "
+            f"margin: 4px 8px; }}"
+        )
+        self._menu.setStyleSheet(qss)
+
+    def _on_theme_changed(self, _mode: str) -> None:
+        self._apply_menu_style()
 
     def _open_log_dir(self) -> None:
         log_dir = get_log_dir()
@@ -274,6 +297,10 @@ class TrayManager(QObject):
             ToastManager.show(_("Failed to copy screenshot"), icon="✗", toast_type="error")
 
     def cleanup(self) -> None:
+        try:
+            theme_mgr.theme_changed.disconnect(self._on_theme_changed)
+        except (TypeError, RuntimeError):
+            pass
         if self.tray_icon:
             self.tray_icon.hide()
             self.tray_icon = None
