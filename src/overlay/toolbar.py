@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QApplication, QToolButton, QFrame, QHBoxLayout, QMenu,
     QWidgetAction, QPushButton, QSpinBox, QVBoxLayout,
-    QComboBox, QLabel, QGraphicsOpacityEffect,
+    QComboBox, QLabel, QGraphicsOpacityEffect, QToolTip,
 )
 
 from ..ui.color_picker import get_color
@@ -47,11 +47,9 @@ def _submenu_style() -> str:
         color: $text_primary;
         background: {btn_bg};
         border: 1px solid transparent;
-        border-radius: 2px;
-        padding: 1px;
+        border-radius: 3px;
+        padding: 0px;
         margin: 0px;
-        min-width: 18px;
-        min-height: 18px;
     }}
     QToolButton:hover {{
         background: {btn_hover_bg};
