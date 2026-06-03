@@ -7,7 +7,7 @@ from PySide6.QtCore import Signal, QObject
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QDialog, QTextEdit, QVBoxLayout, QPushButton, QHBoxLayout, QApplication
 
 from ..core.i18n import _
-from ..core.utils import create_app_icon
+from ..core.utils import create_app_icon, create_emoji_icon
 from ..core.logger import setup_logger, get_current_log_path, get_log_dir
 from ..core.hotkeys import get_default_hotkey
 from ..core.screenshot_history import ScreenshotHistory
@@ -30,6 +30,7 @@ class TrayManager(QObject):
         self._log_dir_action: QAction | None = None
         self._view_log_action: QAction | None = None
         self._quit_action: QAction | None = None
+        self._recent_menu_action: QAction | None = None
 
     def setup(self, have_hotkey: bool = True) -> None:
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -45,16 +46,16 @@ class TrayManager(QObject):
             self.tray_icon.setToolTip(_("MySnipaste - Click tray icon to capture"))
 
         menu = QMenu()
-        self._capture_action = QAction(_("Capture ({hotkey})").format(hotkey=hotkey_display), self.app)
+        self._capture_action = QAction(create_emoji_icon("📸"), _("Capture ({hotkey})").format(hotkey=hotkey_display), self.app)
         self._capture_action.triggered.connect(self.app.start_capture)
         menu.addAction(self._capture_action)
         menu.addSeparator()
 
-        self._ocr_action = QAction(_("OCR Clipboard Image"), self.app)
+        self._ocr_action = QAction(create_emoji_icon("📝"), _("OCR Clipboard Image"), self.app)
         self._ocr_action.triggered.connect(self.app.ocr_clipboard)
         menu.addAction(self._ocr_action)
 
-        self._color_picker_action = QAction(_("Screen Color Picker"), self.app)
+        self._color_picker_action = QAction(create_emoji_icon("🎨"), _("Screen Color Picker"), self.app)
         self._color_picker_action.triggered.connect(self.app._open_color_picker)
         menu.addAction(self._color_picker_action)
         menu.addSeparator()
@@ -62,32 +63,33 @@ class TrayManager(QObject):
         # Recent screenshots submenu (dynamic - rebuilds on show)
         self._recent_menu = QMenu(_("Recent Screenshots"), menu)
         self._recent_menu.aboutToShow.connect(lambda: self._populate_recent_menu(self._recent_menu))
-        menu.addMenu(self._recent_menu)
+        self._recent_menu_action = menu.addMenu(self._recent_menu)
+        self._recent_menu_action.setIcon(create_emoji_icon("🕒"))
         menu.addSeparator()
 
-        self._settings_action = QAction(_("Settings..."), self.app)
+        self._settings_action = QAction(create_emoji_icon("⚙️"), _("Settings..."), self.app)
         self._settings_action.triggered.connect(self._open_settings)
         menu.addAction(self._settings_action)
         menu.addSeparator()
 
         if platform.system() == "Darwin":
-            self._check_perm_action = QAction(_("Check Permissions"), self.app)
+            self._check_perm_action = QAction(create_emoji_icon("🔐"), _("Check Permissions"), self.app)
             self._check_perm_action.triggered.connect(self._check_permissions)
             menu.addAction(self._check_perm_action)
             menu.addSeparator()
         else:
             self._check_perm_action = None
 
-        self._log_dir_action = QAction(_("Open Log Directory"), self.app)
+        self._log_dir_action = QAction(create_emoji_icon("📁"), _("Open Log Directory"), self.app)
         self._log_dir_action.triggered.connect(self._open_log_dir)
         menu.addAction(self._log_dir_action)
 
-        self._view_log_action = QAction(_("View Log"), self.app)
+        self._view_log_action = QAction(create_emoji_icon("📄"), _("View Log"), self.app)
         self._view_log_action.triggered.connect(self._show_log_viewer)
         menu.addAction(self._view_log_action)
         menu.addSeparator()
 
-        self._quit_action = QAction(_("Quit"), self.app)
+        self._quit_action = QAction(create_emoji_icon("❌"), _("Quit"), self.app)
         self._quit_action.triggered.connect(self.app.quit)
         menu.addAction(self._quit_action)
 
@@ -139,12 +141,13 @@ class TrayManager(QObject):
             f"QMenu {{ background: {theme_mgr.get('bg_menu')}; "
             f"border: 1px solid {theme_mgr.get('border')}; "
             f"padding: 4px; }}"
-            f"QMenu::item {{ padding: 6px 24px; color: {theme_mgr.get('text_primary')}; }}"
+            f"QMenu::item {{ padding: 6px 8px 6px 6px; color: {theme_mgr.get('text_primary')}; }}"
             f"QMenu::item:selected {{ background: {theme_mgr.get('accent')}; "
             f"color: {theme_mgr.get('text_accent')}; }}"
             f"QMenu::separator {{ height: 1px; "
             f"background: {theme_mgr.get('border')}; "
             f"margin: 4px 8px; }}"
+            f"QMenu::icon {{ padding-left: 4px; }}"
         )
         self._menu.setStyleSheet(qss)
 

@@ -204,6 +204,39 @@ def create_app_icon() -> QIcon:
     return QIcon(pixmap)
 
 
+def create_emoji_icon(emoji: str, size: int = 16) -> QIcon:
+    """Create a QIcon from an emoji string.
+
+    Args:
+        emoji: Emoji character(s) to render
+        size: Icon size in pixels (default: 16)
+
+    Returns:
+        QIcon: Icon with the emoji rendered
+    """
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.transparent)
+
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setRenderHint(QPainter.TextAntialiasing)
+
+    # Use system font for emoji rendering
+    font = QFont()
+    font.setPointSize(int(size * 0.65))  # Slightly smaller than icon size for padding
+    painter.setFont(font)
+
+    # Draw emoji centered
+    painter.drawText(QRect(0, 0, size, size), Qt.AlignCenter, emoji)
+    painter.end()
+
+    # Set device pixel ratio for high DPI
+    dpr = QApplication.primaryScreen().devicePixelRatio()
+    pixmap.setDevicePixelRatio(dpr)
+
+    return QIcon(pixmap)
+
+
 def _get_app_dir() -> str:
     """Return the application root directory (works in dev and packaged mode)."""
     if hasattr(sys, "_MEIPASS"):

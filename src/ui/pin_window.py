@@ -8,10 +8,10 @@ from ..core.logger import setup_logger
 from ..ui.toast import ToastManager
 from ..core.settings import get_settings
 from ..core.i18n import _
+from ..core.utils import qpixmap_to_pil, pil_to_qpixmap, create_emoji_icon
 from ..overlay.toolbar import OverlayToolbar
 from ..overlay.ocr_mixin import OcrMixin
 from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR
-from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
 from .pin_rendering import PinWindowRenderingMixin
 from .pin_actions import PinWindowActionsMixin
 
@@ -866,7 +866,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         menu = QMenu(self)
 
         # Show Toolbar (toggle)
-        show_toolbar_action = QAction(_("Show Toolbar"), self)
+        show_toolbar_action = QAction(create_emoji_icon("🔧"), _("Show Toolbar"), self)
         show_toolbar_action.setCheckable(True)
         show_toolbar_action.setChecked(self._toolbar_shown)
         show_toolbar_action.triggered.connect(self._on_toggle_toolbar)
@@ -874,17 +874,17 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
         menu.addSeparator()
 
-        copy_action = QAction(_("Copy"), self)
+        copy_action = QAction(create_emoji_icon("📋"), _("Copy"), self)
         copy_action.triggered.connect(self._on_copy)
         menu.addAction(copy_action)
 
-        save_action = QAction(_("Save As..."), self)
+        save_action = QAction(create_emoji_icon("💾"), _("Save As..."), self)
         save_action.triggered.connect(self._on_save_as)
         menu.addAction(save_action)
 
         menu.addSeparator()
 
-        crop_action = QAction(_("Crop to selection"), self)
+        crop_action = QAction(create_emoji_icon("✂️"), _("Crop to selection"), self)
         crop_action.triggered.connect(self._crop)
         menu.addAction(crop_action)
 
@@ -892,33 +892,35 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
         # ─── Image Transform submenu ───
         transform_menu = menu.addMenu(_("Image Transform"))
-        rotate_cw_act = QAction(_("Rotate 90° Clockwise"), self)
+        transform_menu.setIcon(create_emoji_icon("🔄"))
+        rotate_cw_act = QAction(create_emoji_icon("↻"), _("Rotate 90° Clockwise"), self)
         rotate_cw_act.triggered.connect(self._rotate_cw)
         transform_menu.addAction(rotate_cw_act)
-        rotate_ccw_act = QAction(_("Rotate 90° Counter-Clockwise"), self)
+        rotate_ccw_act = QAction(create_emoji_icon("↺"), _("Rotate 90° Counter-Clockwise"), self)
         rotate_ccw_act.triggered.connect(self._rotate_ccw)
         transform_menu.addAction(rotate_ccw_act)
         transform_menu.addSeparator()
-        flip_h_act = QAction(_("Flip Horizontally"), self)
+        flip_h_act = QAction(create_emoji_icon("↔️"), _("Flip Horizontally"), self)
         flip_h_act.triggered.connect(self._flip_h)
         transform_menu.addAction(flip_h_act)
-        flip_v_act = QAction(_("Flip Vertically"), self)
+        flip_v_act = QAction(create_emoji_icon("↕️"), _("Flip Vertically"), self)
         flip_v_act.triggered.connect(self._flip_v)
         transform_menu.addAction(flip_v_act)
 
-        close_action = QAction(_("Close"), self)
+        close_action = QAction(create_emoji_icon("❌"), _("Close"), self)
         close_action.triggered.connect(self.close)
         menu.addAction(close_action)
 
         menu.addSeparator()
 
-        toggle_topmost_action = QAction(_("Toggle Always on Top"), self)
+        toggle_topmost_action = QAction(create_emoji_icon("📌"), _("Toggle Always on Top"), self)
         toggle_topmost_action.setCheckable(True)
         toggle_topmost_action.setChecked(self.isWindowTopMost())
         toggle_topmost_action.triggered.connect(self._on_toggle_topmost)
         menu.addAction(toggle_topmost_action)
 
         opacity_menu = menu.addMenu(_("Opacity"))
+        opacity_menu.setIcon(create_emoji_icon("💧"))
         for opacity in [30, 50, 70, 80, 90, 100]:
             opacity_action = QAction(f"{opacity}%", self)
             opacity_action.setCheckable(True)
@@ -928,7 +930,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
         menu.addSeparator()
 
-        thumbnail_action = QAction(_("Thumbnail Mode"), self)
+        thumbnail_action = QAction(create_emoji_icon("🔍"), _("Thumbnail Mode"), self)
         thumbnail_action.setCheckable(True)
         thumbnail_action.setChecked(self._thumbnail_mode)
         thumbnail_action.triggered.connect(self._on_thumbnail_mode_toggled)

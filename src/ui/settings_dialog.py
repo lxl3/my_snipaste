@@ -5,7 +5,7 @@ import json
 from PySide6.QtCore import Qt, Signal, QEvent
 from PySide6.QtGui import QColor, QPixmap, QIcon, QKeyEvent
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QVBoxLayout, QHBoxLayout, QTabWidget,
+    QApplication, QDialog, QVBoxLayout, QHBoxLayout, QTabBar, QTabWidget,
     QWidget, QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
     QCheckBox, QSlider, QFileDialog, QMessageBox, QGroupBox,
     QFormLayout, QScrollArea,
@@ -292,18 +292,19 @@ class SettingsDialog(QDialog):
 
         self._tabs = QTabWidget()
         self._tabs.setAttribute(Qt.WA_StyledBackground)
-        self._tabs.setAutoFillBackground(True)
+        # QTabWidget 背景由 QSS 控制（不设 autoFillBackground，避免 palette 与 QSS 冲突）
         self._tabs.addTab(self._build_general_tab(), _("General"))
         self._tabs.addTab(self._build_capture_tab(), _("Capture"))
         self._tabs.addTab(self._build_annotation_tab(), _("Annotation"))
         self._tabs.addTab(self._build_hotkeys_tab(), _("Shortcuts"))
         self._tabs.addTab(self._build_ocr_tab(), _("OCR"))
         self._tabs.addTab(self._build_advanced_tab(), _("Advanced"))
+        # Tab 页背景由 QSS 控制（不使用 autoFillBackground，因为它依赖 palette
+        # 且隐藏页不会随主题切换重绘，导致切换主题后其它 tab 背景残留旧颜色）
         for i in range(self._tabs.count()):
             tab_widget = self._tabs.widget(i)
             if tab_widget:
                 tab_widget.setAttribute(Qt.WA_StyledBackground)
-                tab_widget.setAutoFillBackground(True)
         layout.addWidget(self._tabs)
 
         # Search bar
@@ -381,6 +382,9 @@ class SettingsDialog(QDialog):
                 background: $accent;
                 color: $text_accent;
             }
+            QTabWidget {
+                background: $bg_primary;
+            }
             QTabWidget::pane {
                 border: 1px solid $border;
                 border-radius: 4px;
@@ -388,6 +392,12 @@ class SettingsDialog(QDialog):
                 background: $bg_primary;
             }
             QTabWidget QStackedWidget {
+                background: $bg_primary;
+            }
+            QTabWidget QStackedWidget > QWidget {
+                background: $bg_primary;
+            }
+            QTabBar {
                 background: $bg_primary;
             }
             QTabBar::tab {
@@ -568,11 +578,15 @@ class SettingsDialog(QDialog):
         # 步骤 0：设置 QPalette（比 QSS 更底层，更可靠）
         _theme.apply_to_widget(self)
         _theme.apply_to_widget(self._tabs)
+        # QTabBar 是 QTabWidget 的内建子控件，需要单独设 palette
+        _tab_bar = self._tabs.findChild(QTabBar)
+        if _tab_bar:
+            _theme.apply_to_widget(_tab_bar)
         for i in range(self._tabs.count()):
             tab_widget = self._tabs.widget(i)
             if tab_widget:
                 _theme.apply_to_widget(tab_widget)
-        logger.debug("✓ QPalette 已应用（对话框 + TabWidget + 所有 Tab 页面）")
+        logger.debug("✓ QPalette 已应用（对话框 + TabWidget + TabBar + 所有 Tab 页面）")
 
         # 步骤 1：清空样式表，强制 Qt 清除缓存的样式
         self.setStyleSheet("")
