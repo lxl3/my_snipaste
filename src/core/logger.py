@@ -113,40 +113,54 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-    try:
-        all_log_file = os.path.join(daily_log_dir, "app.log")
-        all_handler = RotatingFileHandler(
-            all_log_file,
-            maxBytes=5 * 1024 * 1024,  # 5MB
-            backupCount=5,
-            encoding="utf-8"
-        )
-        all_handler.setLevel(logging.DEBUG)
-        all_handler.setFormatter(file_formatter)
+    class SafeRotatingFileHandler(RotatingFileHandler):
+        """轮转失败时不崩溃——Windows 上前进程残留句柄会导致 PermissionError。"""
+
+        def doRollover(self):
+            try:
+                super().doRollover()
+            except OSError:
+                pass  # 锁住了就跳过轮转，继续写当前文件
+
+        def _open(self):
+            try:
+                return super()._open()
+            except OSError as e:
+                import io
+                return io.StringIO()  # 哑 fallback，不丢失日志流
+
+    def _make_handler(path: str, level: int, mb: int, count: int) -> logging.Handler | None:
+        try:
+            h = SafeRotatingFileHandler(
+                path, maxBytes=mb * 1024 * 1024, backupCount=count,
+                encoding="utf-8", delay=True
+            )
+            h.setLevel(level)
+            h.setFormatter(file_formatter)
+            return h
+        except Exception as e:
+            print(f"  cannot create log handler {path}: {e}", file=sys.stderr)
+            return None
+
+    all_log_file = os.path.join(daily_log_dir, "app.log")
+    all_handler = _make_handler(all_log_file, logging.DEBUG, 5, 5)
+    if all_handler:
         logger.addHandler(all_handler)
 
-        error_log_file = os.path.join(daily_log_dir, "error.log")
-        error_handler = RotatingFileHandler(
-            error_log_file,
-            maxBytes=5 * 1024 * 1024,  # 5MB
-            backupCount=5,
-            encoding="utf-8"
-        )
-        error_handler.setLevel(logging.ERROR)
-        error_handler.setFormatter(file_formatter)
+    error_log_file = os.path.join(daily_log_dir, "error.log")
+    error_handler = _make_handler(error_log_file, logging.ERROR, 5, 5)
+    if error_handler:
         logger.addHandler(error_handler)
-
-    except Exception as e:
-        print(f"Warning: cannot create log file: {e}", file=sys.stderr)
 
     # ─── /tmp/ fallback (for packaged app) ───
     try:
         tmp_log = "/tmp/my_snipaste.log"
-        tmp_handler = RotatingFileHandler(
+        tmp_handler = SafeRotatingFileHandler(
             tmp_log,
             maxBytes=2 * 1024 * 1024,
             backupCount=2,
             encoding="utf-8",
+            delay=True,
         )
         tmp_handler.setLevel(logging.DEBUG)
         tmp_handler.setFormatter(file_formatter)

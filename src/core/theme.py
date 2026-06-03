@@ -68,9 +68,9 @@ HANDLE_BORDER    = "handle_border"     # 控制点边框
 LIGHT_TOKENS: dict[str, str] = {
     BG_PRIMARY:       "#FFFFFF",
     BG_SECONDARY:     "#F5F5F5",
-    BG_TOOLBAR:       "rgba(255, 255, 255, 215)",  # 半透明毛玻璃效果
-    BG_TOOLBAR_ALT:   "rgba(255, 255, 255, 230)",
-    BG_OVERLAY:       "rgba(0, 0, 0, 140)",
+    BG_TOOLBAR:       "#FFFFFFD7",   # alpha=215
+    BG_TOOLBAR_ALT:   "#FFFFFFE6",   # alpha=230
+    BG_OVERLAY:       "#0000008C",   # alpha=140
     BG_INPUT:         "#FFFFFF",
     BG_MENU:          "#FFFFFF",
 
@@ -94,31 +94,31 @@ LIGHT_TOKENS: dict[str, str] = {
     COLOR_BTN_BORDER_ON:     "#0078D4",
     COLOR_BTN_RECENT_BORDER: "#999999",
 
-    SHADOW:           "rgba(0, 0, 0, 60)",
-    TOOLBAR_SHADOW:   "rgba(0, 0, 0, 120)",
+    SHADOW:           "#0000003C",   # alpha=60
+    TOOLBAR_SHADOW:   "#00000078",   # alpha=120
 
-    OVERLAY_DIM:      "rgba(0, 0, 0, 140)",
-    SEL_BORDER:       "rgba(0, 120, 215, 255)",
-    SEL_FILL:         "rgba(0, 120, 215, 30)",
-    SEL_HANDLE:       "rgba(255, 255, 255, 180)",
-    SEL_DASH:         "rgba(0, 0, 0, 120)",
-    INFO_BG:          "rgba(0, 0, 0, 100)",
-    INFO_TEXT:        "rgba(255, 255, 255, 220)",
+    OVERLAY_DIM:      "#0000008C",   # alpha=140 — 截图遮罩
+    SEL_BORDER:       "#0078D7",
+    SEL_FILL:         "#0078D71E",   # alpha=30
+    SEL_HANDLE:       "#FFFFFFB4",   # alpha=180
+    SEL_DASH:         "#00000078",   # alpha=120
+    INFO_BG:          "#00000064",   # alpha=100
+    INFO_TEXT:        "#FFFFFFDC",   # alpha=220
 
     HOTKEY_CONFLICT:  "#CC0000",
-    INFO_LABEL_BG:    "rgba(0, 0, 0, 100)",
-    INFO_LABEL_FG:    "rgba(255, 255, 255, 220)",
-    INFO_ACCENT:      "rgba(30, 144, 255, 180)",
-    HANDLE_FILL:      "rgba(255, 255, 255, 40)",
-    HANDLE_BORDER:    "rgba(255, 255, 255, 180)",
+    INFO_LABEL_BG:    "#00000064",   # alpha=100
+    INFO_LABEL_FG:    "#FFFFFFDC",   # alpha=220
+    INFO_ACCENT:      "#1E90FFB4",  # alpha=180
+    HANDLE_FILL:      "#FFFFFF28",   # alpha=40
+    HANDLE_BORDER:    "#FFFFFFB4",   # alpha=180
 }
 
 DARK_TOKENS: dict[str, str] = {
     BG_PRIMARY:       "#1E1E1E",
     BG_SECONDARY:     "#252526",
-    BG_TOOLBAR:       "rgba(45, 45, 45, 215)",  # 半透明毛玻璃效果
-    BG_TOOLBAR_ALT:   "rgba(51, 51, 51, 230)",
-    BG_OVERLAY:       "rgba(0, 0, 0, 180)",
+    BG_TOOLBAR:       "#2D2D2DD7",  # alpha=215
+    BG_TOOLBAR_ALT:   "#333333E6",  # alpha=230
+    BG_OVERLAY:       "#000000B4",  # alpha=180
     BG_INPUT:         "#3C3C3C",
     BG_MENU:          "#2D2D2D",
 
@@ -142,23 +142,23 @@ DARK_TOKENS: dict[str, str] = {
     COLOR_BTN_BORDER_ON:     "#1A8CFF",
     COLOR_BTN_RECENT_BORDER: "#777777",
 
-    SHADOW:           "rgba(0, 0, 0, 100)",
-    TOOLBAR_SHADOW:   "rgba(0, 0, 0, 160)",
+    SHADOW:           "#00000064",   # alpha=100
+    TOOLBAR_SHADOW:   "#000000A0",   # alpha=160
 
-    OVERLAY_DIM:      "rgba(0, 0, 0, 180)",
-    SEL_BORDER:       "rgba(26, 140, 255, 255)",
-    SEL_FILL:         "rgba(26, 140, 255, 30)",
-    SEL_HANDLE:       "rgba(255, 255, 255, 180)",
-    SEL_DASH:         "rgba(255, 255, 255, 120)",
-    INFO_BG:          "rgba(0, 0, 0, 100)",
-    INFO_TEXT:        "rgba(255, 255, 255, 220)",
+    OVERLAY_DIM:      "#000000B4",   # alpha=180
+    SEL_BORDER:       "#1A8CFF",
+    SEL_FILL:         "#1A8CFF1E",   # alpha=30
+    SEL_HANDLE:       "#FFFFFFB4",   # alpha=180
+    SEL_DASH:         "#FFFFFF78",   # alpha=120
+    INFO_BG:          "#00000064",   # alpha=100
+    INFO_TEXT:        "#FFFFFFDC",   # alpha=220
 
     HOTKEY_CONFLICT:  "#FF4444",
-    INFO_LABEL_BG:    "rgba(0, 0, 0, 120)",
-    INFO_LABEL_FG:    "rgba(255, 255, 255, 220)",
-    INFO_ACCENT:      "rgba(30, 144, 255, 180)",
-    HANDLE_FILL:      "rgba(60, 60, 60, 40)",
-    HANDLE_BORDER:    "rgba(255, 255, 255, 180)",
+    INFO_LABEL_BG:    "#00000078",   # alpha=120
+    INFO_LABEL_FG:    "#FFFFFFDC",   # alpha=220
+    INFO_ACCENT:      "#1E90FFB4",  # alpha=180
+    HANDLE_FILL:      "#3C3C3C28",  # alpha=40
+    HANDLE_BORDER:    "#FFFFFFB4",   # alpha=180
 }
 
 # Theme mode type
@@ -240,13 +240,25 @@ class ThemeManager(QObject):
     def qss(self, template: str) -> str:
         """将 QSS 模板中的 $token 替换为当前主题色值。
 
+        自动将 #RRGGBBAA hex 格式转换为 rgba(r,g,b,a) 格式，
+        因为 QSS 不支持 8 位 hex 颜色。
+
         例:
             qss = theme.qss("background: $bg_primary; color: $text_primary;")
-            # → "background: #1E1E1E; color: #CCCCCC;"
+            # → "background: rgba(255,255,255,215); color: #333333;"
         """
         result = template
         for token, color in self._tokens.items():
-            result = result.replace(f"${token}", color)
+            # QSS 不支持 #RRGGBBAA，转换为 rgba(r,g,b,a)
+            if color.startswith("#") and len(color) == 9:
+                r = int(color[1:3], 16)
+                g = int(color[3:5], 16)
+                b = int(color[5:7], 16)
+                a = int(color[7:9], 16)
+                color_str = f"rgba({r},{g},{b},{a})"
+            else:
+                color_str = color
+            result = result.replace(f"${token}", color_str)
         return result
 
     def stylesheet(self, template: str) -> str:
@@ -281,7 +293,7 @@ class ThemeManager(QObject):
             palette.setColor(QPalette.Midlight, QColor("#D0D0D0"))
             palette.setColor(QPalette.Mid, QColor("#CCCCCC"))
             palette.setColor(QPalette.Dark, QColor("#999999"))
-            palette.setColor(QPalette.Shadow, QColor("rgba(0,0,0,60)"))
+            palette.setColor(QPalette.Shadow, QColor("#0000003C"))
             palette.setColor(QPalette.Disabled, QPalette.Text, QColor("#AAAAAA"))
             palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor("#AAAAAA"))
         else:
@@ -302,7 +314,7 @@ class ThemeManager(QObject):
             palette.setColor(QPalette.Midlight, QColor("#444444"))
             palette.setColor(QPalette.Mid, QColor("#555555"))
             palette.setColor(QPalette.Dark, QColor("#666666"))
-            palette.setColor(QPalette.Shadow, QColor("rgba(0,0,0,100)"))
+            palette.setColor(QPalette.Shadow, QColor("#00000064"))
             palette.setColor(QPalette.Disabled, QPalette.Text, QColor("#555555"))
             palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor("#555555"))
         return palette
@@ -311,9 +323,9 @@ class ThemeManager(QObject):
         """将当前主题的 QPalette 应用到全局 QApplication。"""
         palette = self.build_palette(self._resolved)
         app.setPalette(palette)
-        # 注意：QPalette 不会自动触发所有 widget 重绘
-        # setStyleSheet("") 会触发全局样式刷新
-        app.setStyleSheet(app.styleSheet() or "")
+        # 重要：不要在此处调用 app.setStyleSheet("") 或 app.setStyle(app.style())，
+        # 这会破坏 WA_TranslucentBackground 窗口的渲染（已知 Qt6 bug）。
+        # setPalette 本身已经会触发 widget 重绘。
 
     def apply_to_widget(self, widget, theme: str | None = None) -> None:
         """为单个 widget 设置主题 QPalette。"""
