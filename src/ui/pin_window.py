@@ -9,6 +9,7 @@ from ..ui.toast import ToastManager
 from ..core.settings import get_settings
 from ..core.i18n import _
 from ..core.utils import qpixmap_to_pil, pil_to_qpixmap, create_emoji_icon
+from ..core.theme import theme as theme_mgr
 from ..overlay.toolbar import OverlayToolbar
 from ..overlay.ocr_mixin import OcrMixin
 from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR
@@ -16,6 +17,25 @@ from .pin_rendering import PinWindowRenderingMixin
 from .pin_actions import PinWindowActionsMixin
 
 logger = setup_logger("pin_window")
+
+
+def _get_menu_style() -> str:
+    """Generate theme-aware menu stylesheet for pin window context menu."""
+    qss = (
+        f"QMenu {{ background: {theme_mgr.get('bg_menu')}; "
+        f"border: 1px solid {theme_mgr.get('border')}; "
+        f"border-radius: 6px; "
+        f"padding: 6px; }}"
+        f"QMenu::item {{ padding: 8px 12px 8px 8px; color: {theme_mgr.get('text_primary')}; "
+        f"border-radius: 4px; }}"
+        f"QMenu::item:selected {{ background: {theme_mgr.get('accent')}; "
+        f"color: {theme_mgr.get('text_accent')}; }}"
+        f"QMenu::separator {{ height: 1px; "
+        f"background: {theme_mgr.get('border')}; "
+        f"margin: 6px 10px; }}"
+        f"QMenu::icon {{ padding-left: 6px; }}"
+    )
+    return qss
 
 
 class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixin):
@@ -864,6 +884,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
     def contextMenuEvent(self, event) -> None:
         menu = QMenu(self)
+        menu.setStyleSheet(_get_menu_style())
 
         # Show Toolbar (toggle)
         show_toolbar_action = QAction(create_emoji_icon("🔧"), _("Show Toolbar"), self)
@@ -893,6 +914,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         # ─── Image Transform submenu ───
         transform_menu = menu.addMenu(_("Image Transform"))
         transform_menu.setIcon(create_emoji_icon("🔄"))
+        transform_menu.setStyleSheet(_get_menu_style())
         rotate_cw_act = QAction(create_emoji_icon("↻"), _("Rotate 90° Clockwise"), self)
         rotate_cw_act.triggered.connect(self._rotate_cw)
         transform_menu.addAction(rotate_cw_act)
@@ -921,6 +943,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
         opacity_menu = menu.addMenu(_("Opacity"))
         opacity_menu.setIcon(create_emoji_icon("💧"))
+        opacity_menu.setStyleSheet(_get_menu_style())
         for opacity in [30, 50, 70, 80, 90, 100]:
             opacity_action = QAction(f"{opacity}%", self)
             opacity_action.setCheckable(True)

@@ -113,6 +113,117 @@ def _popup_style() -> str:
     }}
 """)
 
+
+def _control_style() -> str:
+    """子菜单控件样式（QComboBox、QSpinBox、QLabel）- 清晰可读、主题适配。"""
+    is_dark = _t.is_dark()
+
+    if is_dark:
+        # 暗色模式：高对比度文字 + 柔和背景
+        bg = "rgba(255,255,255,0.08)"
+        bg_hover = "rgba(255,255,255,0.12)"
+        border = "rgba(255,255,255,0.15)"
+        border_focus = "rgba(32,127,240,0.6)"
+        text_color = "#EEEEEE"  # 高对比度白色文字
+        button_bg = "rgba(255,255,255,0.10)"
+        arrow_color = "#CCCCCC"
+    else:
+        # 亮色模式：清晰文字 + 柔和背景
+        bg = "rgba(0,0,0,0.04)"
+        bg_hover = "rgba(0,0,0,0.08)"
+        border = "rgba(0,0,0,0.15)"
+        border_focus = "rgba(32,127,240,0.6)"
+        text_color = "#222222"  # 高对比度黑色文字
+        button_bg = "rgba(0,0,0,0.06)"
+        arrow_color = "#555555"
+
+    return _t.qss(f"""
+    /* QComboBox */
+    QComboBox {{
+        color: {text_color};
+        background: {bg};
+        border: 1px solid {border};
+        border-radius: 4px;
+        padding: 3px 6px;
+        min-height: 18px;
+        font-size: 12px;
+    }}
+    QComboBox:hover {{
+        background: {bg_hover};
+        border: 1px solid {border_focus};
+    }}
+    QComboBox:focus {{
+        border: 1px solid {border_focus};
+    }}
+    QComboBox::drop-down {{
+        border: none;
+        width: 20px;
+    }}
+    QComboBox::down-arrow {{
+        image: none;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid {arrow_color};
+        margin-right: 4px;
+    }}
+    QComboBox QAbstractItemView {{
+        background: $bg_menu;
+        color: $text_primary;
+        border: 1px solid {border};
+        selection-background-color: $accent;
+        selection-color: $text_accent;
+        outline: none;
+    }}
+
+    /* QSpinBox */
+    QSpinBox {{
+        color: {text_color};
+        background: {bg};
+        border: 1px solid {border};
+        border-radius: 4px;
+        padding: 3px 6px;
+        min-height: 18px;
+        font-size: 12px;
+    }}
+    QSpinBox:hover {{
+        background: {bg_hover};
+        border: 1px solid {border_focus};
+    }}
+    QSpinBox:focus {{
+        border: 1px solid {border_focus};
+    }}
+    QSpinBox::up-button, QSpinBox::down-button {{
+        background: {button_bg};
+        border: none;
+        width: 16px;
+        border-radius: 2px;
+    }}
+    QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+        background: {bg_hover};
+    }}
+    QSpinBox::up-arrow {{
+        image: none;
+        border-left: 3px solid transparent;
+        border-right: 3px solid transparent;
+        border-bottom: 4px solid {arrow_color};
+        margin-bottom: 1px;
+    }}
+    QSpinBox::down-arrow {{
+        image: none;
+        border-left: 3px solid transparent;
+        border-right: 3px solid transparent;
+        border-top: 4px solid {arrow_color};
+        margin-top: 1px;
+    }}
+
+    /* QLabel */
+    QLabel {{
+        color: {text_color};
+        font-size: 12px;
+    }}
+""")
+
+
 def _toolbar_style() -> str:
     """生成工具栏 QSS，包含毛玻璃渐变背景。"""
     # 构造渐变色：顶部稍亮（simulate glass reflection），底部稍暗
@@ -428,6 +539,7 @@ class OverlayToolbar:
         shape_layout = QHBoxLayout(shape_container)
         shape_layout.setContentsMargins(3, 3, 3, 3)
         shape_layout.setSpacing(3)
+        shape_layout.setAlignment(Qt.AlignCenter)
 
         self._add_tool_buttons_to_submenu(shape_layout, [("rectangle", "rect", _("Rectangle")), ("ellipse", "ellipse", _("Ellipse"))], shape_btn, shape_menu)
         self._add_separator(shape_layout)
@@ -453,6 +565,7 @@ class OverlayToolbar:
         arrow_layout = QHBoxLayout(arrow_container)
         arrow_layout.setContentsMargins(3, 3, 3, 3)
         arrow_layout.setSpacing(3)
+        arrow_layout.setAlignment(Qt.AlignCenter)
 
         self._add_tool_buttons_to_submenu(arrow_layout, [("arrow", "arrow", _("Arrow")), ("line", "line", _("Line"))], arrow_btn, arrow_menu)
         self._add_separator(arrow_layout)
@@ -478,6 +591,7 @@ class OverlayToolbar:
         container_layout = QHBoxLayout(pen_container)
         container_layout.setContentsMargins(3, 3, 3, 3)
         container_layout.setSpacing(4)
+        container_layout.setAlignment(Qt.AlignCenter)
 
         self._add_color_buttons_to_submenu(container_layout, PRESET_COLORS, self._color_buttons, self._set_pen_color)
         self._add_separator(container_layout)
@@ -487,6 +601,7 @@ class OverlayToolbar:
         self._width_spinbox.setValue(self.overlay.current_width)
         self._width_spinbox.setFixedWidth(50)
         self._width_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._width_spinbox.setStyleSheet(_control_style())
         self._width_spinbox.valueChanged.connect(
             lambda v: (setattr(self.overlay, 'current_width', v),
                        self.overlay._apply_property_to_selected("width", v))
@@ -509,6 +624,7 @@ class OverlayToolbar:
         mosaic_layout = QHBoxLayout(mosaic_container)
         mosaic_layout.setContentsMargins(3, 3, 3, 3)
         mosaic_layout.setSpacing(4)
+        mosaic_layout.setAlignment(Qt.AlignCenter)
 
         self._add_tool_buttons_to_submenu(mosaic_layout, [
             ("mosaic", "mosaic", _("Mosaic")),
@@ -531,12 +647,14 @@ class OverlayToolbar:
         blur_group_layout.setContentsMargins(0, 0, 0, 0)
         blur_group_layout.setSpacing(4)
         radius_label = QLabel(_("Blur:"))
+        radius_label.setStyleSheet(_control_style())
         blur_group_layout.addWidget(radius_label)
         self._blur_radius_spinbox = QSpinBox()
         self._blur_radius_spinbox.setRange(1, 50)
         self._blur_radius_spinbox.setValue(self.overlay.current_blur_radius)
         self._blur_radius_spinbox.setFixedWidth(55)
         self._blur_radius_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._blur_radius_spinbox.setStyleSheet(_control_style())
         self._blur_radius_spinbox.valueChanged.connect(
             lambda v: (setattr(self.overlay, 'current_blur_radius', v),
                        self.overlay._apply_property_to_selected("blur_radius", v))
@@ -549,12 +667,14 @@ class OverlayToolbar:
         mosaic_group_layout.setContentsMargins(0, 0, 0, 0)
         mosaic_group_layout.setSpacing(4)
         scale_label = QLabel(_("Mosaic:"))
+        scale_label.setStyleSheet(_control_style())
         mosaic_group_layout.addWidget(scale_label)
         self._mosaic_scale_spinbox = QSpinBox()
         self._mosaic_scale_spinbox.setRange(2, 30)
         self._mosaic_scale_spinbox.setValue(self.overlay.current_mosaic_scale)
         self._mosaic_scale_spinbox.setFixedWidth(55)
         self._mosaic_scale_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._mosaic_scale_spinbox.setStyleSheet(_control_style())
         self._mosaic_scale_spinbox.valueChanged.connect(
             lambda v: (setattr(self.overlay, 'current_mosaic_scale', v),
                        self.overlay._apply_property_to_selected("mosaic_scale", v))
@@ -603,6 +723,7 @@ class OverlayToolbar:
         hl_layout = QHBoxLayout(hl_container)
         hl_layout.setContentsMargins(3, 3, 3, 3)
         hl_layout.setSpacing(4)
+        hl_layout.setAlignment(Qt.AlignCenter)
 
         # Sub-tools: highlighter, number marker
         self._add_tool_buttons_to_submenu(hl_layout, [
@@ -659,8 +780,10 @@ class OverlayToolbar:
         zoom_layout = QHBoxLayout(zoom_container)
         zoom_layout.setContentsMargins(6, 4, 6, 4)
         zoom_layout.setSpacing(4)
+        zoom_layout.setAlignment(Qt.AlignCenter)
 
         zoom_label = QLabel(_("Zoom:"))
+        zoom_label.setStyleSheet(_control_style())
         zoom_layout.addWidget(zoom_label)
 
         self._magnifier_zoom_spinbox = QSpinBox()
@@ -668,6 +791,7 @@ class OverlayToolbar:
         self._magnifier_zoom_spinbox.setValue(self.overlay.current_magnifier_zoom)
         self._magnifier_zoom_spinbox.setFixedWidth(55)
         self._magnifier_zoom_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._magnifier_zoom_spinbox.setStyleSheet(_control_style())
         self._magnifier_zoom_spinbox.valueChanged.connect(
             lambda v: (setattr(self.overlay, 'current_magnifier_zoom', v),
                        self.overlay._apply_property_to_selected("magnifier_zoom", v))
@@ -698,6 +822,7 @@ class OverlayToolbar:
         self._font_combo.addItems(["Segoe UI", "Arial", "微软雅黑", "宋体", "黑体", "楷体"])
         self._font_combo.setCurrentText(self.overlay.text_font_family)
         self._font_combo.setFixedWidth(100)
+        self._font_combo.setStyleSheet(_control_style())
         self._font_combo.currentTextChanged.connect(self._set_text_font)
         text_main_layout.addWidget(self._font_combo)
 
@@ -706,6 +831,7 @@ class OverlayToolbar:
         self._font_size_spinbox.setValue(self.overlay.text_font_size)
         self._font_size_spinbox.setFixedWidth(100)
         self._font_size_spinbox.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._font_size_spinbox.setStyleSheet(_control_style())
         self._font_size_spinbox.valueChanged.connect(self._set_text_size)
         text_main_layout.addWidget(self._font_size_spinbox)
 
@@ -750,6 +876,7 @@ class OverlayToolbar:
         eraser_layout = QHBoxLayout(eraser_container)
         eraser_layout.setContentsMargins(6, 4, 6, 4)
         eraser_layout.setSpacing(6)
+        eraser_layout.setAlignment(Qt.AlignCenter)
 
         for icon_key, tool_id, tooltip in [
             ("eraser_dot", "eraser_dot", _("Dot Erase")),
