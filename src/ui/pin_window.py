@@ -9,7 +9,7 @@ from ..ui.toast import ToastManager
 from ..core.settings import get_settings
 from ..core.i18n import _
 from ..core.utils import qpixmap_to_pil, pil_to_qpixmap, create_emoji_icon
-from ..core.theme import theme as theme_mgr
+from ..core import qss_base
 from ..overlay.toolbar import OverlayToolbar
 from ..overlay.ocr_mixin import OcrMixin
 from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR
@@ -21,21 +21,7 @@ logger = setup_logger("pin_window")
 
 def _get_menu_style() -> str:
     """Generate theme-aware menu stylesheet for pin window context menu."""
-    qss = (
-        f"QMenu {{ background: {theme_mgr.get('bg_menu')}; "
-        f"border: 1px solid {theme_mgr.get('border')}; "
-        f"border-radius: 6px; "
-        f"padding: 6px; }}"
-        f"QMenu::item {{ padding: 8px 12px 8px 8px; color: {theme_mgr.get('text_primary')}; "
-        f"border-radius: 4px; }}"
-        f"QMenu::item:selected {{ background: {theme_mgr.get('accent')}; "
-        f"color: {theme_mgr.get('text_accent')}; }}"
-        f"QMenu::separator {{ height: 1px; "
-        f"background: {theme_mgr.get('border')}; "
-        f"margin: 6px 10px; }}"
-        f"QMenu::icon {{ padding-left: 6px; }}"
-    )
-    return qss
+    return qss_base.menu_qss()
 
 
 class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixin):

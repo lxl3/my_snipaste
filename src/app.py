@@ -15,6 +15,7 @@ from .core.utils import create_app_icon, ScreenCaptureError, capture_all_screens
 from .core.logger import setup_logger, apply_log_level
 from .core.settings import AppSettings, get_settings
 from .core.theme import theme as theme_manager
+from .core import qss_base
 from .core.hotkeys import MultiHotkeyListener
 from .core.permissions import (
     check_macos_accessibility,
@@ -44,25 +45,18 @@ def _show_dialog(icon: QMessageBox.Icon, title: str, text: str) -> None:
     msg.setStandardButtons(QMessageBox.Ok)
     msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
     msg.setAttribute(Qt.WA_StyledBackground)
-    msg.setStyleSheet(theme_manager.qss("""
-        QMessageBox {
-            background: $bg_primary;
-            color: $text_primary;
-        }
-        QMessageBox QLabel {
-            color: $text_primary;
-        }
-        QMessageBox QPushButton {
-            padding: 6px 20px;
-            border: 1px solid $border;
-            border-radius: 4px;
-            background: $bg_secondary;
-            color: $text_primary;
-        }
-        QMessageBox QPushButton:hover {
-            background: $hover_bg;
-        }
-    """))
+    msg.setStyleSheet(
+        theme_manager.qss("""
+            QMessageBox {
+                background: $bg_primary;
+                color: $text_primary;
+            }
+            QMessageBox QLabel {
+                color: $text_primary;
+            }
+        """)
+        + qss_base.pushbutton_qss(selector="QMessageBox QPushButton")
+    )
     msg.exec()
 
 

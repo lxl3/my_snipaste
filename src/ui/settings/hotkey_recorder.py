@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QPushButton
 
 from ...core.i18n import _
 from ...core.logger import setup_logger
+from ...core import qss_base
 
 logger = setup_logger("hotkey_recorder")
 
@@ -29,21 +30,7 @@ class HotkeyRecorderWidget(QWidget):
         self._display = QLineEdit()
         self._display.setReadOnly(True)
         self._display.setPlaceholderText(_("Click 'Record' and press keys..."))
-        self._display.setStyleSheet("""
-            QLineEdit {
-                padding: 4px 8px;
-                border: 1px solid palette(mid);
-                border-radius: 4px;
-                background: palette(base);
-                color: palette(text);
-            }
-            QLineEdit:focus {
-                border-color: palette(highlight);
-            }
-            QLineEdit::placeholder {
-                color: palette(placeholder-text);
-            }
-        """)
+        self._display.setStyleSheet(qss_base.lineedit_qss())
         layout.addWidget(self._display, 1)
 
         self._record_btn = QPushButton(_("Record"))
@@ -68,14 +55,11 @@ class HotkeyRecorderWidget(QWidget):
         self._recording = not self._recording
         if self._recording:
             self._record_btn.setText(_("Stop"))
-            self._record_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: palette(highlight);
-                    color: palette(highlighted-text);
-                    border-radius: 4px;
-                    padding: 6px 20px;
-                }
-            """)
+            self._record_btn.setStyleSheet(qss_base.pushbutton_qss(
+                bg="$accent",
+                color="$text_accent",
+                border="none",
+            ))
             self._display.setText(_("Press keys..."))
             self._current_keys.clear()
             self.setFocus()

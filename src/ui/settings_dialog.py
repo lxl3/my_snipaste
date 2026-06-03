@@ -16,6 +16,7 @@ from ..core.settings import AppSettings, get_settings
 from ..core.constants import PRESET_COLORS
 from ..core.logger import setup_logger
 from ..core.theme import theme as _theme
+from ..core import qss_base
 
 logger = setup_logger("settings_dialog")
 
@@ -350,7 +351,8 @@ class SettingsDialog(QDialog):
 
     def _build_stylesheet_qss(self) -> None:
         """用主题 token 构建 QSS 并应用，确保暗/亮模式都正确。"""
-        self.setStyleSheet(_theme.qss("""
+        # 对话框专属样式（不会在其他地方复用的）
+        dialog_specific = _theme.qss("""
             QDialog {
                 background: $bg_primary;
                 border: 1px solid $border;
@@ -413,163 +415,22 @@ class SettingsDialog(QDialog):
             QTabBar::tab:hover:!selected {
                 background: $hover_bg;
             }
-            QGroupBox {
-                font-weight: 600;
-                border: 1px solid $border;
-                border-radius: 6px;
-                margin-top: 12px;
-                padding: 16px 12px 12px;
-                background: transparent;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 4px;
-                color: $text_primary;
-            }
-            QLineEdit {
-                padding: 4px 8px;
-                border: 1px solid $border;
-                border-radius: 4px;
-                background: $bg_input;
-                color: $text_primary;
-            }
-            QLineEdit:focus {
-                border-color: $accent;
-            }
-            QLineEdit[readOnly="true"] {
-                background: $bg_secondary;
-            }
-            QLineEdit::placeholder {
-                color: $text_placeholder;
-            }
-            QSpinBox {
-                padding: 4px;
-                border: 1px solid $border;
-                border-radius: 4px;
-                background: $bg_input;
-                color: $text_primary;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                border: none;
-                background: transparent;
-                width: 16px;
-            }
-            QSpinBox::up-arrow {
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-bottom: 5px solid $text_primary;
-                margin-bottom: 2px;
-            }
-            QSpinBox::down-arrow {
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 5px solid $text_primary;
-                margin-top: 2px;
-            }
-            QPushButton {
-                padding: 6px 20px;
-                border: 1px solid $border;
-                border-radius: 4px;
-                background: $bg_secondary;
-                color: $text_primary;
-            }
-            QPushButton:hover {
-                background: $hover_bg;
-            }
-            QPushButton:pressed {
-                background: $bg_primary;
-            }
-            QCheckBox { color: $text_primary; }
-            QCheckBox::indicator { width: 16px; height: 16px; }
-            QCheckBox::indicator:unchecked {
-                border: 1px solid $border;
-                border-radius: 3px;
-                background: $bg_input;
-            }
-            QCheckBox::indicator:checked {
-                border: 1px solid $accent;
-                border-radius: 3px;
-                background: $accent;
-            }
-            QComboBox {
-                padding: 4px 8px;
-                border: 1px solid $border;
-                border-radius: 4px;
-                background: $bg_input;
-                color: $text_primary;
-            }
-            QComboBox::drop-down { border: none; }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 5px solid $text_primary;
-                margin-right: 5px;
-            }
-            QComboBox QAbstractItemView {
-                background: $bg_input;
-                color: $text_primary;
-                selection-background-color: $accent;
-                selection-color: $text_accent;
-                border: 1px solid $border;
-                outline: none;
-            }
-            QLabel { color: $text_primary; }
             QScrollArea { border: none; background: transparent; }
             QScrollArea > QWidget { background: transparent; }
-            QSlider::groove:horizontal { height: 6px; background: $border; border-radius: 3px; }
-            QSlider::handle:horizontal {
-                background: $accent;
-                width: 14px;
-                height: 14px;
-                margin: -4px 0;
-                border-radius: 7px;
-            }
-            QSlider::sub-page:horizontal { background: $accent; border-radius: 3px; }
-            QScrollBar:vertical {
-                width: 8px;
-                background: transparent;
-                margin: 0;
-            }
-            QScrollBar::handle:vertical {
-                background: $border;
-                min-height: 30px;
-                border-radius: 4px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: $text_placeholder;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0;
-                border: none;
-            }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-                background: none;
-            }
-            QScrollBar:horizontal {
-                height: 8px;
-                background: transparent;
-                margin: 0;
-            }
-            QScrollBar::handle:horizontal {
-                background: $border;
-                min-width: 30px;
-                border-radius: 4px;
-            }
-            QScrollBar::handle:horizontal:hover {
-                background: $text_placeholder;
-            }
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-                width: 0;
-                border: none;
-            }
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
-                background: none;
-            }
-        """))
+        """)
+        # 通用 widget 样式（通过 qss_base 共享）
+        shared = "".join([
+            qss_base.groupbox_qss(),
+            qss_base.lineedit_qss(),
+            qss_base.spinbox_qss(),
+            qss_base.pushbutton_qss(),
+            qss_base.checkbox_qss(),
+            qss_base.combobox_qss(),
+            qss_base.label_qss(),
+            qss_base.slider_qss(),
+            qss_base.scrollbar_qss(),
+        ])
+        self.setStyleSheet(dialog_specific + shared)
 
     def _on_theme_changed(self, mode: str) -> None:
         """主题切换时刷新整个对话框的样式。"""
