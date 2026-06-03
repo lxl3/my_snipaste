@@ -206,79 +206,124 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         self.toolbar.toolbar.move(x, y)
         self.toolbar.toolbar.show()
+        self.toolbar.animate_show()
         self.toolbar.toolbar.raise_()
 
     # ─── Painting ───
 
+    _first_paint = True
+
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
-        painter.drawPixmap(0, 0, self.full_screenshot)
 
-        # Theme-aware overlay colors (re-evaluated each paint for dynamic theme switching)
-        _dim_color = QColor(_tw.get("overlay_dim"))
-        _sel_color = QColor(_tw.get("sel_border"))
+        # 诊断：首次绘制时保存原始截图到临时文件
+        if CaptureOverlay._first_paint:
+            CaptureOverlay._first_paint = False
+            try:
+                fp = os.path.join(os.environ.get("TEMP", os.environ.get("TMPDIR", ".")), "my_snipaste_debug_screenshot.png")
+                self.full_screenshot.save(fp)
+                logger.info(f"[paintEvent] saved debug screenshot to {fp}, "
+                           f"size={self.full_screenshot.width()}x{self.full_screenshot.height()}, "
+                           f"dpr={self.full_screenshot.devicePixelRatio()}, "
+                           f"widget_rect={self.rect()}, "
+                           f"widget_dpr={self.devicePixelRatio()}")
+            except Exception as e:
+                logger.error(f"[paintEvent] failed to save debug screenshot: {e}")
 
-        # Window/element auto-detect highlight (before any selection)
-        if self._detected_window_rect is not None and self.selection_rect.isNull():
-            wr = self._detected_window_rect
-            # Semi-transparent blue fill
-            painter.fillRect(wr, QColor(0, 120, 215, 30))
-            # 2px blue border
-            painter.setPen(QPen(QColor(_tw.get("sel_border", "rgba(0, 120, 215, 255)")), 2))
-            painter.setBrush(Qt.NoBrush)
-            painter.drawRect(wr)
+        try:
+            # 手动处理高 DPI 绘制：使用物理尺寸确保整张截图被绘制
+            dpr = self.full_screenshot.devicePixelRatio()
+            log_w = self.full_screenshot.width() / dpr
+            log_h = self.full_screenshot.height() / dpr
+            painter.drawPixmap(0, 0, int(log_w), int(log_h), self.full_screenshot)
 
-        rect = self.selection_rect
-        if not rect.isNull():
-            # 4 semi-transparent dimming strips around the selection
-            w = self.width()
-            h = self.height()
-            painter.fillRect(0, 0, w, rect.top(), _dim_color)
-            painter.fillRect(0, rect.bottom() + 1, w, h - rect.bottom() - 1, _dim_color)
-            painter.fillRect(0, rect.top(), rect.left(), rect.height(), _dim_color)
-            painter.fillRect(rect.right() + 1, rect.top(), w - rect.right() - 1, rect.height(), _dim_color)
+            logger.debug(f"[paintEvent] draw: log_size={log_w}x{log_h}, dpr={dpr}, "
+                        f"physical={self.full_screenshot.width()}x{self.full_screenshot.height()}, "
+                        f"widget={self.width()}x{self.height()}")
 
-            self._draw_annotations(painter, rect.size(), rect.topLeft())
-
-            # Selection indicator for selected annotation
-            if self._selected_annotation_idx is not None:
+            # Theme-aware overlay colors (re-evaluated each paint for dynamic theme switching)
+            # 注意：Qt6 的 QColor(string) 构造器对 rgba() 的 alpha 解析有歧义，
+            # 使用整数构造器 QColor(r,g,b,a) 避免此问题，alpha 始终是 0-255 范围。
+            def _hex_to_qcolor(hex_str: str, fallback_r: int, fallback_g: int, fallback_b: int, fallback_a: int = 255) -> QColor:
                 try:
-                    ann = self.annotations[self._selected_annotation_idx]
-                    self._draw_selection_indicator(painter, ann, rect.topLeft())
-                except IndexError:
-                    self._deselect_annotation()
+                    if hex_str.startswith("#") and len(hex_str) == 9:
+                        r = int(hex_str[1:3], 16)
+                        g = int(hex_str[3:5], 16)
+                        b = int(hex_str[5:7], 16)
+                        a = int(hex_str[7:9], 16)
+                        return QColor(r, g, b, a)
+                    return QColor(fallback_r, fallback_g, fallback_b, fallback_a)
+                except Exception:
+                    return QColor(fallback_r, fallback_g, fallback_b, fallback_a)
+            _dim_color = _hex_to_qcolor(_tw.get("overlay_dim", "#0000008C"), 0, 0, 0, 140)
+            _sel_color = _hex_to_qcolor(_tw.get("sel_border", "#0078D7"), 0, 120, 215)
+            logger.debug(f"[paintEvent] overlay_dim -> "
+                         f"rgba({_dim_color.red()},{_dim_color.green()},{_dim_color.blue()},{_dim_color.alpha()})")
 
-            painter.setPen(QPen(_sel_color, 2))
-            painter.setBrush(Qt.NoBrush)
-            painter.drawRect(rect)
+            # Window/element auto-detect highlight (before any selection)
+            if self._detected_window_rect is not None and self.selection_rect.isNull():
+                wr = self._detected_window_rect
+                # Semi-transparent blue fill
+                painter.fillRect(wr, QColor(_sel_color.red(), _sel_color.green(), _sel_color.blue(), 30))
+                # 2px blue border
+                painter.setPen(QPen(QColor(_sel_color), 2))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawRect(wr)
 
-            for h_rect in self._get_all_handles(rect):
-                painter.fillRect(h_rect, _sel_color)
-                painter.setPen(QPen(Qt.white, 1))
-                painter.drawRect(h_rect)
+            rect = self.selection_rect
+            if not rect.isNull():
+                # 4 semi-transparent dimming strips around the selection
+                w = self.width()
+                h = self.height()
+                painter.fillRect(0, 0, w, rect.top(), _dim_color)
+                painter.fillRect(0, rect.bottom() + 1, w, h - rect.bottom() - 1, _dim_color)
+                painter.fillRect(0, rect.top(), rect.left(), rect.height(), _dim_color)
+                painter.fillRect(rect.right() + 1, rect.top(), w - rect.right() - 1, rect.height(), _dim_color)
 
-            self._draw_size_info(painter, rect)
-            self._draw_auto_action_hint(painter, rect)
-        else:
-            painter.fillRect(self.rect(), _dim_color)
+                self._draw_annotations(painter, rect.size(), rect.topLeft())
 
-        if self.current_tool == "eraser_dot" and not self.selection_rect.isNull():
-            painter.setPen(QPen(QColor(_tw.get("handle_border", "rgba(255,255,255,180)")), 2))
-            painter.setBrush(QColor(_tw.get("handle_fill", "rgba(255,255,255,40)")))
-            painter.drawEllipse(self.current_mouse_pos, self.eraser_size, self.eraser_size)
-            painter.setPen(QPen(QColor(_tw.get("sel_dash", "rgba(0,0,0,120)")), 1))
-            painter.setBrush(Qt.NoBrush)
-            painter.drawEllipse(self.current_mouse_pos, self.eraser_size, self.eraser_size)
+                # Selection indicator for selected annotation
+                if self._selected_annotation_idx is not None:
+                    try:
+                        ann = self.annotations[self._selected_annotation_idx]
+                        self._draw_selection_indicator(painter, ann, rect.topLeft())
+                    except IndexError:
+                        self._deselect_annotation()
 
-        # erase-fill selection preview (blue)
-        if self._erase_fill_rect_start is not None and self._erase_fill_rect_current is not None:
-            erase_rect = QRect(self._erase_fill_rect_start, self._erase_fill_rect_current).normalized()
-            painter.setPen(QPen(QColor(52, 152, 219, 200), 2, Qt.DashLine))
-            painter.setBrush(QColor(52, 152, 219, 30))
-            painter.drawRect(erase_rect)
+                painter.setPen(QPen(_sel_color, 2))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawRect(rect)
 
-        if not (self.toolbar.toolbar.isVisible() and self.toolbar.toolbar.geometry().contains(self.current_mouse_pos)):
-            self._draw_coord_tooltip(painter)
+                for h_rect in self._get_all_handles(rect):
+                    painter.fillRect(h_rect, Qt.white)
+                    painter.setPen(QPen(_sel_color, 1))
+                    painter.drawRect(h_rect)
+
+                self._draw_size_info(painter, rect)
+                self._draw_auto_action_hint(painter, rect)
+            else:
+                painter.fillRect(self.rect(), _dim_color)
+
+            if self.current_tool == "eraser_dot" and not self.selection_rect.isNull():
+                painter.setPen(QPen(QColor(255, 255, 255, 180), 2))  # handle_border
+                painter.setBrush(QColor(255, 255, 255, 40))         # handle_fill
+                painter.drawEllipse(self.current_mouse_pos, self.eraser_size, self.eraser_size)
+                painter.setPen(QPen(QColor(0, 0, 0, 120), 1))  # sel_dash
+                painter.setBrush(Qt.NoBrush)
+                painter.drawEllipse(self.current_mouse_pos, self.eraser_size, self.eraser_size)
+
+            # erase-fill selection preview (blue)
+            if self._erase_fill_rect_start is not None and self._erase_fill_rect_current is not None:
+                erase_rect = QRect(self._erase_fill_rect_start, self._erase_fill_rect_current).normalized()
+                painter.setPen(QPen(QColor(52, 152, 219, 200), 2, Qt.DashLine))
+                painter.setBrush(QColor(52, 152, 219, 30))
+                painter.drawRect(erase_rect)
+
+            if not (self.toolbar.toolbar.isVisible() and self.toolbar.toolbar.geometry().contains(self.current_mouse_pos)):
+                self._draw_coord_tooltip(painter)
+
+        except Exception as e:
+            logger.error(f"[paintEvent] unhandled exception: {e}", exc_info=True)
 
     # ─── Event handling ───
 
@@ -372,7 +417,14 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                             return
                     # Select & drag when using "select" or matching annotation tool (Snipaste-style)
                     ann_type = self.annotations[hit_idx]["type"]
-                    if self.current_tool == "select" or self.current_tool == ann_type:
+                    if ann_type in ("arrow", "line"):
+                        # Arrow/line: just select (show handles), no body-drag
+                        if self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
+                            self._selected_annotation_idx = hit_idx
+                            # Don't save drag_orig or set _drag_mode — no body-moving
+                            self.update()
+                            return
+                    elif self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
                         self._select_annotation(hit_idx, event.position())
                         return
                 # Click on empty space → deselect
@@ -445,8 +497,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                         self.update()
                         return
                 ann_type = self.annotations[hit_idx]["type"]
+                # Arrow/line: vertical bidirectional cursor (not move)
+                if ann_type in ("arrow", "line"):
+                    self.setCursor(Qt.SizeVerCursor)
                 # Show move cursor (four-way arrows) if select tool or matching tool
-                if self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
+                elif self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
                     self.setCursor(Qt.SizeAllCursor)  # 四向箭头移动光标
                 else:
                     handle = self._handle_at_pos(self.current_mouse_pos)
@@ -482,11 +537,10 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             if mode in ("move_annotation", "resize_annotation") and self._selected_annotation_idx is not None:
                 self._redo_stack.clear()  # new action invalidates redo
                 self.toolbar.update_undo_redo_state()
-                # Auto-deselect after drag (Snipaste-style)
-                self._deselect_annotation()
             self._drag_mode = None
             self._position_toolbar()
             self.toolbar.toolbar.show()
+            self.toolbar.animate_show()
             return
         if self.is_selecting:
             self.is_selecting = False

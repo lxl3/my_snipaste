@@ -1,12 +1,12 @@
 from PySide6.QtWidgets import (
     QWidget, QApplication, QToolButton, QFrame, QHBoxLayout, QMenu,
     QWidgetAction, QPushButton, QSpinBox, QVBoxLayout,
-    QComboBox, QLabel,
+    QComboBox, QLabel, QGraphicsOpacityEffect,
 )
 
 from ..ui.color_picker import get_color
 from PySide6.QtGui import QColor, QIcon
-from PySide6.QtCore import Qt, QPoint, QSize
+from PySide6.QtCore import Qt, QPoint, QSize, QPropertyAnimation, QAbstractAnimation
 
 from ..resources.icons.toolbar_icons import TOOLBAR_ICONS
 from ..core.i18n import _
@@ -23,40 +23,106 @@ from ..core.theme import theme as _t
 logger = setup_logger("overlay_toolbar")
 
 def _submenu_style() -> str:
+    """Submenu 按钮样式（QMenu 提供毛玻璃背景，按钮自身透明）。"""
     return _t.qss("""
-    QToolButton {
-        border: 1px solid rgba(128,128,128,60);
-        border-radius: 4px;
-        padding: 2px;
-        background: $bg_toolbar_alt;
-    }
-    QToolButton:hover { background: rgba(128,128,128,40); }
-    QToolButton:checked {
-        background: $accent;
-        color: $text_accent;
-        border-color: $accent_hover;
-    }
-""")
-
-def _toolbar_style() -> str:
-    return _t.qss("""
-    #overlayToolbar {
-        background: $bg_toolbar;
-        border: 1px solid rgba(128,128,128,80);
-        border-radius: 6px;
-    }
     QToolButton {
         color: $text_primary;
         background: transparent;
-        border: none;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        padding: 2px;
+        margin: 1px;
+        min-width: 20px;
+        min-height: 20px;
+    }
+    QToolButton:hover {
+        background: rgba(128,128,128,25);
+        border: 1px solid rgba(128,128,128,15);
+    }
+    QToolButton:checked {
+        background: rgba(32,127,240,0.10);
+        border: 1px solid $accent;
+    }
+    QToolButton:pressed {
+        background: rgba(128,128,128,45);
+    }
+""")
+
+
+def _popup_style() -> str:
+    """子菜单弹出面板的毛玻璃背景（匹配工具栏）。"""
+    try:
+        bg_hex = _t.get("bg_toolbar", "#FFFFFFD7")
+        r = int(bg_hex[1:3], 16)
+        g = int(bg_hex[3:5], 16)
+        b = int(bg_hex[5:7], 16)
+        a = int(bg_hex[7:9], 16)
+        top_a = min(a + 30, 255)
+        bottom_a = max(a - 40, 0)
+        gradient = (f"qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+                    f" stop:0 rgba({r},{g},{b},{top_a}),"
+                    f" stop:1 rgba({r},{g},{b},{bottom_a}))")
+    except Exception:
+        gradient = "$bg_toolbar"
+    return _t.qss(f"""
+    QMenu {{
+        background: {gradient};
+        border: 1px solid rgba(128,128,128,60);
+        border-top: 2px solid rgba(255,255,255,200);
+        border-bottom: 1px solid rgba(0,0,0,30);
+        border-radius: 6px;
+        padding: 4px;
+    }}
+    QMenu::item {{
+        background: transparent;
+    }}
+""")
+
+def _toolbar_style() -> str:
+    """生成工具栏 QSS，包含毛玻璃渐变背景。"""
+    # 构造渐变色：顶部稍亮（simulate glass reflection），底部稍暗
+    try:
+        bg_hex = _t.get("bg_toolbar", "#FFFFFFD7")
+        r = int(bg_hex[1:3], 16)
+        g = int(bg_hex[3:5], 16)
+        b = int(bg_hex[5:7], 16)
+        a = int(bg_hex[7:9], 16)
+        top_a = min(a + 30, 255)
+        bottom_a = max(a - 40, 0)
+        gradient = ("background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+                    f" stop:0 rgba({r},{g},{b},{top_a}),"
+                    f" stop:1 rgba({r},{g},{b},{bottom_a}));")
+    except Exception:
+        gradient = "background: $bg_toolbar;"  # fallback: flat color
+    return _t.qss(f"""
+    #overlayToolbar {{
+        {gradient}
+        border: 1px solid rgba(128,128,128,60);
+        border-top: 2px solid rgba(255,255,255,200);
+        border-bottom: 1px solid rgba(0,0,0,30);
+        border-radius: 6px;
+    }}
+    QToolButton {{
+        color: $text_primary;
+        background: transparent;
+        border: 1px solid transparent;
         border-radius: 4px;
         padding: 2px 4px;
         margin: 1px;
         min-width: 18px;
         min-height: 18px;
-    }
-    QToolButton:hover { background: rgba(128,128,128,40); }
-    QToolButton:checked { background: $accent; color: $text_accent; }
+    }}
+    QToolButton:hover {{
+        background: rgba(128,128,128,25);
+        border: 1px solid rgba(128,128,128,15);
+    }}
+    QToolButton:checked {{
+        background: rgba(32,127,240,0.10);
+        border: 1px solid $accent;
+    }}
+    QToolButton:pressed {{
+        background: rgba(128,128,128,45);
+    }}
 """)
 
 
@@ -78,11 +144,13 @@ class OverlayToolbar:
         self._italic_btn: QPushButton | None = None
         self._undo_btn: QToolButton | None = None
         self._redo_btn: QToolButton | None = None
+        self._anim: QPropertyAnimation | None = None
 
     def setup(self) -> None:
         self.toolbar = QFrame(self.overlay)
         self.toolbar.setObjectName("overlayToolbar")
         self.toolbar.setStyleSheet(_toolbar_style())
+        self.toolbar.setGraphicsEffect(None)  # 清除可能的旧动画效果
         self.toolbar.setFixedSize(420, 32)  # 固定尺寸，防止动态变化导致位置跳动
         toolbar_layout = QHBoxLayout(self.toolbar)
         toolbar_layout.setContentsMargins(0, 0, 0, 0)
@@ -115,6 +183,22 @@ class OverlayToolbar:
         for child in self.toolbar.findChildren(QWidget):
             child.installEventFilter(self.overlay)
 
+    def animate_show(self) -> None:
+        """工具栏入场淡入动画。"""
+        if not self.toolbar or not self.toolbar.isVisible():
+            return
+        # 持有一个 effect 引用防止被提前清理
+        eff = QGraphicsOpacityEffect(self.toolbar)
+        self.toolbar.setGraphicsEffect(eff)
+        eff.setOpacity(0.0)
+        self._anim = QPropertyAnimation(eff, b"opacity")
+        self._anim.setDuration(150)
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(1.0)
+        self._anim.finished.connect(lambda: self.toolbar.setGraphicsEffect(None))
+        self._anim.finished.connect(lambda: setattr(self, '_anim', None))
+        self._anim.start(QAbstractAnimation.DeleteWhenStopped)
+
     def _load_icon(self, name: str, color: str = "") -> QIcon:
         if not color:
             color = _t.get("text_primary", "#333333")
@@ -129,6 +213,7 @@ class OverlayToolbar:
         btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
         menu = QMenu(self.overlay)
         menu.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        menu.setStyleSheet(_popup_style())
         if tool_ids:
             btn.clicked.connect(lambda: self._toggle_or_open_menu(menu, btn, tool_ids))
         else:
@@ -209,7 +294,7 @@ class OverlayToolbar:
         btn = QPushButton("🎨")
         btn.setFixedSize(20, 20)
         btn.setStyleSheet(_t.qss(
-            "QPushButton { border: 1px solid $border;  background: $bg_toolbar_alt; font-size: 12px; }"
+            "QPushButton { border: 1px solid $border; background: transparent; font-size: 12px; }"
             "QPushButton:hover { background: $hover_bg; }"
         ))
         btn.clicked.connect(lambda: open_fn())
@@ -507,9 +592,9 @@ class OverlayToolbar:
         self._bold_btn.setFixedSize(20, 20)
         self._bold_btn.setCheckable(True)
         self._bold_btn.setStyleSheet(_t.qss(
-            "QPushButton { font-weight: bold; border: 1px solid $border;  background: $bg_toolbar_alt; }"
+            "QPushButton { font-weight: bold; border: 1px solid $border; background: transparent; }"
             "QPushButton:hover { background: $hover_bg; }"
-            "QPushButton:checked { background: $accent; color: $text_accent; border: 2px solid $accent_hover; }"
+            "QPushButton:checked { background: rgba(32,127,240,0.10); color: $accent; border: 1px solid $accent; }"
         ))
         self._bold_btn.clicked.connect(self._toggle_bold)
         text_main_layout.addWidget(self._bold_btn)
@@ -518,9 +603,9 @@ class OverlayToolbar:
         self._italic_btn.setFixedSize(20, 20)
         self._italic_btn.setCheckable(True)
         self._italic_btn.setStyleSheet(_t.qss(
-            "QPushButton { font-style: italic; border: 1px solid $border;  background: $bg_toolbar_alt; }"
+            "QPushButton { font-style: italic; border: 1px solid $border; background: transparent; }"
             "QPushButton:hover { background: $hover_bg; }"
-            "QPushButton:checked { background: $accent; color: $text_accent; border: 2px solid $accent_hover; }"
+            "QPushButton:checked { background: rgba(32,127,240,0.10); color: $accent; border: 1px solid $accent; }"
         ))
         self._italic_btn.clicked.connect(self._toggle_italic)
         text_main_layout.addWidget(self._italic_btn)
