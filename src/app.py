@@ -207,9 +207,17 @@ class SnipasteApp(QApplication):
             Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
         )
         dialog.setFixedSize(360, 260)
-        dialog.setAttribute(Qt.WA_StyledBackground)
+        dialog.setAttribute(Qt.WA_TranslucentBackground)
 
-        layout = QVBoxLayout(dialog)
+        # Main container for rounded corners
+        main_container = QWidget(dialog)
+        main_container.setObjectName("main_container")
+
+        container_layout = QVBoxLayout(dialog)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.addWidget(main_container)
+
+        layout = QVBoxLayout(main_container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
@@ -286,6 +294,10 @@ class SnipasteApp(QApplication):
         # Crisp, high-contrast theme
         qss_tpl = """
             QDialog {
+                background: transparent;
+            }
+
+            #main_container {
                 background: $bg;
                 border: 1px solid $border;
                 border-radius: 16px;
