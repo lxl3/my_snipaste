@@ -171,6 +171,7 @@ class OverlayDrawingMixin:
             ann = self._preview_annotation
             if ann["type"] in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier") and ann["rect"].width() > MIN_DRAW_THRESHOLD and ann["rect"].height() > MIN_DRAW_THRESHOLD:
                 self.annotations.append(ann)
+                self._selected_annotation_idx = len(self.annotations) - 1
                 self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
                 self._redo_stack.clear()
                 self.toolbar.update_undo_redo_state()
@@ -179,6 +180,7 @@ class OverlayDrawingMixin:
                 dy = ann["end"].y() - ann["start"].y()
                 if abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD:
                     self.annotations.append(ann)
+                    self._selected_annotation_idx = len(self.annotations) - 1
                     self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
                     self._redo_stack.clear()
                     self.toolbar.update_undo_redo_state()

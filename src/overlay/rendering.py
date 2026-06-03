@@ -307,7 +307,10 @@ class OverlayRenderingMixin:
     # ─── Selection indicator ───
 
     def _draw_selection_indicator(self, painter: QPainter, ann: dict, offset) -> None:
-        """Draw bounding box + 8 handles around a selected annotation."""
+        """Draw bounding box + handles around a selected annotation."""
+        if ann["type"] in ("arrow", "line"):
+            self._draw_arrow_handles(painter, ann, offset)
+            return
         local_bounds = self._get_annotation_bounds_local(ann)
         if local_bounds.isNull():
             return
@@ -330,6 +333,17 @@ class OverlayRenderingMixin:
             QRect(int(global_bounds.right()) - half, int(global_bounds.center().y()) - half, HANDLE_SIZE, HANDLE_SIZE),
         ]
         for h_rect in handles:
-            painter.fillRect(h_rect, QColor(0, 120, 215))
-            painter.setPen(QPen(Qt.white, 1))
+            painter.fillRect(h_rect, Qt.white)
+            painter.setPen(QPen(QColor(0, 120, 215), 1))
             painter.drawRect(h_rect)
+
+    def _draw_arrow_handles(self, painter: QPainter, ann: dict, offset) -> None:
+        """Draw only 2 outline handles at arrow/line start and end."""
+        half = HANDLE_SIZE // 2
+        sp = QPointF(ann["start"]) + QPointF(offset)
+        ep = QPointF(ann["end"]) + QPointF(offset)
+        for pt in (sp, ep):
+            rect = QRect(int(pt.x()) - half, int(pt.y()) - half, HANDLE_SIZE, HANDLE_SIZE)
+            painter.setBrush(Qt.NoBrush)
+            painter.setPen(QPen(Qt.white, 1.5))
+            painter.drawRect(rect)
