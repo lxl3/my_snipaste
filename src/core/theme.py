@@ -85,24 +85,24 @@ LIGHT_TOKENS: dict[str, str] = {
 
     BORDER:           "#CCCCCC",
     BORDER_LIGHT:     "#DDDDDD",
-    BORDER_FOCUS:     "#0078D4",
+    BORDER_FOCUS:     "#00897B",     # 深青色
     BORDER_INPUT:     "#CCCCCC",
 
-    ACCENT:           "#207FF0",
-    ACCENT_HOVER:     "#1A6ACC",
-    ACCENT_DISABLED:  "#A0C8F0",
+    ACCENT:           "#00897B",     # 深青（Material Teal 700）
+    ACCENT_HOVER:     "#00695C",     # 更深青（悬停）
+    ACCENT_DISABLED:  "#4DB6AC",     # 浅青（禁用）
     HOVER_BG:         "#E8E8E8",
 
     COLOR_BTN_BORDER:        "#CCCCCC",
-    COLOR_BTN_BORDER_ON:     "#0078D4",
+    COLOR_BTN_BORDER_ON:     "#00897B",     # 深青色
     COLOR_BTN_RECENT_BORDER: "#999999",
 
     SHADOW:           "#0000003C",   # alpha=60
     TOOLBAR_SHADOW:   "#00000078",   # alpha=120
 
     OVERLAY_DIM:      "#0000008C",   # alpha=140 — 截图遮罩
-    SEL_BORDER:       "#0078D7",
-    SEL_FILL:         "#0078D71E",   # alpha=30
+    SEL_BORDER:       "#00897B",     # 深青选区边框
+    SEL_FILL:         "#00897B1E",   # alpha=30
     SEL_HANDLE:       "#FFFFFFB4",   # alpha=180
     SEL_DASH:         "#00000078",   # alpha=120
     INFO_BG:          "#00000064",   # alpha=100
@@ -111,7 +111,7 @@ LIGHT_TOKENS: dict[str, str] = {
     HOTKEY_CONFLICT:  "#CC0000",
     INFO_LABEL_BG:    "#00000064",   # alpha=100
     INFO_LABEL_FG:    "#FFFFFFDC",   # alpha=220
-    INFO_ACCENT:      "#1E90FFB4",  # alpha=180
+    INFO_ACCENT:      "#00897BB4",   # alpha=180 深青
     HANDLE_FILL:      "#FFFFFF28",   # alpha=40
     HANDLE_BORDER:    "#FFFFFFB4",   # alpha=180
 }
@@ -133,24 +133,24 @@ DARK_TOKENS: dict[str, str] = {
 
     BORDER:           "#555555",
     BORDER_LIGHT:     "#444444",
-    BORDER_FOCUS:     "#1A8CFF",
+    BORDER_FOCUS:     "#4DB6AC",     # 亮青（暗色模式更亮）
     BORDER_INPUT:     "#555555",
 
-    ACCENT:           "#207FF0",
-    ACCENT_HOVER:     "#3399FF",
-    ACCENT_DISABLED:  "#1A5A8A",
+    ACCENT:           "#4DB6AC",     # 亮青（主色）
+    ACCENT_HOVER:     "#26A69A",     # 浓青（悬停）
+    ACCENT_DISABLED:  "#80CBC4",     # 淡青（禁用）
     HOVER_BG:         "#3A3A3A",
 
     COLOR_BTN_BORDER:        "#555555",
-    COLOR_BTN_BORDER_ON:     "#1A8CFF",
+    COLOR_BTN_BORDER_ON:     "#4DB6AC",     # 亮青
     COLOR_BTN_RECENT_BORDER: "#777777",
 
     SHADOW:           "#00000064",   # alpha=100
     TOOLBAR_SHADOW:   "#000000A0",   # alpha=160
 
     OVERLAY_DIM:      "#000000B4",   # alpha=180
-    SEL_BORDER:       "#1A8CFF",
-    SEL_FILL:         "#1A8CFF1E",   # alpha=30
+    SEL_BORDER:       "#4DB6AC",     # 亮青选区边框
+    SEL_FILL:         "#4DB6AC1E",   # alpha=30
     SEL_HANDLE:       "#FFFFFFB4",   # alpha=180
     SEL_DASH:         "#FFFFFF78",   # alpha=120
     INFO_BG:          "#00000064",   # alpha=100
@@ -159,8 +159,8 @@ DARK_TOKENS: dict[str, str] = {
     HOTKEY_CONFLICT:  "#FF4444",
     INFO_LABEL_BG:    "#00000078",   # alpha=120
     INFO_LABEL_FG:    "#FFFFFFDC",   # alpha=220
-    INFO_ACCENT:      "#1E90FFB4",  # alpha=180
-    HANDLE_FILL:      "#3C3C3C28",  # alpha=40
+    INFO_ACCENT:      "#4DB6ACB4",   # alpha=180 亮青
+    HANDLE_FILL:      "#3C3C3C28",   # alpha=40
     HANDLE_BORDER:    "#FFFFFFB4",   # alpha=180
 }
 
