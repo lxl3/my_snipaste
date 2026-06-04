@@ -115,13 +115,13 @@ class OverlayActionsMixin:
             return
         action = self._undo_stack.pop()
         if action["type"] == "add":
-            # Undo an add → remove the annotation
+            # Undo an add → remove the annotation, redo should add it back
             ann = self.annotations.pop(action["index"])
-            self._redo_stack.append({"type": "remove", "ann": ann, "index": action["index"]})
+            self._redo_stack.append({"type": "add", "ann": ann, "index": action["index"]})
         elif action["type"] == "remove":
-            # Undo a remove → re-insert the annotation
+            # Undo a remove → re-insert the annotation, redo should remove it again
             self.annotations.insert(action["index"], action["ann"])
-            self._redo_stack.append({"type": "add", "ann": action["ann"], "index": action["index"]})
+            self._redo_stack.append({"type": "remove", "ann": action["ann"], "index": action["index"]})
         elif action["type"] == "batch_remove":
             # Undo a batch remove → re-insert all in reverse index order
             for item in reversed(action["anns"]):
