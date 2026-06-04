@@ -402,15 +402,11 @@ class SettingsDialog(ThemeAwareDialog):
         tab_layout = QVBoxLayout(tab)
         tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 滚动区域
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # 滚动区域和内容容器
+        scroll, content = self._create_scroll_area()
         tab_layout.addWidget(scroll)
 
-        # 内容容器
-        content = QWidget()
+        # 内容布局
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
@@ -520,6 +516,28 @@ class SettingsDialog(ThemeAwareDialog):
 
         return tab
 
+    def _create_scroll_area(self) -> tuple[QScrollArea, QWidget]:
+        """创建配置好的滚动区域和内容容器
+
+        Returns:
+            (scroll, content): 滚动区域和内容容器widget
+        """
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(qss_base.scrollbar_qss())
+
+        # 设置viewport背景色
+        viewport_style = _theme.qss("background: $bg_primary;")
+        scroll.viewport().setStyleSheet(viewport_style)
+
+        # 内容容器
+        content = QWidget()
+        content.setStyleSheet(_theme.qss("background: $bg_primary;"))
+
+        return scroll, content
+
     def _setup_fade_in_animation(self, widget: QWidget):
         """为 widget 设置淡入动画（在 showEvent 时触发）"""
         opacity_effect = QGraphicsOpacityEffect(widget)
@@ -559,15 +577,11 @@ class SettingsDialog(ThemeAwareDialog):
         tab_layout = QVBoxLayout(tab)
         tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 滚动区域
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # 滚动区域和内容容器
+        scroll, content = self._create_scroll_area()
         tab_layout.addWidget(scroll)
 
-        # 内容容器
-        content = QWidget()
+        # 内容布局
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
@@ -715,15 +729,11 @@ class SettingsDialog(ThemeAwareDialog):
         tab_layout = QVBoxLayout(tab)
         tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 滚动区域
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # 滚动区域和内容容器
+        scroll, content = self._create_scroll_area()
         tab_layout.addWidget(scroll)
 
-        # 内容容器
-        content = QWidget()
+        # 内容布局
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
@@ -1197,15 +1207,11 @@ class SettingsDialog(ThemeAwareDialog):
         tab_layout = QVBoxLayout(tab)
         tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 滚动区域
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # 滚动区域和内容容器
+        scroll, content = self._create_scroll_area()
         tab_layout.addWidget(scroll)
 
-        # 内容容器
-        content = QWidget()
+        # 内容布局
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
@@ -1300,15 +1306,11 @@ class SettingsDialog(ThemeAwareDialog):
         tab_layout = QVBoxLayout(tab)
         tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 滚动区域
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # 滚动区域和内容容器
+        scroll, content = self._create_scroll_area()
         tab_layout.addWidget(scroll)
 
-        # 内容容器
-        content = QWidget()
+        # 内容布局
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
@@ -1389,15 +1391,11 @@ class SettingsDialog(ThemeAwareDialog):
         tab_layout = QVBoxLayout(tab)
         tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 滚动区域
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # 滚动区域和内容容器
+        scroll, content = self._create_scroll_area()
         tab_layout.addWidget(scroll)
 
-        # 内容容器
-        content = QWidget()
+        # 内容布局
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
