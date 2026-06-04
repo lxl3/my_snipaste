@@ -17,6 +17,7 @@ from ..core.constants import PRESET_COLORS
 from ..core.logger import setup_logger
 from ..core.theme import theme as _theme
 from ..core import qss_base
+from .theme_dialog import ThemeAwareDialog
 
 logger = setup_logger("settings_dialog")
 
@@ -253,18 +254,14 @@ class HotkeyRecorderWidget(QWidget):
         return '+'.join(parts)
 
 
-class SettingsDialog(QDialog):
+class SettingsDialog(ThemeAwareDialog):
     """Application settings dialog with tabs."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._settings: AppSettings = get_settings()
-        # 保存需要动态更新主题样式的 widgets (widget, style_template)
-        self._themed_widgets: list[tuple[QWidget, str]] = []
         self._build_ui()
         self._load_settings()
-        # 主题切换时刷新样式
-        _theme.theme_changed.connect(self._on_theme_changed)
 
     def _build_ui(self) -> None:
         self.setWindowTitle(_("MySnipaste Settings"))
@@ -343,11 +340,6 @@ class SettingsDialog(QDialog):
 
         _theme.apply_to_widget(self)
         self._build_stylesheet_qss()
-
-    def _add_themed_widget(self, widget: QWidget, style_template: str) -> None:
-        """注册需要动态更新主题样式的 widget。"""
-        self._themed_widgets.append((widget, style_template))
-        widget.setStyleSheet(_theme.qss(style_template))
 
     def _build_stylesheet_qss(self) -> None:
         """用主题 token 构建 QSS 并应用，确保暗/亮模式都正确。"""
@@ -432,14 +424,9 @@ class SettingsDialog(QDialog):
         ])
         self.setStyleSheet(dialog_specific + shared)
 
-    def _on_theme_changed(self, mode: str) -> None:
-        """主题切换时刷新整个对话框的样式。"""
-        logger.info(f"🎨 主题切换: {mode}，正在刷新设置对话框...")
-
-        # 步骤 0：设置 QPalette（比 QSS 更底层，更可靠）
-        _theme.apply_to_widget(self)
+    def _on_before_theme_apply(self) -> None:
+        """为 TabWidget、QTabBar 及其页面单独设置 QPalette。"""
         _theme.apply_to_widget(self._tabs)
-        # QTabBar 是 QTabWidget 的内建子控件，需要单独设 palette
         _tab_bar = self._tabs.findChild(QTabBar)
         if _tab_bar:
             _theme.apply_to_widget(_tab_bar)
@@ -447,37 +434,6 @@ class SettingsDialog(QDialog):
             tab_widget = self._tabs.widget(i)
             if tab_widget:
                 _theme.apply_to_widget(tab_widget)
-        logger.debug("✓ QPalette 已应用（对话框 + TabWidget + TabBar + 所有 Tab 页面）")
-
-        # 步骤 1：清空样式表，强制 Qt 清除缓存的样式
-        self.setStyleSheet("")
-
-        # 步骤 2：重新构建并应用样式表
-        self._build_stylesheet_qss()
-        logger.debug("✓ 样式表已重新构建")
-
-        # 步骤 3：更新所有保存的动态样式 widget
-        for widget, style_template in self._themed_widgets:
-            widget.setStyleSheet(_theme.qss(style_template))
-
-        # 步骤 4：强制 Qt 重新计算所有 widget 样式（包括子 widget）
-        all_widgets = [self] + self.findChildren(QWidget)
-        for w in all_widgets:
-            w.style().unpolish(w)
-            w.style().polish(w)
-
-        # 步骤 5：单独修复 QScrollArea viewport 背景（QSS 级联对 viewport 不可靠）
-        for sa in self.findChildren(QScrollArea):
-            vp = sa.viewport()
-            vp.setStyleSheet(_theme.qss("background: $bg_primary;"))
-            vp.style().unpolish(vp)
-            vp.style().polish(vp)
-
-        # 步骤 6：强制重绘整个对话框（确保背景色立即生效）
-        self.update()
-        self.repaint()
-
-        logger.debug("✓ 主题刷新完成")
 
     # ─── General Tab ───
 
