@@ -431,7 +431,9 @@ class SettingsDialog(ThemeAwareDialog):
             # 获取当前样式表
             current_style = label.styleSheet()
             if current_style and ('$' in current_style):
-                # 如果样式包含 token，使用 theme.qss() 重新解析
+                # 先清空样式，强制 Qt 清除缓存
+                label.setStyleSheet("")
+                # 使用 theme.qss() 重新解析并应用
                 refreshed_style = _theme.qss(current_style)
                 label.setStyleSheet(refreshed_style)
 

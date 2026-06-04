@@ -119,20 +119,31 @@ class SettingsCard(QWidget):
 
     def _on_theme_changed(self, mode: str):
         """主题切换时重新应用样式"""
+        # 先清空样式，强制 Qt 清除缓存
+        self.setStyleSheet("")
+
+        # 重新应用样式
         self._apply_style()
 
         # 更新图标和标题的颜色
         if self._icon_label:
+            self._icon_label.setStyleSheet("")  # 清空缓存
             self._icon_label.setStyleSheet(qss_base.label_qss(
                 font_size="20px",
                 color=_t.get("text_primary")
             ))
         if self._title_label:
+            self._title_label.setStyleSheet("")  # 清空缓存
             self._title_label.setStyleSheet(qss_base.label_qss(
                 font_size="15px",
                 font_weight="600",
                 color=_t.get("text_primary")
             ))
+
+        # 强制 Qt 重新计算样式
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
 
     def enterEvent(self, event):
         """鼠标进入时增强阴影"""
