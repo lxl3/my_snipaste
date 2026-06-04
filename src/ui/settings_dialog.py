@@ -2,13 +2,13 @@ import sys
 import subprocess
 import json
 
-from PySide6.QtCore import Qt, Signal, QEvent
+from PySide6.QtCore import Qt, Signal, QEvent, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QColor, QPixmap, QIcon, QKeyEvent
 from PySide6.QtWidgets import (
     QApplication, QDialog, QVBoxLayout, QHBoxLayout, QTabBar, QTabWidget,
     QWidget, QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
     QCheckBox, QSlider, QFileDialog, QMessageBox, QGroupBox,
-    QFormLayout, QScrollArea,
+    QFormLayout, QScrollArea, QGraphicsOpacityEffect,
 )
 from ..core.i18n import _, available_languages, load_translations
 from .color_picker import get_color
@@ -19,6 +19,8 @@ from ..core.theme import theme as _theme
 from ..core import qss_base
 from .theme_dialog import ThemeAwareDialog
 from .title_bar import TitleBar
+from .toggle_switch import ToggleSwitch
+from .settings_card import SettingsCard
 
 logger = setup_logger("settings_dialog")
 
@@ -394,45 +396,61 @@ class SettingsDialog(ThemeAwareDialog):
     # ─── General Tab ───
 
     def _build_general_tab(self) -> QWidget:
+        """通用设置 Tab - 现代卡片布局"""
+        # 主容器
         tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(8)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Hotkey
-        hotkey_group = QGroupBox(_("Global Hotkey"))
-        hotkey_layout = QFormLayout(hotkey_group)
+        # 滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        tab_layout.addWidget(scroll)
+
+        # 内容容器
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        # ⌨️ 全局快捷键卡片
+        hotkey_card = SettingsCard(icon="⌨️", title=_("Global Hotkey"))
         self._hotkey_recorder = HotkeyRecorderWidget()
-        hotkey_layout.addRow(_("Shortcut:"), self._hotkey_recorder)
+        hotkey_card.add_widget(self._hotkey_recorder)
         hint = QLabel(_("Click 'Record' and press your desired key combination"))
-        self._add_themed_widget(hint, "color: $text_placeholder; font-size: 11px;")
-        hotkey_layout.addRow("", hint)
-        layout.addWidget(hotkey_group)
+        hint.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
+        hotkey_card.add_widget(hint)
+        layout.addWidget(hotkey_card)
 
-        # Language
-        lang_group = QGroupBox(_("Language"))
-        lang_layout = QFormLayout(lang_group)
+        # 🌐 语言卡片
+        lang_card = SettingsCard(icon="🌐", title=_("Language"))
         self._lang_combo = QComboBox()
+        self._lang_combo.setMinimumWidth(200)
         for code, label in available_languages():
             self._lang_combo.addItem(label, code)
-        lang_layout.addRow(self._lang_combo)
-        layout.addWidget(lang_group)
+        lang_card.add_widget(self._lang_combo)
+        layout.addWidget(lang_card)
 
-        # Theme
-        theme_group = QGroupBox(_("Theme"))
-        theme_layout = QFormLayout(theme_group)
+        # 🎨 主题卡片
+        theme_card = SettingsCard(icon="🎨", title=_("Theme"))
         self._theme_combo = QComboBox()
+        self._theme_combo.setMinimumWidth(200)
         self._theme_combo.addItem(_("Light"), "light")
         self._theme_combo.addItem(_("Dark"), "dark")
         self._theme_combo.addItem(_("Follow System"), "system")
         self._theme_combo.currentIndexChanged.connect(self._on_theme_preview)
-        theme_layout.addRow(self._theme_combo)
-        layout.addWidget(theme_group)
+        theme_card.add_widget(self._theme_combo)
+        hint_theme = QLabel(_("Changes are previewed immediately"))
+        hint_theme.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
+        theme_card.add_widget(hint_theme)
+        layout.addWidget(theme_card)
 
         # macOS-specific settings
         if sys.platform == "darwin":
-            # Permissions status
-            perm_group = QGroupBox(_("Permissions (macOS)"))
-            perm_layout = QVBoxLayout(perm_group)
+            # 🔒 权限卡片
+            perm_card = SettingsCard(icon="🔒", title=_("Permissions"))
 
             from ..core.permissions import get_permission_status
 
@@ -446,7 +464,7 @@ class SettingsDialog(ThemeAwareDialog):
             else:
                 input_label.setText("✗ " + _("Input Monitoring: Not Granted"))
                 input_label.setStyleSheet(qss_base.label_qss(color="#E53935", font_weight="600"))
-            perm_layout.addWidget(input_label)
+            perm_card.add_widget(input_label)
 
             # Screen Recording
             screen_label = QLabel()
@@ -459,32 +477,78 @@ class SettingsDialog(ThemeAwareDialog):
             else:
                 screen_label.setText("✗ " + _("Screen Recording: Not Granted"))
                 screen_label.setStyleSheet(qss_base.label_qss(color="#E53935"))
-            perm_layout.addWidget(screen_label)
+            perm_card.add_widget(screen_label)
+
+            perm_card.add_spacing(8)
 
             # Open settings button
-            btn_layout = QHBoxLayout()
-            btn_layout.addStretch()
             self._open_perm_btn = QPushButton(_("Open System Settings"))
+            self._open_perm_btn.setStyleSheet(qss_base.pushbutton_qss())
             self._open_perm_btn.clicked.connect(self._open_permission_settings)
-            btn_layout.addWidget(self._open_perm_btn)
-            perm_layout.addLayout(btn_layout)
+            perm_card.add_widget(self._open_perm_btn)
 
-            layout.addWidget(perm_group)
+            layout.addWidget(perm_card)
 
-            # Launch at startup
-            startup_group = QGroupBox(_("Startup"))
-            startup_layout = QVBoxLayout(startup_group)
-            self._launch_checkbox = QCheckBox(_("Launch MySnipaste at login"))
-            startup_layout.addWidget(self._launch_checkbox)
-            layout.addWidget(startup_group)
+            # 🚀 启动卡片
+            startup_card = SettingsCard(icon="🚀", title=_("Startup"))
+            startup_row = QHBoxLayout()
+            startup_label = QLabel(_("Launch at login"))
+            startup_label.setStyleSheet(qss_base.label_qss())
+            self._launch_checkbox = ToggleSwitch()
+            startup_row.addWidget(startup_label)
+            startup_row.addStretch()
+            startup_row.addWidget(self._launch_checkbox)
+            startup_card.add_layout(startup_row)
+            layout.addWidget(startup_card)
 
+        # 底部重置按钮
+        layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
+            color="$text_secondary",
+            font_size="11px",
+            bg="transparent",
+            hover_bg="$hover_bg"
+        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_general())
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
-        layout.addStretch()
+        scroll.setWidget(content)
+
+        # 淡入动画（首次显示时）
+        self._setup_fade_in_animation(tab)
+
         return tab
+
+    def _setup_fade_in_animation(self, widget: QWidget):
+        """为 widget 设置淡入动画（在 showEvent 时触发）"""
+        opacity_effect = QGraphicsOpacityEffect(widget)
+        widget.setGraphicsEffect(opacity_effect)
+        opacity_effect.setOpacity(1.0)  # 默认完全可见
+
+        # 创建动画但不立即播放
+        fade_in = QPropertyAnimation(opacity_effect, b"opacity")
+        fade_in.setDuration(200)
+        fade_in.setStartValue(0.0)
+        fade_in.setEndValue(1.0)
+        fade_in.setEasingCurve(QEasingCurve.OutQuad)
+
+        # 保存动画引用到 widget，防止被垃圾回收
+        widget._fade_in_animation = fade_in
+        widget._opacity_effect = opacity_effect
+
+        # 重写 showEvent 来触发动画
+        original_show_event = widget.showEvent
+
+        def show_event_with_fade(event):
+            original_show_event(event)
+            # 只在tab首次显示时播放动画
+            if hasattr(widget, '_first_show'):
+                return
+            widget._first_show = True
+            fade_in.start()
+
+        widget.showEvent = show_event_with_fade
 
     # ─── Capture Tab ───
 
