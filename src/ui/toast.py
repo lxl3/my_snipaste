@@ -22,37 +22,35 @@ class ToastNotification(QWidget):
         self.message = message
         self.icon = icon
         self.toast_type = toast_type
-        self._hovered = False
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setMouseTracking(True)
 
         # 布局
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(16, 14, 20, 14)
-        layout.setSpacing(14)
+        layout.setContentsMargins(12, 10, 14, 10)
+        layout.setSpacing(10)
 
         # 图标容器（圆形背景）
         self._icon_container = QWidget()
-        self._icon_container.setFixedSize(36, 36)
+        self._icon_container.setFixedSize(28, 28)
         icon_label = QLabel(icon, self._icon_container)
-        icon_label.setStyleSheet(qss_base.label_qss(font_size="20px", color="white"))
+        icon_label.setStyleSheet(qss_base.label_qss(font_size="16px", color="white"))
         icon_label.setAlignment(Qt.AlignCenter)
-        icon_label.setGeometry(0, 0, 36, 36)
+        icon_label.setGeometry(0, 0, 28, 28)
         layout.addWidget(self._icon_container)
 
         # 消息
         msg_label = QLabel(message)
         msg_label.setStyleSheet(qss_base.label_qss(
-            font_size="14px",
-            font_weight="600",
+            font_size="13px",
+            font_weight="500",
             color=_t.get("text_primary")
         ))
         layout.addWidget(msg_label)
 
         self.adjustSize()
-        self.setMinimumWidth(280)
+        self.setMinimumWidth(220)
 
     def paintEvent(self, event):
         """绘制玻璃态背景"""
@@ -83,7 +81,7 @@ class ToastNotification(QWidget):
         painter.drawRoundedRect(rect, 10, 10)
 
         # 2. 绘制图标圆形背景（渐变）
-        icon_rect = QRect(16, 14, 36, 36)
+        icon_rect = QRect(12, 10, 28, 28)
         color_top, color_bottom = self.ICON_COLORS.get(self.toast_type, self.ICON_COLORS["info"])
         icon_gradient = QLinearGradient(icon_rect.topLeft(), icon_rect.bottomLeft())
         icon_gradient.setColorAt(0, QColor(color_top))
@@ -115,20 +113,6 @@ class ToastNotification(QWidget):
         # 底部阴影线
         painter.setPen(bottom_color)
         painter.drawLine(10, rect.height() - 1, rect.width() - 10, rect.height() - 1)
-
-    def enterEvent(self, event):
-        """鼠标进入"""
-        self._hovered = True
-        super().enterEvent(event)
-
-    def leaveEvent(self, event):
-        """鼠标离开"""
-        self._hovered = False
-        super().leaveEvent(event)
-
-    def is_hovered(self) -> bool:
-        """是否被鼠标悬停"""
-        return self._hovered
 
 
 class ToastManager:
@@ -262,29 +246,11 @@ class ToastManager:
         # 保存动画引用
         self._animations[toast] = (pos_anim, opacity_anim, geometry_anim)
 
-        # 自动隐藏定时器
+        # 自动隐藏定时器（简化逻辑，不检查hover）
         timer = QTimer()
-        elapsed = [0]
-
-        def check_hide():
-            try:
-                # Check if toast still exists before accessing it
-                if not toast or not toast.isVisible():
-                    timer.stop()
-                    return
-
-                if toast.is_hovered():
-                    return
-                elapsed[0] += 100
-                if elapsed[0] >= duration:
-                    timer.stop()
-                    self._hide_toast(toast)
-            except RuntimeError:
-                # Toast already deleted - stop timer
-                timer.stop()
-
-        timer.timeout.connect(check_hide)
-        timer.start(100)
+        timer.setSingleShot(True)  # 只触发一次
+        timer.timeout.connect(lambda: self._hide_toast(toast))
+        timer.start(duration)
         self._timers[toast] = timer
 
     def _hide_toast(self, toast: ToastNotification, animated: bool = True):
@@ -330,30 +296,32 @@ class ToastManager:
                 opacity_effect = toast.graphicsEffect()
                 if opacity_effect:
                     fade_out = QPropertyAnimation(opacity_effect, b"opacity")
-                    fade_out.setDuration(250)
+                    fade_out.setDuration(200)
                     fade_out.setStartValue(1.0)
                     fade_out.setEndValue(0.0)
                     fade_out.setEasingCurve(QEasingCurve.InQuad)
 
                     def on_finished():
                         try:
+                            if toast in self._toasts:
+                                self._toasts.remove(toast)
                             toast.close()
                             toast.deleteLater()
-                            if toast in self._toasts:
-                                self._toasts.remove(toast)
-                        except RuntimeError:
-                            if toast in self._toasts:
-                                self._toasts.remove(toast)
+                        except (RuntimeError, AttributeError):
+                            pass
 
                     fade_out.finished.connect(on_finished)
                     fade_out.start()
+
+                    # 保存动画引用防止被垃圾回收
+                    self._animations[toast] = fade_out
                 else:
-                    # Fallback
-                    toast.close()
-                    toast.deleteLater()
+                    # Fallback：没有opacity effect，直接关闭
                     if toast in self._toasts:
                         self._toasts.remove(toast)
-            except RuntimeError:
+                    toast.close()
+                    toast.deleteLater()
+            except (RuntimeError, AttributeError):
                 if toast in self._toasts:
                     self._toasts.remove(toast)
         else:
