@@ -19,6 +19,7 @@ from ..core.constants import (
 from ..core.logger import setup_logger
 from ..core.settings import get_settings
 from ..core.theme import theme as _t
+from ..core import qss_base
 
 logger = setup_logger("overlay_toolbar")
 
@@ -113,7 +114,13 @@ def _popup_style() -> str:
 
 
 def _control_style() -> str:
-    """子菜单控件样式（QComboBox、QSpinBox、QLabel）- 清晰可读、主题适配。"""
+    """子菜单控件样式 - 工具栏专用（需要 hover/focus 状态适配玻璃背景）。
+
+    注：QComboBox/QSpinBox 保持自定义样式，因需要：
+    - hover/focus 状态（qss_base 当前不支持）
+    - 针对玻璃背景优化的半透明色
+    - 自定义按钮 hover 效果
+    """
     is_dark = _t.is_dark()
 
     if is_dark:
@@ -137,7 +144,11 @@ def _control_style() -> str:
         button_hover_bg = "rgba(0,0,0,0.12)"
         arrow_color = "#333333"  # 更深的箭头
 
-    return _t.qss(f"""
+    # QLabel 使用 qss_base（简单场景，需包裹选择器）
+    label_style = f"QLabel {{ {qss_base.label_qss(color=text_color, font_size='12px')} }}"
+
+    # QComboBox/QSpinBox 保持自定义（需要 hover/focus 状态）
+    controls_style = _t.qss(f"""
     /* QComboBox */
     QComboBox {{
         color: {text_color};
@@ -216,13 +227,9 @@ def _control_style() -> str:
         border-top: 5px solid {arrow_color};
         margin-top: 1px;
     }}
-
-    /* QLabel */
-    QLabel {{
-        color: {text_color};
-        font-size: 12px;
-    }}
 """)
+
+    return label_style + controls_style
 
 
 def _toolbar_style() -> str:
