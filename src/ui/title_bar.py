@@ -5,14 +5,12 @@ from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
 
 from ..core.theme import theme as _theme
-from ..core import qss_base
 
 
 class TitleBar(QWidget):
     """自定义无边框标题栏，支持拖拽移动窗口。
 
-    默认样式由父对话框的 QSS 覆盖（如 TitleBar QLabel / TitleBar QPushButton），
-    这里只设置基础透明无边框，确保即使是孤立使用也有可读外观。
+    自动跟随主题切换（暗色/亮色），关闭销毁时断开信号连接。
 
     用法:
         title_bar = TitleBar(self, _("My Window"))
@@ -36,15 +34,16 @@ class TitleBar(QWidget):
         self.setFixedHeight(height)
         self.setAttribute(Qt.WA_StyledBackground)
 
+        # 保存参数供主题刷新时重写 QSS 使用
+        self._title_size = title_size
+        self._title_weight = title_weight
+
         layout = QHBoxLayout(self)
         layout.setContentsMargins(*margins)
         layout.setSpacing(2)
 
-        # 标题（颜色由父 QSS 中的 TitleBar QLabel 覆盖）
+        # 标题
         self._title_label = QLabel(title)
-        self._title_label.setStyleSheet(
-            _theme.qss(f"font-size: {title_size}; font-weight: {title_weight}; color: $text_primary;")
-        )
         layout.addWidget(self._title_label)
         layout.addStretch()
 
@@ -55,7 +54,6 @@ class TitleBar(QWidget):
             self._min_btn.setFocusPolicy(Qt.NoFocus)
             self._min_btn.clicked.connect(parent.showMinimized)
             self._min_btn.setCursor(QCursor(Qt.PointingHandCursor))
-            self._min_btn.setStyleSheet(self._btn_qss())
             layout.addWidget(self._min_btn)
 
         # 关闭按钮
@@ -64,8 +62,33 @@ class TitleBar(QWidget):
         self._close_btn.setFocusPolicy(Qt.NoFocus)
         self._close_btn.clicked.connect(parent.close)
         self._close_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        self._close_btn.setStyleSheet(self._btn_qss())
         layout.addWidget(self._close_btn)
+
+        # 首次应用主题 QSS
+        self._refresh_style()
+
+        # 监听主题切换
+        _theme.theme_changed.connect(self._on_theme_changed)
+
+    # ─── 主题感知 ───────────────────────────────────────
+
+    def _refresh_style(self) -> None:
+        """根据当前主题重新生成标题和按钮的 QSS。"""
+        self._title_label.setStyleSheet(
+            _theme.qss(
+                f"font-size: {self._title_size}; "
+                f"font-weight: {self._title_weight}; "
+                f"color: $text_primary;"
+            )
+        )
+        btn_qss = self._btn_qss()
+        if hasattr(self, '_min_btn'):
+            self._min_btn.setStyleSheet(btn_qss)
+        self._close_btn.setStyleSheet(btn_qss)
+
+    def _on_theme_changed(self, mode: str) -> None:
+        """主题切换时刷新 TitleBar 内联 QSS。"""
+        self._refresh_style()
 
     @staticmethod
     def _btn_qss() -> str:
@@ -86,6 +109,16 @@ class TitleBar(QWidget):
                 color: $text_accent;
             }
         """)
+
+    # ─── 生命周期 ───────────────────────────────────────
+
+    def destroy(self, destroyWindow: bool = True, destroySubWindows: bool = True) -> None:
+        """断开主题信号连接后销毁。"""
+        try:
+            _theme.theme_changed.disconnect(self._on_theme_changed)
+        except (TypeError, RuntimeError):
+            pass
+        return super().destroy(destroyWindow, destroySubWindows)
 
     # ─── 窗口拖拽 ─────────────────────────────────────
 
