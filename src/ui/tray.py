@@ -12,6 +12,7 @@ from ..core.logger import setup_logger, get_current_log_path, get_log_dir
 from ..core.hotkeys import get_default_hotkey
 from ..core.screenshot_history import ScreenshotHistory
 from ..core.theme import theme as theme_mgr
+from ..core import qss_base
 
 logger = setup_logger("tray")
 
@@ -137,19 +138,7 @@ class TrayManager(QObject):
         """Apply theme tokens to tray menu QSS."""
         if self._menu is None:
             return
-        qss = (
-            f"QMenu {{ background: {theme_mgr.get('bg_menu')}; "
-            f"border: 1px solid {theme_mgr.get('border')}; "
-            f"padding: 4px; }}"
-            f"QMenu::item {{ padding: 6px 8px 6px 6px; color: {theme_mgr.get('text_primary')}; }}"
-            f"QMenu::item:selected {{ background: {theme_mgr.get('accent')}; "
-            f"color: {theme_mgr.get('text_accent')}; }}"
-            f"QMenu::separator {{ height: 1px; "
-            f"background: {theme_mgr.get('border')}; "
-            f"margin: 4px 8px; }}"
-            f"QMenu::icon {{ padding-left: 4px; }}"
-        )
-        self._menu.setStyleSheet(qss)
+        self._menu.setStyleSheet(qss_base.menu_qss())
 
     def _on_theme_changed(self, _mode: str) -> None:
         self._apply_menu_style()
