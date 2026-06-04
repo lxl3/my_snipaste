@@ -1,48 +1,10 @@
-from PySide6.QtCore import Qt, QTimer, QEvent, QPoint
+from PySide6.QtCore import Qt, QTimer, QEvent
 from PySide6.QtWidgets import (
     QApplication, QDialog, QVBoxLayout, QHBoxLayout,
     QTextEdit, QPushButton, QLabel, QWidget,
 )
 from ..core.i18n import _
-
-
-class _TitleBar(QWidget):
-    def __init__(self, text: str, parent=None) -> None:
-        super().__init__(parent)
-        self._drag_pos: QPoint | None = None
-        self.setFixedHeight(44)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(16, 0, 8, 0)
-
-        title = QLabel(_("Recognition Result"))
-        title.setStyleSheet("font-size: 14px; font-weight: 600; color: palette(text);")
-
-        close_btn = QPushButton("✕")
-        close_btn.setFixedSize(28, 28)
-        close_btn.setCursor(Qt.PointingHandCursor)
-        close_btn.clicked.connect(lambda: self.window().close())
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent; color: palette(mid); border: none; border-radius: 14px; font-size: 14px;
-            }
-            QPushButton:hover { background: palette(alternate-base); color: palette(text); }
-            QPushButton:pressed { background: palette(midlight); }
-        """)
-
-        layout.addWidget(title)
-        layout.addStretch()
-        layout.addWidget(close_btn)
-
-    def mousePressEvent(self, event) -> None:
-        if event.button() == Qt.LeftButton:
-            win = self.window()
-            self._drag_pos = event.globalPosition().toPoint() - win.frameGeometry().topLeft()
-
-    def mouseMoveEvent(self, event) -> None:
-        if event.buttons() == Qt.LeftButton and self._drag_pos is not None:
-            win = self.window()
-            win.move(event.globalPosition().toPoint() - self._drag_pos)
+from .title_bar import TitleBar
 
 
 class OcrResultDialog(QDialog):
@@ -78,7 +40,11 @@ class OcrResultDialog(QDialog):
         card_layout.setContentsMargins(0, 0, 0, 0)
         card_layout.setSpacing(0)
 
-        card_layout.addWidget(_TitleBar(self.windowTitle(), self))
+        card_layout.addWidget(TitleBar(
+            self, title=_("Recognition Result"), show_minimize=False,
+            height=44, title_size="14px", close_size=28,
+            margins=(16, 0, 8, 0),
+        ))
         card_layout.addWidget(self._build_content(text), 1)
         card_layout.addLayout(self._build_footer())
 

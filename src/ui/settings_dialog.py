@@ -18,59 +18,9 @@ from ..core.logger import setup_logger
 from ..core.theme import theme as _theme
 from ..core import qss_base
 from .theme_dialog import ThemeAwareDialog
+from .title_bar import TitleBar
 
 logger = setup_logger("settings_dialog")
-
-
-class TitleBar(QWidget):
-    """Custom frameless window title bar with drag, minimize, and close."""
-
-    def __init__(self, parent, title="", show_minimize=True):
-        super().__init__(parent)
-        self._drag_pos = None
-        self.setFixedHeight(32)
-        self.setAttribute(Qt.WA_StyledBackground)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 0, 4, 0)
-        layout.setSpacing(2)
-
-        self._title_label = QLabel(title)
-        layout.addWidget(self._title_label)
-        layout.addStretch()
-
-        if show_minimize:
-            self._min_btn = QPushButton("─")
-            self._min_btn.setFixedSize(32, 24)
-            self._min_btn.setFocusPolicy(Qt.NoFocus)
-            self._min_btn.clicked.connect(parent.showMinimized)
-            layout.addWidget(self._min_btn)
-
-        self._close_btn = QPushButton("✕")
-        self._close_btn.setFixedSize(32, 24)
-        self._close_btn.setFocusPolicy(Qt.NoFocus)
-        self._close_btn.clicked.connect(parent.close)
-        layout.addWidget(self._close_btn)
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self._drag_pos = event.globalPosition().toPoint()
-            event.accept()
-
-    def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.LeftButton and self._drag_pos is not None:
-            parent = self.parent()
-            if parent is None:
-                return
-            delta = event.globalPosition().toPoint() - self._drag_pos
-            parent.move(parent.pos() + delta)
-            self._drag_pos = event.globalPosition().toPoint()
-            event.accept()
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self._drag_pos = None
-            event.accept()
 
 
 class HotkeyRecorderWidget(QWidget):
