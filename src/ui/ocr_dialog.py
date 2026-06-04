@@ -99,10 +99,10 @@ class OcrResultDialog(QDialog):
             padding="7px 22px",
             border="none",
             border_radius="6px",
-            bg="palette(highlight)",
-            color="palette(highlighted-text)",
-            hover_bg="palette(midlight)",
-            pressed_bg="palette(middark)",
+            bg="$accent",
+            color="$text_accent",
+            hover_bg="$accent_hover",
+            pressed_bg="$accent_hover",
             font_size="13px",
             font_weight="500"
         ))

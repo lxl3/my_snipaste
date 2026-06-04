@@ -381,6 +381,12 @@ class SettingsDialog(ThemeAwareDialog):
             if tab_widget:
                 _theme.apply_to_widget(tab_widget)
 
+    def _on_theme_changed(self, mode: str) -> None:
+        """主题切换时重新应用样式（刷新token值）"""
+        # 重新应用样式表，让token（如$accent）使用新主题的颜色
+        self._apply_styles()
+        self._on_before_theme_apply()
+
     # ─── General Tab ───
 
     def _build_general_tab(self) -> QWidget:
