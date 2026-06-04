@@ -189,7 +189,8 @@ class OcrResultDialog(QDialog):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        rect = self._card.geometry()
+        # 使用窗口自身的rect，避免拖动残影
+        rect = self.rect()
 
         # 构造渐变背景（模拟工具栏玻璃效果）
         try:
@@ -202,7 +203,7 @@ class OcrResultDialog(QDialog):
             top_a = min(a + 25, 255)
             bottom_a = max(a - 35, 0)
 
-            gradient = QLinearGradient(rect.x(), rect.y(), rect.x(), rect.y() + rect.height())
+            gradient = QLinearGradient(0, 0, 0, rect.height())
             gradient.setColorAt(0, QColor(r, g, b, top_a))
             gradient.setColorAt(1, QColor(r, g, b, bottom_a))
             painter.setBrush(gradient)
@@ -230,13 +231,12 @@ class OcrResultDialog(QDialog):
 
         # 顶部高光
         painter.setPen(top_color)
-        painter.drawLine(rect.x() + 12, rect.y(), rect.x() + rect.width() - 12, rect.y())
-        painter.drawLine(rect.x() + 12, rect.y() + 1, rect.x() + rect.width() - 12, rect.y() + 1)
+        painter.drawLine(12, 0, rect.width() - 12, 0)
+        painter.drawLine(12, 1, rect.width() - 12, 1)
 
         # 底部阴影
         painter.setPen(bottom_color)
-        painter.drawLine(rect.x() + 12, rect.y() + rect.height() - 1,
-                        rect.x() + rect.width() - 12, rect.y() + rect.height() - 1)
+        painter.drawLine(12, rect.height() - 1, rect.width() - 12, rect.height() - 1)
 
     def _on_theme_changed(self, _mode: str) -> None:
         """主题切换时刷新"""
