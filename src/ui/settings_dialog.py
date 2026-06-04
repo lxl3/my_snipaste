@@ -1071,6 +1071,8 @@ class SettingsDialog(ThemeAwareDialog):
         pin_layout = QFormLayout(pin_group)
         self._opacity_slider = QSlider(Qt.Horizontal)
         self._opacity_slider.setRange(30, 100)
+        # 显式设置滑块样式，确保使用深青色
+        self._opacity_slider.setStyleSheet(qss_base.slider_qss())
         self._opacity_label = QLabel("100%")
         self._opacity_slider.valueChanged.connect(
             lambda v: self._opacity_label.setText(f"{v}%")
