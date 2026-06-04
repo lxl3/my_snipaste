@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (
     QTextEdit, QPushButton, QLabel, QWidget,
 )
 from ..core.i18n import _
+from ..core import qss_base
 from .title_bar import TitleBar
 
 
@@ -84,25 +85,23 @@ class OcrResultDialog(QDialog):
         footer.setSpacing(12)
 
         self.char_count_label = QLabel()
-        self.char_count_label.setStyleSheet("font-size: 12px; color: palette(mid);")
+        self.char_count_label.setStyleSheet(qss_base.label_qss(font_size="12px", color="palette(mid)"))
         footer.addWidget(self.char_count_label)
         footer.addStretch()
 
         self.copy_btn = QPushButton(_("Copy Text"))
         self.copy_btn.setCursor(Qt.PointingHandCursor)
-        self.copy_btn.setStyleSheet("""
-            QPushButton {
-                background: palette(highlight);
-                color: palette(highlighted-text);
-                border: none;
-                border-radius: 6px;
-                padding: 7px 22px;
-                font-size: 13px;
-                font-weight: 500;
-            }
-            QPushButton:hover { background: palette(midlight); }
-            QPushButton:pressed { background: palette(middark); }
-        """)
+        self.copy_btn.setStyleSheet(qss_base.pushbutton_qss(
+            padding="7px 22px",
+            border="none",
+            border_radius="6px",
+            bg="palette(highlight)",
+            color="palette(highlighted-text)",
+            hover_bg="palette(midlight)",
+            pressed_bg="palette(middark)",
+            font_size="13px",
+            font_weight="500"
+        ))
         self.copy_btn.clicked.connect(self._copy_and_close)
         footer.addWidget(self.copy_btn)
 
