@@ -211,6 +211,33 @@ class SettingsDialog(ThemeAwareDialog):
         self._build_ui()
         self._load_settings()
 
+    def _create_themed_label(self, text: str = "", **style_kwargs) -> QLabel:
+        """创建一个主题感知的 label，自动响应主题切换
+
+        Args:
+            text: label 文字
+            **style_kwargs: 传递给 qss_base.label_qss() 的样式参数
+
+        Returns:
+            QLabel: 配置好的 label
+        """
+        label = QLabel(text)
+        # 构建样式模板（使用 token 变量，以便主题切换时替换）
+        style_parts = []
+        for key, value in style_kwargs.items():
+            # 处理下划线转连字符（font_size -> font-size）
+            css_key = key.replace('_', '-')
+            style_parts.append(f"{css_key}: {value};")
+        style_template = "QLabel { " + " ".join(style_parts) + " }"
+
+        # 如果没有指定颜色，默认使用主题色
+        if 'color' not in style_kwargs:
+            style_template = f"QLabel {{ color: $text_primary; {' '.join(style_parts)} }}"
+
+        # 注册到主题系统
+        self._add_themed_widget(label, style_template)
+        return label
+
     def _build_ui(self) -> None:
         self.setWindowTitle(_("MySnipaste Settings"))
         self.setMinimumSize(520, 420)

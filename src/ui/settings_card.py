@@ -37,27 +37,31 @@ class SettingsCard(QWidget):
         self._main_layout.setContentsMargins(20, 20, 20, 20)
         self._main_layout.setSpacing(16)
 
+        # 保存 label 引用以便主题切换时更新
+        self._icon_label = None
+        self._title_label = None
+
         # 标题行（图标 + 标题）
         if icon or title:
             header = QHBoxLayout()
             header.setSpacing(10)
 
             if icon:
-                icon_label = QLabel(icon)
-                icon_label.setStyleSheet(qss_base.label_qss(
+                self._icon_label = QLabel(icon)
+                self._icon_label.setStyleSheet(qss_base.label_qss(
                     font_size="20px",
                     color=_t.get("text_primary")
                 ))
-                header.addWidget(icon_label)
+                header.addWidget(self._icon_label)
 
             if title:
-                title_label = QLabel(title)
-                title_label.setStyleSheet(qss_base.label_qss(
+                self._title_label = QLabel(title)
+                self._title_label.setStyleSheet(qss_base.label_qss(
                     font_size="15px",
                     font_weight="600",
                     color=_t.get("text_primary")
                 ))
-                header.addWidget(title_label)
+                header.addWidget(self._title_label)
 
             header.addStretch()
             self._main_layout.addLayout(header)
@@ -116,6 +120,19 @@ class SettingsCard(QWidget):
     def _on_theme_changed(self, mode: str):
         """主题切换时重新应用样式"""
         self._apply_style()
+
+        # 更新图标和标题的颜色
+        if self._icon_label:
+            self._icon_label.setStyleSheet(qss_base.label_qss(
+                font_size="20px",
+                color=_t.get("text_primary")
+            ))
+        if self._title_label:
+            self._title_label.setStyleSheet(qss_base.label_qss(
+                font_size="15px",
+                font_weight="600",
+                color=_t.get("text_primary")
+            ))
 
     def enterEvent(self, event):
         """鼠标进入时增强阴影"""
