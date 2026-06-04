@@ -11,7 +11,7 @@ class ToastNotification(QWidget):
     # 颜色方案
     COLORS = {
         "success": QColor(40, 167, 69, 242),  # rgba(40, 167, 69, 0.95)
-        "info": QColor(0, 123, 255, 242),      # rgba(0, 123, 255, 0.95)
+        "info": QColor(0, 137, 123, 242),      # rgba(0, 137, 123, 0.95) 深青色
         "error": QColor(220, 53, 69, 242),     # rgba(220, 53, 69, 0.95)
     }
 
