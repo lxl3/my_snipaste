@@ -214,13 +214,14 @@ btn_layout.addWidget(ok_btn)
 ### 已迁移 ✅
 - [x] pin_window.py - 使用 qss_base.menu_qss()
 - [x] title_bar.py - 新建统一组件
+- [x] settings_dialog.py - 迁移到 qss_base + TitleBar（滚动条、按钮、标签）
+- [x] tray.py - 使用 qss_base.menu_qss()
+- [x] overlay/toolbar.py - 部分迁移（QLabel 使用 qss_base，QComboBox/QSpinBox 保持自定义以支持 hover/focus 状态）
+- [x] ui/toast.py - 使用 qss_base.label_qss()
+- [x] ui/ocr_dialog.py - 使用 qss_base.label_qss() + pushbutton_qss()
 
 ### 待迁移 ⚠️
-- [ ] settings_dialog.py - 迁移到 qss_base + TitleBar
-- [ ] tray.py - 使用 qss_base.menu_qss()
-- [ ] overlay/toolbar.py - 迁移控件样式到 qss_base
-- [ ] ui/toast.py - 统一样式函数
-- [ ] ui/ocr_dialog.py - 统一样式函数
+**初始迁移已完成！** 后续新增 UI 组件请遵循下方开发规范。
 
 ### 新功能开发规范 📋
 - 所有新对话框必须使用 TitleBar 组件
