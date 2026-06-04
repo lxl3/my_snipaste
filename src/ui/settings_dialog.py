@@ -539,34 +539,13 @@ class SettingsDialog(ThemeAwareDialog):
         return scroll, content
 
     def _setup_fade_in_animation(self, widget: QWidget):
-        """为 widget 设置淡入动画（在 showEvent 时触发）"""
-        opacity_effect = QGraphicsOpacityEffect(widget)
-        widget.setGraphicsEffect(opacity_effect)
-        opacity_effect.setOpacity(1.0)  # 默认完全可见
+        """为 widget 设置淡入动画（在 showEvent 时触发）
 
-        # 创建动画但不立即播放
-        fade_in = QPropertyAnimation(opacity_effect, b"opacity")
-        fade_in.setDuration(200)
-        fade_in.setStartValue(0.0)
-        fade_in.setEndValue(1.0)
-        fade_in.setEasingCurve(QEasingCurve.OutQuad)
-
-        # 保存动画引用到 widget，防止被垃圾回收
-        widget._fade_in_animation = fade_in
-        widget._opacity_effect = opacity_effect
-
-        # 重写 showEvent 来触发动画
-        original_show_event = widget.showEvent
-
-        def show_event_with_fade(event):
-            original_show_event(event)
-            # 只在tab首次显示时播放动画
-            if hasattr(widget, '_first_show'):
-                return
-            widget._first_show = True
-            fade_in.start()
-
-        widget.showEvent = show_event_with_fade
+        注意：已禁用，因为与 QTabWidget 的 tab 切换机制冲突。
+        保留方法签名以避免修改所有调用处。
+        """
+        # 淡入动画已禁用 - 与 QTabWidget 不兼容
+        pass
 
     # ─── Capture Tab ───
 
