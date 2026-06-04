@@ -1,10 +1,12 @@
-from PySide6.QtCore import Qt, QTimer, QEvent
+from PySide6.QtCore import Qt, QTimer, QEvent, QPropertyAnimation, QEasingCurve
 from PySide6.QtWidgets import (
     QApplication, QDialog, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QPushButton, QLabel, QWidget,
+    QTextEdit, QPushButton, QLabel, QWidget, QGraphicsOpacityEffect,
 )
+from PySide6.QtGui import QPainter, QColor, QLinearGradient
 from ..core.i18n import _
 from ..core import qss_base
+from ..core.theme import theme as _t
 from .title_bar import TitleBar
 
 
@@ -19,11 +21,15 @@ class OcrResultDialog(QDialog):
         self._last_selected_text: str = ""
 
         self._build_ui(text)
+        self._setup_entrance_animation()
 
         self.text_edit.textChanged.connect(self._on_text_changed)
         self.text_edit.selectionChanged.connect(self._on_selection_changed)
         self._on_text_changed()
         QTimer.singleShot(0, self.text_edit.setFocus)
+
+        # 监听主题变化
+        _t.theme_changed.connect(self._on_theme_changed)
 
     def _build_ui(self, text: str) -> None:
         root = QVBoxLayout(self)
@@ -31,12 +37,8 @@ class OcrResultDialog(QDialog):
 
         card = QWidget()
         card.setObjectName("card")
-        card.setStyleSheet("""
-            #card {
-                background: palette(base);
-                border-radius: 12px;
-            }
-        """)
+        # Glass effect background will be drawn in paintEvent
+        card.setAttribute(Qt.WA_StyledBackground, False)
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(0, 0, 0, 0)
         card_layout.setSpacing(0)
@@ -59,7 +61,8 @@ class OcrResultDialog(QDialog):
         self.text_edit.setReadOnly(False)
         self.text_edit.setTabChangesFocus(True)
         self.text_edit.installEventFilter(self)
-        self.text_edit.setStyleSheet("""
+        # 组合 QTextEdit 样式 + 滚动条样式
+        text_edit_style = """
             QTextEdit {
                 border: none;
                 border-top: 1px solid palette(mid);
@@ -75,7 +78,8 @@ class OcrResultDialog(QDialog):
             QTextEdit:focus {
                 background: palette(alternate-base);
             }
-        """)
+        """
+        self.text_edit.setStyleSheet(text_edit_style + qss_base.scrollbar_qss())
         self._adjust_text_edit_size(text)
         return self.text_edit
 
@@ -161,3 +165,87 @@ class OcrResultDialog(QDialog):
             self.accept()
         else:
             super().keyPressEvent(event)
+
+    def _setup_entrance_animation(self) -> None:
+        """设置入场动画（淡入）"""
+        self._opacity_effect = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self._opacity_effect)
+        self._opacity_effect.setOpacity(0.0)
+
+        self._fade_in = QPropertyAnimation(self._opacity_effect, b"opacity")
+        self._fade_in.setDuration(250)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(1.0)
+        self._fade_in.setEasingCurve(QEasingCurve.OutCubic)
+
+    def showEvent(self, event) -> None:
+        """显示时播放入场动画"""
+        super().showEvent(event)
+        if hasattr(self, '_fade_in'):
+            self._fade_in.start()
+
+    def paintEvent(self, event) -> None:
+        """绘制玻璃效果背景"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        rect = self._card.geometry()
+
+        # 构造渐变背景（模拟工具栏玻璃效果）
+        try:
+            bg_hex = _t.get("bg_toolbar", "#FFFFFFD7")
+            r = int(bg_hex[1:3], 16)
+            g = int(bg_hex[3:5], 16)
+            b = int(bg_hex[5:7], 16)
+            a = int(bg_hex[7:9], 16) if len(bg_hex) == 9 else 215
+
+            top_a = min(a + 25, 255)
+            bottom_a = max(a - 35, 0)
+
+            gradient = QLinearGradient(rect.x(), rect.y(), rect.x(), rect.y() + rect.height())
+            gradient.setColorAt(0, QColor(r, g, b, top_a))
+            gradient.setColorAt(1, QColor(r, g, b, bottom_a))
+            painter.setBrush(gradient)
+        except Exception:
+            painter.setBrush(QColor(_t.get("bg_toolbar", "#FFFFFFD7")))
+
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(rect, 12, 12)
+
+        # 边框高光（顶部亮，底部暗）
+        is_dark = _t.is_dark()
+        if is_dark:
+            top_color = QColor(255, 255, 255, 60)
+            bottom_color = QColor(0, 0, 0, 120)
+            border_color = QColor(90, 90, 90, 100)
+        else:
+            top_color = QColor(255, 255, 255, 220)
+            bottom_color = QColor(0, 0, 0, 40)
+            border_color = QColor(128, 128, 128, 70)
+
+        # 主边框
+        painter.setPen(border_color)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(rect.adjusted(0, 0, -1, -1), 12, 12)
+
+        # 顶部高光
+        painter.setPen(top_color)
+        painter.drawLine(rect.x() + 12, rect.y(), rect.x() + rect.width() - 12, rect.y())
+        painter.drawLine(rect.x() + 12, rect.y() + 1, rect.x() + rect.width() - 12, rect.y() + 1)
+
+        # 底部阴影
+        painter.setPen(bottom_color)
+        painter.drawLine(rect.x() + 12, rect.y() + rect.height() - 1,
+                        rect.x() + rect.width() - 12, rect.y() + rect.height() - 1)
+
+    def _on_theme_changed(self, _mode: str) -> None:
+        """主题切换时刷新"""
+        self.update()
+
+    def closeEvent(self, event) -> None:
+        """关闭时清理"""
+        try:
+            _t.theme_changed.disconnect(self._on_theme_changed)
+        except (TypeError, RuntimeError):
+            pass
+        super().closeEvent(event)

@@ -214,5 +214,14 @@
   "Just now": "剛才",
   "{minutes} minutes ago": "{minutes}分鐘前",
   "{hours} hours ago": "{hours}小時前",
-  "{days} days ago": "{days}天前"
+  "{days} days ago": "{days}天前",
+  "OCR recognizing...": "OCR 識別中...",
+  "Recognizing Text": "識別文字",
+  "Please wait...": "請稍候...",
+  "Still recognizing... ({elapsed}s)": "仍在識別中... ({elapsed}秒)",
+  "Recognition complete": "識別完成",
+  "Copied to clipboard": "已複製到剪貼簿",
+  "Pinned to desktop": "已固定到桌面",
+  "Undone": "已撤銷",
+  "Redone": "已重做"
 }
