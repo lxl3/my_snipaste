@@ -191,6 +191,11 @@ class OcrResultDialog(QDialog):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
+        # 清除整个窗口背景（解决残影）
+        painter.setCompositionMode(QPainter.CompositionMode_Source)
+        painter.fillRect(self.rect(), Qt.transparent)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+
         # 获取card widget的位置和大小（相对于dialog）
         rect = self._card.geometry()
 
