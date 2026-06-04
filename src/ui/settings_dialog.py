@@ -1383,28 +1383,30 @@ class SettingsDialog(ThemeAwareDialog):
     # ─── Shortcuts Tab ───
 
     def _build_hotkeys_tab(self) -> QWidget:
+        """快捷键设置 Tab - 现代卡片布局"""
+        # 主容器
         tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(8)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Scroll area for many shortcut entries
+        # 滚动区域
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setStyleSheet(qss_base.scrollbar_qss())
-        self._add_themed_widget(scroll.viewport(), "background: $bg_primary;")
-        scroll_content = QWidget()
-        scroll_layout = QVBoxLayout(scroll_content)
-        scroll_layout.setSpacing(8)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        tab_layout.addWidget(scroll)
 
-        # ─── Global Hotkeys group ───
-        global_group = QGroupBox(_("Global Shortcuts"))
-        global_layout = QFormLayout(global_group)
-        global_layout.setSpacing(6)
+        # 内容容器
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
 
         # Store all shortcut recorder widgets for load/save/conflict-check
         self._shortcut_widgets: dict[str, HotkeyRecorderWidget] = {}
+
+        # ⌨️ 全局快捷键卡片
+        global_card = SettingsCard(icon="⌨️", title=_("Global Shortcuts"))
 
         global_items = [
             ("capture", _("Capture Screenshot")),
@@ -1414,22 +1416,36 @@ class SettingsDialog(ThemeAwareDialog):
             ("full_capture", _("Full Screen Capture")),
             ("color_picker", _("Screen Color Picker")),
         ]
+
         for key, label in global_items:
+            # 快捷键行
+            hotkey_row = QVBoxLayout()
+            hotkey_row.setSpacing(4)
+
+            # 标签 + 录制器
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            label_widget = QLabel(label + ":")
+            label_widget.setStyleSheet(qss_base.label_qss(font_size="13px"))
+            label_widget.setMinimumWidth(150)
             rec = HotkeyRecorderWidget()
             self._shortcut_widgets[key] = rec
-            global_layout.addRow(label + ":", rec)
-            # Add conflict warning placeholder
+            row.addWidget(label_widget)
+            row.addWidget(rec, 1)
+            hotkey_row.addLayout(row)
+
+            # 冲突警告（初始隐藏）
             warn = QLabel("")
-            self._add_themed_widget(warn, "color: $hotkey_conflict; font-size: 11px;")
+            warn.setStyleSheet(qss_base.label_qss(color="$hotkey_conflict", font_size="11px"))
             warn.setVisible(False)
-            global_layout.addRow("", warn)
+            hotkey_row.addWidget(warn)
 
-        scroll_layout.addWidget(global_group)
+            global_card.add_layout(hotkey_row)
 
-        # ─── Editor Tool Shortcuts group ───
-        editor_group = QGroupBox(_("Editor Tool Shortcuts"))
-        editor_layout = QFormLayout(editor_group)
-        editor_layout.setSpacing(6)
+        layout.addWidget(global_card)
+
+        # 📝 编辑器工具快捷键卡片
+        editor_card = SettingsCard(icon="📝", title=_("Editor Tool Shortcuts"))
 
         editor_items = [
             ("shortcut_rect", _("Rectangle Tool"), "R"),
@@ -1443,21 +1459,38 @@ class SettingsDialog(ThemeAwareDialog):
             ("shortcut_number_marker", _("Number Marker Tool"), "N"),
             ("shortcut_select", _("Select Tool"), "V"),
         ]
+
         for key, label, default in editor_items:
+            # 快捷键行
+            hotkey_row = QHBoxLayout()
+            hotkey_row.setSpacing(8)
+            label_widget = QLabel(label + ":")
+            label_widget.setStyleSheet(qss_base.label_qss(font_size="13px"))
+            label_widget.setMinimumWidth(150)
             rec = HotkeyRecorderWidget()
             self._shortcut_widgets[key] = rec
-            editor_layout.addRow(label + ":", rec)
+            hotkey_row.addWidget(label_widget)
+            hotkey_row.addWidget(rec, 1)
+            editor_card.add_layout(hotkey_row)
 
-        scroll_layout.addWidget(editor_group)
-        scroll_layout.addStretch()
+        layout.addWidget(editor_card)
 
-        scroll.setWidget(scroll_content)
-        layout.addWidget(scroll)
-
+        # 底部重置按钮
+        layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
+            color="$text_secondary",
+            font_size="11px",
+            bg="transparent",
+            hover_bg="$hover_bg"
+        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_hotkeys())
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
+
+        scroll.setWidget(content)
+
+        # 淡入动画
+        self._setup_fade_in_animation(tab)
 
         return tab
 
