@@ -420,6 +420,21 @@ class SettingsDialog(ThemeAwareDialog):
         self._apply_styles()
         self._on_before_theme_apply()
 
+        # 递归更新所有 QLabel 的 inline 样式（如果包含 token）
+        self._refresh_all_label_styles()
+
+    def _refresh_all_label_styles(self) -> None:
+        """递归查找并刷新所有带 token 样式的 QLabel"""
+        # 获取所有 QLabel widgets
+        all_labels = self.findChildren(QLabel)
+        for label in all_labels:
+            # 获取当前样式表
+            current_style = label.styleSheet()
+            if current_style and ('$' in current_style):
+                # 如果样式包含 token，使用 theme.qss() 重新解析
+                refreshed_style = _theme.qss(current_style)
+                label.setStyleSheet(refreshed_style)
+
     # ─── General Tab ───
 
     def _build_general_tab(self) -> QWidget:
