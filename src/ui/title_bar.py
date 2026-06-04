@@ -28,9 +28,11 @@ class TitleBar(QWidget):
         title_weight: str = "600",
         close_size: int = 32,
         margins: tuple[int, int, int, int] = (12, 0, 4, 0),
+        enable_drag: bool = True,
     ) -> None:
         super().__init__(parent)
         self._drag_pos = None
+        self._enable_drag = enable_drag
         self.setFixedHeight(height)
         self.setAttribute(Qt.WA_StyledBackground)
 
@@ -123,12 +125,12 @@ class TitleBar(QWidget):
     # ─── 窗口拖拽 ─────────────────────────────────────
 
     def mousePressEvent(self, event) -> None:
-        if event.button() == Qt.LeftButton:
+        if self._enable_drag and event.button() == Qt.LeftButton:
             self._drag_pos = event.globalPosition().toPoint()
             event.accept()
 
     def mouseMoveEvent(self, event) -> None:
-        if event.buttons() == Qt.LeftButton and self._drag_pos is not None:
+        if self._enable_drag and event.buttons() == Qt.LeftButton and self._drag_pos is not None:
             parent = self.parent()
             if parent is None:
                 return
@@ -138,6 +140,6 @@ class TitleBar(QWidget):
             event.accept()
 
     def mouseReleaseEvent(self, event) -> None:
-        if event.button() == Qt.LeftButton:
+        if self._enable_drag and event.button() == Qt.LeftButton:
             self._drag_pos = None
             event.accept()

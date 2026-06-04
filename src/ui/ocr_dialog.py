@@ -49,6 +49,7 @@ class OcrResultDialog(QDialog):
             self, title=_("Recognition Result"), show_minimize=False,
             height=44, title_size="14px", close_size=28,
             margins=(16, 0, 8, 0),
+            enable_drag=False,  # 禁用拖动，避免残影问题
         ))
         card_layout.addWidget(self._build_content(text), 1)
         card_layout.addLayout(self._build_footer())
@@ -190,11 +191,6 @@ class OcrResultDialog(QDialog):
         """绘制玻璃效果背景"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-
-        # 清除整个窗口背景（解决残影）
-        painter.setCompositionMode(QPainter.CompositionMode_Source)
-        painter.fillRect(self.rect(), Qt.transparent)
-        painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
 
         # 获取card widget的位置和大小（相对于dialog）
         rect = self._card.geometry()
