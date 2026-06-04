@@ -2,6 +2,8 @@ from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout
 from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QEasingCurve
 from PySide6.QtGui import QColor, QPainter
 
+from ..core import qss_base
+
 
 class ToastNotification(QWidget):
     """Toast 提示组件"""
@@ -32,12 +34,12 @@ class ToastNotification(QWidget):
 
         # 图标
         icon_label = QLabel(icon)
-        icon_label.setStyleSheet("font-size: 18px; color: white;")
+        icon_label.setStyleSheet(qss_base.label_qss(font_size="18px", color="white"))
         layout.addWidget(icon_label)
 
         # 消息
         msg_label = QLabel(message)
-        msg_label.setStyleSheet("font-size: 14px; font-weight: 500; color: white;")
+        msg_label.setStyleSheet(qss_base.label_qss(font_size="14px", font_weight="500", color="white"))
         layout.addWidget(msg_label)
 
         self.adjustSize()
