@@ -553,62 +553,141 @@ class SettingsDialog(ThemeAwareDialog):
     # ─── Capture Tab ───
 
     def _build_capture_tab(self) -> QWidget:
+        """截图设置 Tab - 现代卡片布局"""
+        # 主容器
         tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(8)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Auto-save group
-        save_group = QGroupBox(_("Auto Save"))
-        save_layout = QFormLayout(save_group)
-        self._auto_save_checkbox = QCheckBox(_("Auto save to directory"))
-        save_layout.addRow(self._auto_save_checkbox)
+        # 滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        tab_layout.addWidget(scroll)
 
+        # 内容容器
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        # 💾 自动保存卡片
+        save_card = SettingsCard(icon="💾", title=_("Auto Save"))
+
+        # Toggle 行
+        auto_save_row = QHBoxLayout()
+        auto_save_label = QLabel(_("Auto save to directory"))
+        auto_save_label.setStyleSheet(qss_base.label_qss())
+        self._auto_save_checkbox = ToggleSwitch()
+        self._auto_save_checkbox.toggled.connect(self._on_auto_save_toggle)
+        auto_save_row.addWidget(auto_save_label)
+        auto_save_row.addStretch()
+        auto_save_row.addWidget(self._auto_save_checkbox)
+        save_card.add_layout(auto_save_row)
+
+        save_card.add_spacing(8)
+
+        # 目录选择行
         dir_row = QHBoxLayout()
+        dir_label = QLabel(_("Directory:"))
+        dir_label.setStyleSheet(qss_base.label_qss())
         self._save_dir_input = QLineEdit()
         self._save_dir_input.setReadOnly(True)
         self._save_dir_input.setPlaceholderText(_("Select default save directory..."))
         browse_btn = QPushButton(_("Browse..."))
+        browse_btn.setStyleSheet(qss_base.pushbutton_qss())
         browse_btn.clicked.connect(self._browse_save_dir)
-        dir_row.addWidget(self._save_dir_input)
+        dir_row.addWidget(dir_label)
+        dir_row.addWidget(self._save_dir_input, 1)
         dir_row.addWidget(browse_btn)
-        save_layout.addRow(_("Directory:"), dir_row)
+        save_card.add_layout(dir_row)
 
+        # 格式行
+        format_row = QHBoxLayout()
+        format_label = QLabel(_("Format:"))
+        format_label.setStyleSheet(qss_base.label_qss())
         self._format_combo = QComboBox()
+        self._format_combo.setMinimumWidth(120)
         self._format_combo.addItems(["PNG", "JPEG"])
-        save_layout.addRow(_("Format:"), self._format_combo)
+        format_row.addWidget(format_label)
+        format_row.addStretch()
+        format_row.addWidget(self._format_combo)
+        save_card.add_layout(format_row)
 
-        self._auto_save_checkbox.toggled.connect(self._on_auto_save_toggle)
-        layout.addWidget(save_group)
+        layout.addWidget(save_card)
 
-        # Capture behavior group
-        behavior_group = QGroupBox(_("Capture Behavior"))
-        behavior_layout = QFormLayout(behavior_group)
+        # 🎯 截图行为卡片
+        behavior_card = SettingsCard(icon="🎯", title=_("Capture Behavior"))
 
-        self._sound_checkbox = QCheckBox(_("Play sound when capturing"))
-        behavior_layout.addRow(self._sound_checkbox)
+        # 播放声音
+        sound_row = QHBoxLayout()
+        sound_label = QLabel(_("Play sound when capturing"))
+        sound_label.setStyleSheet(qss_base.label_qss())
+        self._sound_checkbox = ToggleSwitch()
+        sound_row.addWidget(sound_label)
+        sound_row.addStretch()
+        sound_row.addWidget(self._sound_checkbox)
+        behavior_card.add_layout(sound_row)
 
-        self._cursor_checkbox = QCheckBox(_("Include mouse cursor"))
-        behavior_layout.addRow(self._cursor_checkbox)
+        # 包含光标
+        cursor_row = QHBoxLayout()
+        cursor_label = QLabel(_("Include mouse cursor"))
+        cursor_label.setStyleSheet(qss_base.label_qss())
+        self._cursor_checkbox = ToggleSwitch()
+        cursor_row.addWidget(cursor_label)
+        cursor_row.addStretch()
+        cursor_row.addWidget(self._cursor_checkbox)
+        behavior_card.add_layout(cursor_row)
 
+        behavior_card.add_spacing(8)
+
+        # 截图延迟
+        delay_row = QHBoxLayout()
+        delay_label = QLabel(_("Capture delay:"))
+        delay_label.setStyleSheet(qss_base.label_qss())
         self._delay_spin = QSpinBox()
         self._delay_spin.setRange(0, 10)
         self._delay_spin.setSuffix(_(" seconds"))
-        behavior_layout.addRow(_("Capture delay:"), self._delay_spin)
+        self._delay_spin.setMinimumWidth(120)
+        delay_row.addWidget(delay_label)
+        delay_row.addStretch()
+        delay_row.addWidget(self._delay_spin)
+        behavior_card.add_layout(delay_row)
 
+        # 截图后操作
+        after_row = QHBoxLayout()
+        after_label = QLabel(_("After capture:"))
+        after_label.setStyleSheet(qss_base.label_qss())
         self._after_action_combo = QComboBox()
+        self._after_action_combo.setMinimumWidth(180)
         self._after_action_combo.addItem(_("None (show editor)"), "none")
         self._after_action_combo.addItem(_("Auto copy to clipboard"), "copy")
         self._after_action_combo.addItem(_("Auto save to file"), "save")
-        behavior_layout.addRow(_("After capture:"), self._after_action_combo)
+        after_row.addWidget(after_label)
+        after_row.addStretch()
+        after_row.addWidget(self._after_action_combo)
+        behavior_card.add_layout(after_row)
 
-        layout.addWidget(behavior_group)
+        layout.addWidget(behavior_card)
 
+        # 底部重置按钮
+        layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
+            color="$text_secondary",
+            font_size="11px",
+            bg="transparent",
+            hover_bg="$hover_bg"
+        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_capture())
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
-        layout.addStretch()
+        scroll.setWidget(content)
+
+        # 淡入动画
+        self._setup_fade_in_animation(tab)
+
         return tab
 
     def _browse_save_dir(self) -> None:
@@ -630,39 +709,74 @@ class SettingsDialog(ThemeAwareDialog):
     # ─── OCR Tab ───
 
     def _build_ocr_tab(self) -> QWidget:
+        """OCR 设置 Tab - 现代卡片布局"""
+        # 主容器
         tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(8)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        group = QGroupBox(_("OCR Engine"))
-        form = QFormLayout(group)
+        # 滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        tab_layout.addWidget(scroll)
 
+        # 内容容器
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        # 🔍 OCR引擎卡片
+        ocr_card = SettingsCard(icon="🔍", title=_("OCR Engine"))
+
+        # 语言输入行
+        lang_row = QHBoxLayout()
+        lang_label = QLabel(_("Languages:"))
+        lang_label.setStyleSheet(qss_base.label_qss())
         self._ocr_lang_input = QLineEdit()
         self._ocr_lang_input.setPlaceholderText("e.g. eng, chi_sim, eng+chi_sim")
+        lang_row.addWidget(lang_label)
+        lang_row.addWidget(self._ocr_lang_input, 1)
+        ocr_card.add_layout(lang_row)
+
+        # 提示文字
         lang_hint = QLabel(
             _("Language codes separated by +.\n"
               "Common: eng, chi_sim, jpn, fra, deu, spa\n"
               "Run 'tesseract --list-langs' to see installed.")
         )
-        self._add_themed_widget(lang_hint, "color: $text_placeholder; font-size: 11px;")
-        form.addRow(_("Languages:"), self._ocr_lang_input)
-        form.addRow("", lang_hint)
-        layout.addWidget(group)
+        lang_hint.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
+        ocr_card.add_widget(lang_hint)
 
-        # Test button
-        test_layout = QHBoxLayout()
-        test_layout.addStretch()
+        ocr_card.add_spacing(8)
+
+        # 测试按钮
         test_btn = QPushButton(_("Test OCR"))
+        test_btn.setStyleSheet(qss_base.pushbutton_qss())
         test_btn.clicked.connect(self._test_ocr)
-        test_layout.addWidget(test_btn)
-        layout.addLayout(test_layout)
+        ocr_card.add_widget(test_btn)
 
+        layout.addWidget(ocr_card)
+
+        # 底部重置按钮
+        layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
+            color="$text_secondary",
+            font_size="11px",
+            bg="transparent",
+            hover_bg="$hover_bg"
+        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_ocr())
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
-        layout.addStretch()
+        scroll.setWidget(content)
+
+        # 淡入动画
+        self._setup_fade_in_animation(tab)
+
         return tab
 
     def _test_ocr(self) -> None:
@@ -1077,90 +1191,193 @@ class SettingsDialog(ThemeAwareDialog):
     # ─── Annotation Tab ───
 
     def _build_annotation_tab(self) -> QWidget:
+        """标注设置 Tab - 现代卡片布局"""
+        # 主容器
         tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(8)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        group = QGroupBox(_("Default Annotation Style"))
-        form = QFormLayout(group)
+        # 滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        tab_layout.addWidget(scroll)
 
-        # Color selector with custom color button
-        color_row = QHBoxLayout()
+        # 内容容器
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        # 🎨 默认标注样式卡片
+        style_card = SettingsCard(icon="🎨", title=_("Default Annotation Style"))
+
+        # 颜色选择行
+        color_row_layout = QHBoxLayout()
+        color_label = QLabel(_("Color:"))
+        color_label.setStyleSheet(qss_base.label_qss())
         self._color_combo = QComboBox()
+        self._color_combo.setMinimumWidth(150)
         for c in PRESET_COLORS:
             pix = QPixmap(16, 16)
             pix.fill(QColor(c))
             self._color_combo.addItem(f"  {c}", c)
             self._color_combo.setItemIcon(self._color_combo.count() - 1, QIcon(pix))
-        color_row.addWidget(self._color_combo, 1)
-
         self._custom_color_btn = QPushButton(_("Custom..."))
+        self._custom_color_btn.setStyleSheet(qss_base.pushbutton_qss())
         self._custom_color_btn.clicked.connect(self._pick_custom_color)
-        color_row.addWidget(self._custom_color_btn)
+        color_row_layout.addWidget(color_label)
+        color_row_layout.addStretch()
+        color_row_layout.addWidget(self._color_combo)
+        color_row_layout.addWidget(self._custom_color_btn)
+        style_card.add_layout(color_row_layout)
 
-        form.addRow(_("Color:"), color_row)
-
+        # 线宽行
+        width_row = QHBoxLayout()
+        width_label = QLabel(_("Line Width:"))
+        width_label.setStyleSheet(qss_base.label_qss())
         self._width_spin = QSpinBox()
         self._width_spin.setRange(1, 20)
-        form.addRow(_("Line Width:"), self._width_spin)
+        self._width_spin.setMinimumWidth(100)
+        width_row.addWidget(width_label)
+        width_row.addStretch()
+        width_row.addWidget(self._width_spin)
+        style_card.add_layout(width_row)
 
+        # 字体行
+        font_row = QHBoxLayout()
+        font_label = QLabel(_("Font:"))
+        font_label.setStyleSheet(qss_base.label_qss())
         self._font_combo = QComboBox()
+        self._font_combo.setMinimumWidth(180)
         self._font_combo.addItems(["Segoe UI", "Arial", "Helvetica", "PingFang SC", "Microsoft YaHei"])
         self._font_combo.setEditable(True)
-        form.addRow(_("Font:"), self._font_combo)
+        font_row.addWidget(font_label)
+        font_row.addStretch()
+        font_row.addWidget(self._font_combo)
+        style_card.add_layout(font_row)
 
+        # 字号行
+        font_size_row = QHBoxLayout()
+        font_size_label = QLabel(_("Font Size:"))
+        font_size_label.setStyleSheet(qss_base.label_qss())
         self._font_size_spin = QSpinBox()
         self._font_size_spin.setRange(8, 72)
-        form.addRow(_("Font Size:"), self._font_size_spin)
+        self._font_size_spin.setMinimumWidth(100)
+        font_size_row.addWidget(font_size_label)
+        font_size_row.addStretch()
+        font_size_row.addWidget(self._font_size_spin)
+        style_card.add_layout(font_size_row)
 
-        layout.addWidget(group)
+        layout.addWidget(style_card)
 
+        # 底部重置按钮
+        layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
+            color="$text_secondary",
+            font_size="11px",
+            bg="transparent",
+            hover_bg="$hover_bg"
+        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_annotation())
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
-        layout.addStretch()
+        scroll.setWidget(content)
+
+        # 淡入动画
+        self._setup_fade_in_animation(tab)
+
         return tab
 
     # ─── Advanced Tab ───
 
     def _build_advanced_tab(self) -> QWidget:
+        """高级设置 Tab - 现代卡片布局"""
+        # 主容器
         tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setSpacing(8)
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Pin window
-        pin_group = QGroupBox(_("Pin Window"))
-        pin_layout = QFormLayout(pin_group)
+        # 滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        tab_layout.addWidget(scroll)
+
+        # 内容容器
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        # 📌 Pin窗口卡片
+        pin_card = SettingsCard(icon="📌", title=_("Pin Window"))
+
+        # 不透明度滑块行
+        opacity_row = QHBoxLayout()
+        opacity_label_text = QLabel(_("Opacity:"))
+        opacity_label_text.setStyleSheet(qss_base.label_qss())
         self._opacity_slider = QSlider(Qt.Horizontal)
         self._opacity_slider.setRange(30, 100)
-        # 显式设置滑块样式，确保使用深青色
         self._opacity_slider.setStyleSheet(qss_base.slider_qss())
         self._opacity_label = QLabel("100%")
+        self._opacity_label.setStyleSheet(qss_base.label_qss(font_weight="600"))
+        self._opacity_label.setMinimumWidth(50)
         self._opacity_slider.valueChanged.connect(
             lambda v: self._opacity_label.setText(f"{v}%")
         )
-        slider_row = QHBoxLayout()
-        slider_row.addWidget(self._opacity_slider)
-        slider_row.addWidget(self._opacity_label)
-        pin_layout.addRow(_("Opacity:"), slider_row)
-        layout.addWidget(pin_group)
+        opacity_row.addWidget(opacity_label_text)
+        opacity_row.addWidget(self._opacity_slider, 1)
+        opacity_row.addWidget(self._opacity_label)
+        pin_card.add_layout(opacity_row)
 
-        # Log level
-        log_group = QGroupBox(_("Logging"))
-        log_form = QFormLayout(log_group)
+        hint_opacity = QLabel(_("Controls the opacity of pinned screenshots"))
+        hint_opacity.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
+        pin_card.add_widget(hint_opacity)
+
+        layout.addWidget(pin_card)
+
+        # 📋 日志卡片
+        log_card = SettingsCard(icon="📋", title=_("Logging"))
+
+        # 日志级别行
+        log_row = QHBoxLayout()
+        log_label = QLabel(_("Log Level:"))
+        log_label.setStyleSheet(qss_base.label_qss())
         self._log_level_combo = QComboBox()
+        self._log_level_combo.setMinimumWidth(150)
         self._log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR"])
-        log_form.addRow(_("Log Level:"), self._log_level_combo)
-        layout.addWidget(log_group)
+        log_row.addWidget(log_label)
+        log_row.addStretch()
+        log_row.addWidget(self._log_level_combo)
+        log_card.add_layout(log_row)
 
+        hint_log = QLabel(_("Higher levels show fewer messages"))
+        hint_log.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
+        log_card.add_widget(hint_log)
+
+        layout.addWidget(log_card)
+
+        # 底部重置按钮
+        layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        self._add_themed_widget(reset_btn, "color: $text_secondary; font-size: 11px;")
+        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
+            color="$text_secondary",
+            font_size="11px",
+            bg="transparent",
+            hover_bg="$hover_bg"
+        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_advanced())
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
-        layout.addStretch()
+        scroll.setWidget(content)
+
+        # 淡入动画
+        self._setup_fade_in_animation(tab)
+
         return tab
 
     # ─── Shortcuts Tab ───
