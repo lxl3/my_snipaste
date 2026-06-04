@@ -415,27 +415,24 @@ class SettingsDialog(ThemeAwareDialog):
                 _theme.apply_to_widget(tab_widget)
 
     def _on_theme_changed(self, mode: str) -> None:
-        """主题切换时重新应用样式（刷新token值）"""
-        # 重新应用样式表，让token（如$accent）使用新主题的颜色
-        self._apply_styles()
-        self._on_before_theme_apply()
+        """主题切换时重新应用样式（刷新token值）
 
-        # 递归更新所有 QLabel 的 inline 样式（如果包含 token）
-        self._refresh_all_label_styles()
+        利用基类的 6 步刷新流程（QPalette → 清空 QSS → 重建 →
+        themed_widgets → unpolish/polish → scrollArea viewport → repaint），
+        额外修复 QScrollArea 的 content widget 内联背景色（不在 themed_widgets 列表中）。
+        """
+        # 步骤①～⑧：基类统一处理
+        super()._on_theme_changed(mode)
 
-    def _refresh_all_label_styles(self) -> None:
-        """递归查找并刷新所有带 token 样式的 QLabel"""
-        # 获取所有 QLabel widgets
-        all_labels = self.findChildren(QLabel)
-        for label in all_labels:
-            # 获取当前样式表
-            current_style = label.styleSheet()
-            if current_style and ('$' in current_style):
-                # 先清空样式，强制 Qt 清除缓存
-                label.setStyleSheet("")
-                # 使用 theme.qss() 重新解析并应用
-                refreshed_style = _theme.qss(current_style)
-                label.setStyleSheet(refreshed_style)
+        # 步骤⑨：刷新 QScrollArea 的 content widget 内联背景色
+        # （_create_scroll_area 里 content.setStyleSheet("background: $bg_primary")
+        #   调用时已展开 token，基类未刷新这些 widget）
+        for sa in self.findChildren(QScrollArea):
+            inner = sa.widget()
+            if inner and inner.styleSheet():
+                inner.setStyleSheet(_theme.qss("background: $bg_primary;"))
+                inner.style().unpolish(inner)
+                inner.style().polish(inner)
 
     # ─── General Tab ───
 
@@ -570,13 +567,13 @@ class SettingsDialog(ThemeAwareDialog):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(qss_base.scrollbar_qss())
+        # 不在此处设置 scrollbar QSS — dialog 的 _apply_styles() 已通过
+        # qss_base.scrollbar_qss() 全局包含，主题切换时自动刷新
 
-        # 设置viewport背景色
-        viewport_style = _theme.qss("background: $bg_primary;")
-        scroll.viewport().setStyleSheet(viewport_style)
+        # viewport 背景由 ThemeAwareDialog._on_theme_changed 步骤⑦刷新
+        scroll.viewport().setStyleSheet(_theme.qss("background: $bg_primary;"))
 
-        # 内容容器
+        # 内容容器背景由 SettingsDialog._on_theme_changed 步骤⑨刷新
         content = QWidget()
         content.setStyleSheet(_theme.qss("background: $bg_primary;"))
 
