@@ -290,6 +290,10 @@ class SettingsDialog(ThemeAwareDialog):
     def _build_stylesheet_qss(self) -> None:
         """用主题 token 构建 QSS 并应用，确保暗/亮模式都正确。"""
         # 对话框专属样式（不会在其他地方复用的）
+        self._apply_styles()
+
+    def _apply_styles(self) -> None:
+        """应用对话框样式表"""
         dialog_specific = _theme.qss("""
             QDialog {
                 background: $bg_primary;
