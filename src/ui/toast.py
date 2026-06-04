@@ -28,8 +28,11 @@ class ToastNotification(QWidget):
 
         # 布局
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 10, 14, 10)
+        layout.setContentsMargins(14, 10, 14, 10)
         layout.setSpacing(10)
+
+        # 左侧弹性空间（让内容居中）
+        layout.addStretch()
 
         # 图标容器（圆形背景）
         self._icon_container = QWidget()
@@ -48,6 +51,9 @@ class ToastNotification(QWidget):
             color=_t.get("text_primary")
         ))
         layout.addWidget(msg_label)
+
+        # 右侧弹性空间（让内容居中）
+        layout.addStretch()
 
         self.adjustSize()
         self.setMinimumWidth(220)
