@@ -15,6 +15,8 @@ class OcrResultDialog(QDialog):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        # 确保移动时正确更新
+        self.setAttribute(Qt.WA_OpaquePaintEvent, False)
         self.setMinimumSize(460, 260)
         self.setMaximumSize(920, 700)
 
@@ -189,8 +191,8 @@ class OcrResultDialog(QDialog):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        # 使用窗口自身的rect，避免拖动残影
-        rect = self.rect()
+        # 获取card widget的位置和大小（相对于dialog）
+        rect = self._card.geometry()
 
         # 构造渐变背景（模拟工具栏玻璃效果）
         try:
@@ -203,7 +205,8 @@ class OcrResultDialog(QDialog):
             top_a = min(a + 25, 255)
             bottom_a = max(a - 35, 0)
 
-            gradient = QLinearGradient(0, 0, 0, rect.height())
+            # 渐变使用相对于rect的坐标
+            gradient = QLinearGradient(rect.x(), rect.y(), rect.x(), rect.y() + rect.height())
             gradient.setColorAt(0, QColor(r, g, b, top_a))
             gradient.setColorAt(1, QColor(r, g, b, bottom_a))
             painter.setBrush(gradient)
@@ -229,14 +232,15 @@ class OcrResultDialog(QDialog):
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(rect.adjusted(0, 0, -1, -1), 12, 12)
 
-        # 顶部高光
+        # 顶部高光 - 使用rect的坐标
         painter.setPen(top_color)
-        painter.drawLine(12, 0, rect.width() - 12, 0)
-        painter.drawLine(12, 1, rect.width() - 12, 1)
+        painter.drawLine(rect.x() + 12, rect.y(), rect.x() + rect.width() - 12, rect.y())
+        painter.drawLine(rect.x() + 12, rect.y() + 1, rect.x() + rect.width() - 12, rect.y() + 1)
 
-        # 底部阴影
+        # 底部阴影 - 使用rect的坐标
         painter.setPen(bottom_color)
-        painter.drawLine(12, rect.height() - 1, rect.width() - 12, rect.height() - 1)
+        painter.drawLine(rect.x() + 12, rect.y() + rect.height() - 1,
+                        rect.x() + rect.width() - 12, rect.y() + rect.height() - 1)
 
     def _on_theme_changed(self, _mode: str) -> None:
         """主题切换时刷新"""
