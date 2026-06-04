@@ -64,14 +64,10 @@ class HotkeyRecorderWidget(QWidget):
         self._recording = not self._recording
         if self._recording:
             self._record_btn.setText(_("Stop"))
-            self._record_btn.setStyleSheet(_theme.qss("""
-                QPushButton {
-                    background: $accent;
-                    color: $text_accent;
-                    border-radius: 4px;
-                    padding: 6px 20px;
-                }
-            """))
+            self._record_btn.setStyleSheet(qss_base.pushbutton_qss(
+                bg="$accent",
+                color="$text_accent"
+            ))
             self._display.setText(_("Press keys..."))
             self._current_keys.clear()
             self.setFocus()
@@ -82,7 +78,7 @@ class HotkeyRecorderWidget(QWidget):
         """Stop recording and finalize the hotkey."""
         self._recording = False
         self._record_btn.setText(_("Record"))
-        self._record_btn.setStyleSheet("")
+        self._record_btn.setStyleSheet(qss_base.pushbutton_qss())
 
         if self._current_keys:
             hotkey = self._format_hotkey(self._current_keys)
@@ -436,23 +432,23 @@ class SettingsDialog(ThemeAwareDialog):
             input_label = QLabel()
             if status["input_monitoring"]:
                 input_label.setText("✓ " + _("Input Monitoring: Granted"))
-                input_label.setStyleSheet("color: #4CAF50; font-weight: 600;")
+                input_label.setStyleSheet(qss_base.label_qss(color="#4CAF50", font_weight="600"))
             else:
                 input_label.setText("✗ " + _("Input Monitoring: Not Granted"))
-                input_label.setStyleSheet("color: #E53935; font-weight: 600;")
+                input_label.setStyleSheet(qss_base.label_qss(color="#E53935", font_weight="600"))
             perm_layout.addWidget(input_label)
 
             # Screen Recording
             screen_label = QLabel()
             if status["screen_recording"]:
                 screen_label.setText("✓ " + _("Screen Recording: Granted"))
-                screen_label.setStyleSheet("color: #4CAF50;")
+                screen_label.setStyleSheet(qss_base.label_qss(color="#4CAF50"))
             elif status["screen_recording"] is None:
                 screen_label.setText("• " + _("Screen Recording: Unknown"))
-                screen_label.setStyleSheet(_theme.qss("color: $text_placeholder;"))
+                screen_label.setStyleSheet(qss_base.label_qss(color="$text_placeholder"))
             else:
                 screen_label.setText("✗ " + _("Screen Recording: Not Granted"))
-                screen_label.setStyleSheet("color: #E53935;")
+                screen_label.setStyleSheet(qss_base.label_qss(color="#E53935"))
             perm_layout.addWidget(screen_label)
 
             # Open settings button
@@ -1102,6 +1098,7 @@ class SettingsDialog(ThemeAwareDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setStyleSheet(qss_base.scrollbar_qss())
         self._add_themed_widget(scroll.viewport(), "background: $bg_primary;")
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
