@@ -4,7 +4,7 @@ import subprocess
 
 from PySide6.QtGui import QAction, QCursor, QIcon, QPixmap
 from PySide6.QtCore import Signal, QObject
-from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QDialog, QTextEdit, QVBoxLayout, QPushButton, QHBoxLayout, QApplication
+from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
 
 from ..core.i18n import _
 from ..core.utils import create_app_icon, create_emoji_icon
@@ -158,41 +158,8 @@ class TrayManager(QObject):
             logger.error(f"打开日志目录失败: {e}")
 
     def _show_log_viewer(self) -> None:
-        path = get_current_log_path()
-        if not path:
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.information(None, _("Log"), _("No log files yet"))
-            return
-
-        dialog = QDialog(None)
-        dialog.setWindowTitle(_("MySnipaste Log"))
-        dialog.resize(700, 500)
-
-        layout = QVBoxLayout(dialog)
-        text_edit = QTextEdit(dialog)
-        text_edit.setReadOnly(True)
-
-        try:
-            with open(path, encoding="utf-8") as f:
-                content = f.read()
-            text_edit.setPlainText(content if content else _("(empty)"))
-        except Exception as e:
-            text_edit.setPlainText(_("Failed to read log: {error}").format(error=e))
-
-        layout.addWidget(text_edit)
-
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        open_label = _("Open in Explorer") if platform.system() == "Windows" else _("Open in Finder")
-        open_btn = QPushButton(open_label, dialog)
-        open_btn.clicked.connect(lambda: self._open_log_dir())
-        btn_layout.addWidget(open_btn)
-        close_btn = QPushButton(_("Close"), dialog)
-        close_btn.clicked.connect(dialog.accept)
-        btn_layout.addWidget(close_btn)
-        layout.addLayout(btn_layout)
-
-        dialog.exec()
+        from .log_viewer import LogViewerDialog
+        LogViewerDialog.show_viewer()
 
     def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:

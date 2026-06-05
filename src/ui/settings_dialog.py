@@ -872,14 +872,24 @@ class SettingsDialog(ThemeAwareDialog):
         return tab
 
     def _test_ocr(self) -> None:
+        from .ocr_test_dialog import OcrTestDialog
         try:
             import pytesseract
             version = pytesseract.get_tesseract_version()
-            QMessageBox.information(self, _("OCR Test"),
-                                    _("Tesseract v{version} is ready.\nLanguage: {lang}").format(
-                                        version=version, lang=self._ocr_lang_input.text() or 'eng+chi_sim'))
+            lang = self._ocr_lang_input.text() or 'eng+chi_sim'
+            OcrTestDialog.show_result(
+                success=True,
+                message=_("Tesseract is ready"),
+                details=_("Version: {version}\nLanguage: {lang}").format(version=version, lang=lang),
+                parent=self,
+            )
         except Exception as e:
-            QMessageBox.warning(self, _("OCR Test"), _("Tesseract not available:\n{error}").format(error=e))
+            OcrTestDialog.show_result(
+                success=False,
+                message=_("Tesseract not available"),
+                details=str(e),
+                parent=self,
+            )
 
     def _pick_custom_color(self) -> None:
         """Open color picker dialog for custom color selection."""
