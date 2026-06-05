@@ -812,9 +812,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         painter.setPen(bottom_color)
         painter.drawLine(int(bx + 8), int(by + bh - 1), int(bx + bw - 8), int(by + bh - 1))
 
-        # 文字（使用主题颜色）
-        text_color = QColor(_tw.get("info_label_fg", "#FFFFFFDC"))
-        painter.setPen(text_color)
+        # 文字（完全不透明的白色，确保清晰）
+        painter.setPen(QColor(255, 255, 255, 255))
         painter.drawText(int(bx + padding_h), int(by + padding_v + fm.ascent()), hint_text)
 
     # ─── Coord tooltip ───
