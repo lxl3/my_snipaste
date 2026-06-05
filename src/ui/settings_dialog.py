@@ -565,11 +565,18 @@ class SettingsDialog(ThemeAwareDialog):
         scroll.setFrameShape(QScrollArea.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        # 将滚动条 QSS 直接应用到 scrollbar 控件（而非依赖父控件 QSS 级联），
-        # 解决 Windows windowsvista 样式下滚动条颜色不跟随主题的问题
+        # 将滚动条 QSS 直接绑定到 scrollbar 控件（完整样式包括基础选择器），
+        # 主题切换时自动展开 $token。Windows 下 windowsvista 样式可能忽略
+        # QSS 滑块背景，此时滑块的可见性由 QPalette::Button 兜底。
         vsb = scroll.verticalScrollBar()
         if vsb:
             self._add_themed_widget(vsb, """
+                QScrollBar:vertical {
+                    width: 8px;
+                    background: transparent;
+                    border: none;
+                    margin: 0;
+                }
                 QScrollBar::handle:vertical {
                     background: $border;
                     min-height: 30px;
