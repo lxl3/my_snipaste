@@ -80,7 +80,7 @@ class HotkeyRecorderWidget(QWidget):
         """Stop recording and finalize the hotkey."""
         self._recording = False
         self._record_btn.setText(_("Record"))
-        self._record_btn.setStyleSheet(qss_base.pushbutton_qss())
+        self._record_btn.setStyleSheet("")  # 恢复为 dialog QSS 默认样式
 
         if self._current_keys:
             hotkey = self._format_hotkey(self._current_keys)
@@ -520,7 +520,7 @@ class SettingsDialog(ThemeAwareDialog):
 
             # Open settings button
             self._open_perm_btn = QPushButton(_("Open System Settings"))
-            self._open_perm_btn.setStyleSheet(qss_base.pushbutton_qss())
+            # 不含 setStyleSheet — 由 dialog QSS 统一控制
             self._open_perm_btn.clicked.connect(self._open_permission_settings)
             perm_card.add_widget(self._open_perm_btn)
 
@@ -541,13 +541,14 @@ class SettingsDialog(ThemeAwareDialog):
         # 底部重置按钮
         layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
-            color="$text_secondary",
-            font_size="11px",
-            bg="transparent",
-            hover_bg="$hover_bg"
-        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_general())
+        self._add_themed_widget(reset_btn, """
+            QPushButton { padding: 6px 20px; border: 1px solid $border;
+                border-radius: 4px; background: transparent;
+                color: $text_secondary; font-size: 11px; }
+            QPushButton:hover { background: $hover_bg; }
+            QPushButton:pressed { background: $bg_primary; }
+        """)
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
         scroll.setWidget(content)
@@ -630,7 +631,7 @@ class SettingsDialog(ThemeAwareDialog):
         self._save_dir_input.setReadOnly(True)
         self._save_dir_input.setPlaceholderText(_("Select default save directory..."))
         browse_btn = QPushButton(_("Browse..."))
-        browse_btn.setStyleSheet(qss_base.pushbutton_qss())
+        # 不含 setStyleSheet — 由 dialog QSS 中的 qss_base.pushbutton_qss() 统一控制
         browse_btn.clicked.connect(self._browse_save_dir)
         dir_row.addWidget(dir_label)
         dir_row.addWidget(self._save_dir_input, 1)
@@ -708,13 +709,14 @@ class SettingsDialog(ThemeAwareDialog):
         # 底部重置按钮
         layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
-            color="$text_secondary",
-            font_size="11px",
-            bg="transparent",
-            hover_bg="$hover_bg"
-        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_capture())
+        self._add_themed_widget(reset_btn, """
+            QPushButton { padding: 6px 20px; border: 1px solid $border;
+                border-radius: 4px; background: transparent;
+                color: $text_secondary; font-size: 11px; }
+            QPushButton:hover { background: $hover_bg; }
+            QPushButton:pressed { background: $bg_primary; }
+        """)
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
         scroll.setWidget(content)
@@ -766,7 +768,7 @@ class SettingsDialog(ThemeAwareDialog):
         lang_label = QLabel(_("Languages:"))
         lang_label.setStyleSheet(qss_base.label_qss())
         self._ocr_lang_input = QLineEdit()
-        self._ocr_lang_input.setPlaceholderText("e.g. eng, chi_sim, eng+chi_sim")
+        self._ocr_lang_input.setPlaceholderText(_("e.g. eng, chi_sim, eng+chi_sim"))
         lang_row.addWidget(lang_label)
         lang_row.addWidget(self._ocr_lang_input, 1)
         ocr_card.add_layout(lang_row)
@@ -784,7 +786,7 @@ class SettingsDialog(ThemeAwareDialog):
 
         # 测试按钮
         test_btn = QPushButton(_("Test OCR"))
-        test_btn.setStyleSheet(qss_base.pushbutton_qss())
+        # 不含 setStyleSheet — 由 dialog QSS 统一控制
         test_btn.clicked.connect(self._test_ocr)
         ocr_card.add_widget(test_btn)
 
@@ -793,13 +795,14 @@ class SettingsDialog(ThemeAwareDialog):
         # 底部重置按钮
         layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
-            color="$text_secondary",
-            font_size="11px",
-            bg="transparent",
-            hover_bg="$hover_bg"
-        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_ocr())
+        self._add_themed_widget(reset_btn, """
+            QPushButton { padding: 6px 20px; border: 1px solid $border;
+                border-radius: 4px; background: transparent;
+                color: $text_secondary; font-size: 11px; }
+            QPushButton:hover { background: $hover_bg; }
+            QPushButton:pressed { background: $bg_primary; }
+        """)
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
         scroll.setWidget(content)
@@ -1251,7 +1254,7 @@ class SettingsDialog(ThemeAwareDialog):
             self._color_combo.addItem(f"  {c}", c)
             self._color_combo.setItemIcon(self._color_combo.count() - 1, QIcon(pix))
         self._custom_color_btn = QPushButton(_("Custom..."))
-        self._custom_color_btn.setStyleSheet(qss_base.pushbutton_qss())
+        # 不含 setStyleSheet — 由 dialog QSS 统一控制
         self._custom_color_btn.clicked.connect(self._pick_custom_color)
         color_row_layout.addWidget(color_label)
         color_row_layout.addStretch()
@@ -1301,13 +1304,14 @@ class SettingsDialog(ThemeAwareDialog):
         # 底部重置按钮
         layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
-            color="$text_secondary",
-            font_size="11px",
-            bg="transparent",
-            hover_bg="$hover_bg"
-        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_annotation())
+        self._add_themed_widget(reset_btn, """
+            QPushButton { padding: 6px 20px; border: 1px solid $border;
+                border-radius: 4px; background: transparent;
+                color: $text_secondary; font-size: 11px; }
+            QPushButton:hover { background: $hover_bg; }
+            QPushButton:pressed { background: $bg_primary; }
+        """)
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
         scroll.setWidget(content)
@@ -1386,13 +1390,14 @@ class SettingsDialog(ThemeAwareDialog):
         # 底部重置按钮
         layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
-            color="$text_secondary",
-            font_size="11px",
-            bg="transparent",
-            hover_bg="$hover_bg"
-        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_advanced())
+        self._add_themed_widget(reset_btn, """
+            QPushButton { padding: 6px 20px; border: 1px solid $border;
+                border-radius: 4px; background: transparent;
+                color: $text_secondary; font-size: 11px; }
+            QPushButton:hover { background: $hover_bg; }
+            QPushButton:pressed { background: $bg_primary; }
+        """)
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
         scroll.setWidget(content)
@@ -1496,13 +1501,14 @@ class SettingsDialog(ThemeAwareDialog):
         # 底部重置按钮
         layout.addStretch()
         reset_btn = QPushButton(_("Reset Tab"))
-        reset_btn.setStyleSheet(qss_base.pushbutton_qss(
-            color="$text_secondary",
-            font_size="11px",
-            bg="transparent",
-            hover_bg="$hover_bg"
-        ))
         reset_btn.clicked.connect(lambda: self._reset_tab_hotkeys())
+        self._add_themed_widget(reset_btn, """
+            QPushButton { padding: 6px 20px; border: 1px solid $border;
+                border-radius: 4px; background: transparent;
+                color: $text_secondary; font-size: 11px; }
+            QPushButton:hover { background: $hover_bg; }
+            QPushButton:pressed { background: $bg_primary; }
+        """)
         layout.addWidget(reset_btn, alignment=Qt.AlignLeft)
 
         scroll.setWidget(content)
