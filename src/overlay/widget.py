@@ -745,30 +745,77 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         else:
             return
 
-        # Draw hint below the size info
-        painter.setPen(QPen(QColor(255, 255, 255, 220), 1))
-        font = QFont("Segoe UI", 11)
+        # Draw hint below the size info - Glass morphism style
+        font = QFont("Segoe UI", 12, QFont.Medium)
         painter.setFont(font)
 
         fm = painter.fontMetrics()
         tw = fm.horizontalAdvance(hint_text)
         th = fm.height()
-        margin = 6
+        padding_h = 12
+        padding_v = 8
 
         # Position: below the selection rect, centered
-        bx = rect.center().x() - tw // 2 - margin
-        by = rect.bottom() + 8
-        if by + th + margin * 2 > self.height() - 10:
+        bx = rect.center().x() - tw // 2 - padding_h
+        by = rect.bottom() + 12
+        if by + th + padding_v * 2 > self.height() - 10:
             # If too close to bottom, show above selection
-            by = rect.top() - th - margin * 2 - 30
+            by = rect.top() - th - padding_v * 2 - 32
 
-        bw = tw + margin * 2
-        bh = th + margin * 2
+        bw = tw + padding_h * 2
+        bh = th + padding_v * 2
+        hint_rect = QRectF(bx, by, bw, bh)
 
-        # Semi-transparent background with slight blue tint
-        painter.fillRect(bx, by, bw, bh, QColor(30, 144, 255, 180))
-        painter.setPen(Qt.white)
-        painter.drawText(bx + margin, by + margin + fm.ascent(), hint_text)
+        # 玻璃态渐变背景（使用主题 token）
+        bg_hex = _theme.get("bg_toolbar", "#FFFFFFD7")
+        try:
+            r = int(bg_hex[1:3], 16)
+            g = int(bg_hex[3:5], 16)
+            b = int(bg_hex[5:7], 16)
+            a = int(bg_hex[7:9], 16) if len(bg_hex) == 9 else 215
+
+            top_a = min(a + 20, 255)
+            bottom_a = max(a - 30, 0)
+
+            gradient = QLinearGradient(bx, by, bx, by + bh)
+            gradient.setColorAt(0, QColor(r, g, b, top_a))
+            gradient.setColorAt(1, QColor(r, g, b, bottom_a))
+            painter.setBrush(gradient)
+        except Exception:
+            painter.setBrush(QColor(_theme.get("bg_toolbar", "#FFFFFFD7")))
+
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(hint_rect, 8, 8)
+
+        # 边框高光
+        is_dark = _theme.is_dark()
+        if is_dark:
+            top_color = QColor(255, 255, 255, 50)
+            bottom_color = QColor(0, 0, 0, 100)
+            border_color = QColor(80, 80, 80, 80)
+        else:
+            top_color = QColor(255, 255, 255, 200)
+            bottom_color = QColor(0, 0, 0, 30)
+            border_color = QColor(128, 128, 128, 60)
+
+        # 主边框
+        painter.setPen(QPen(border_color, 1))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(hint_rect.adjusted(0, 0, -1, -1), 8, 8)
+
+        # 顶部高光
+        painter.setPen(top_color)
+        painter.drawLine(int(bx + 8), int(by), int(bx + bw - 8), int(by))
+        painter.drawLine(int(bx + 8), int(by + 1), int(bx + bw - 8), int(by + 1))
+
+        # 底部阴影
+        painter.setPen(bottom_color)
+        painter.drawLine(int(bx + 8), int(by + bh - 1), int(bx + bw - 8), int(by + bh - 1))
+
+        # 文字（使用主题颜色）
+        text_color = QColor(_theme.get("info_label_fg", "#FFFFFFDC"))
+        painter.setPen(text_color)
+        painter.drawText(int(bx + padding_h), int(by + padding_v + fm.ascent()), hint_text)
 
     # ─── Coord tooltip ───
 
