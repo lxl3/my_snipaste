@@ -767,7 +767,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         hint_rect = QRectF(bx, by, bw, bh)
 
         # 玻璃态渐变背景（使用主题 token）
-        bg_hex = _theme.get("bg_toolbar", "#FFFFFFD7")
+        bg_hex = _tw.get("bg_toolbar", "#FFFFFFD7")
         try:
             r = int(bg_hex[1:3], 16)
             g = int(bg_hex[3:5], 16)
@@ -782,13 +782,13 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             gradient.setColorAt(1, QColor(r, g, b, bottom_a))
             painter.setBrush(gradient)
         except Exception:
-            painter.setBrush(QColor(_theme.get("bg_toolbar", "#FFFFFFD7")))
+            painter.setBrush(QColor(_tw.get("bg_toolbar", "#FFFFFFD7")))
 
         painter.setPen(Qt.NoPen)
         painter.drawRoundedRect(hint_rect, 8, 8)
 
         # 边框高光
-        is_dark = _theme.is_dark()
+        is_dark = _tw.is_dark()
         if is_dark:
             top_color = QColor(255, 255, 255, 50)
             bottom_color = QColor(0, 0, 0, 100)
@@ -813,7 +813,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         painter.drawLine(int(bx + 8), int(by + bh - 1), int(bx + bw - 8), int(by + bh - 1))
 
         # 文字（使用主题颜色）
-        text_color = QColor(_theme.get("info_label_fg", "#FFFFFFDC"))
+        text_color = QColor(_tw.get("info_label_fg", "#FFFFFFDC"))
         painter.setPen(text_color)
         painter.drawText(int(bx + padding_h), int(by + padding_v + fm.ascent()), hint_text)
 
