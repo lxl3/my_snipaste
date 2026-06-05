@@ -59,6 +59,8 @@ class PinWindowActionsMixin:
 
     def _add_annotation(self, ann: dict) -> None:
         self.annotations.append(ann)
+        # Select the newly added annotation (matching overlay behavior)
+        self._selected_annotation_index = len(self.annotations) - 1
         self._undo_stack.append({"type": "add", "ann": dict(ann), "index": len(self.annotations) - 1})
         self._redo_stack.clear()
         self._update_toolbar_undo_redo()
@@ -309,15 +311,42 @@ class PinWindowActionsMixin:
     # ─── Toolbar Interface (called by OverlayToolbar) ────
 
     def _on_tool_selected(self, tool_id: str) -> None:
+        # Deselect any selected annotation when switching tools
+        self._deselect_annotation()
         # Clean up text editor when switching tools
         if self._text_editor:
             self._finish_text_input()
         self.current_tool = tool_id
 
-    def _apply_property_to_selected(self, prop: str, value) -> None:
-        if 0 <= self._selected_annotation_index < len(self.annotations):
-            self.annotations[self._selected_annotation_index][prop] = value
-            self.update()
+    def _apply_property_to_selected(self, key: str, value) -> None:
+        """Update a property on the currently selected annotation, if any."""
+        if not (0 <= self._selected_annotation_index < len(self.annotations)):
+            return
+        ann = self.annotations[self._selected_annotation_index]
+        if key == "color" and "color" in ann:
+            ann["color"] = value if isinstance(value, str) else value.name()
+        elif key == "width" and "width" in ann:
+            ann["width"] = value
+        elif key == "blur_radius" and ann["type"] == "blur":
+            ann["radius"] = value
+            ann.pop("_cached", None)  # force re-render
+        elif key == "magnifier_zoom" and ann["type"] == "magnifier":
+            ann["zoom"] = value
+            ann.pop("_cached", None)  # force re-render with new zoom
+        elif key == "mosaic_scale" and ann["type"] == "mosaic":
+            ann["scale"] = value
+            ann.pop("_cached", None)  # force re-render with new scale
+        elif key == "font_family" and ann["type"] == "text":
+            ann["font_family"] = value
+        elif key == "font_size" and ann["type"] == "text":
+            ann["font_size"] = value
+        elif key == "bold" and ann["type"] == "text":
+            ann["bold"] = value
+        elif key == "italic" and ann["type"] == "text":
+            ann["italic"] = value
+        elif key == "text_color" and ann["type"] == "text":
+            ann["color"] = value if isinstance(value, str) else value.name()
+        self.update()
 
     # ─── Undo / Redo ─────────────────────────────────────
 

@@ -460,7 +460,8 @@ class OverlayActionsMixin:
         self._text_editor.setFont(font)
         self._text_editor.setText(ann.get("text", ""))
         self._text_editor.selectAll()
-        self._text_editor_window_pos = self.selection_rect.topLeft() + local_pos.toPoint()
+        # Subtract 1px offset to compensate for QLineEdit internal rendering (same as _start_drawing)
+        self._text_editor_window_pos = self.selection_rect.topLeft() + local_pos.toPoint() - QPoint(1, 1)
         self._text_editor.setStyleSheet(f"""
             QLineEdit {{
                 background: transparent; border: none; padding: 0px;

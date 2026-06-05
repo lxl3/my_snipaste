@@ -28,7 +28,11 @@ class OverlayRenderingMixin:
 
     def _draw_annotations(self, painter: QPainter, sel_size, offset) -> None:
         """Draw annotations + preview on painter."""
-        for ann in self.annotations:
+        # Skip annotation being edited (to avoid "ghost" effect)
+        editing_idx = getattr(self, '_editing_annotation_idx', None)
+        for idx, ann in enumerate(self.annotations):
+            if editing_idx is not None and idx == editing_idx:
+                continue  # Don't draw the text being edited
             self._draw_one_annotation(painter, ann, offset)
         if self._preview_annotation:
             self._draw_one_annotation(painter, self._preview_annotation, offset)

@@ -82,18 +82,20 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         self._current_mouse_pos: QPoint = QPoint()
 
         # Tool state (matching overlay toolbar expectations)
+        # Load defaults from settings
+        s = get_settings()
         self.current_tool: str = "select"
-        self.current_color: QColor = QColor("#ff0000")
-        self.current_width: int = 3
+        self.current_color: QColor = QColor(s.default_color)
+        self.current_width: int = s.default_line_width
         self.current_blur_radius: int = 10
         self.current_mosaic_scale: int = 8
         self.current_magnifier_zoom: int = 2
         self.eraser_size: int = 20
-        self.text_font_family: str = "微软雅黑"
-        self.text_font_size: int = 20
+        self.text_font_family: str = s.default_font_family
+        self.text_font_size: int = s.default_font_size
         self.text_bold: bool = False
         self.text_italic: bool = False
-        self.text_color: QColor = QColor("#000000")
+        self.text_color: QColor = QColor(s.default_color)
 
         # Text editor for inline editing
         self._text_editor: QLineEdit | None = None
@@ -498,6 +500,8 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         return QPointF(orig_x, orig_y)
 
     def _start_drawing(self, event) -> None:
+        # Deselect any selected annotation when starting new drawing
+        self._deselect_annotation()
         self._drawing = True
         pos = self._content_pos(event)
         self._draw_start = pos
