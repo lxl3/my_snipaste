@@ -118,32 +118,25 @@ class SettingsCard(QWidget):
         self.setStyleSheet(style)
 
     def _on_theme_changed(self, mode: str):
-        """主题切换时重新应用样式"""
-        # 先清空样式，强制 Qt 清除缓存
-        self.setStyleSheet("")
-
-        # 重新应用样式
+        """主题切换时重新应用样式（简化版，避免与父 widget 重复刷新）"""
+        # 重新应用卡片背景样式
         self._apply_style()
 
         # 更新图标和标题的颜色
         if self._icon_label:
-            self._icon_label.setStyleSheet("")  # 清空缓存
             self._icon_label.setStyleSheet(qss_base.label_qss(
                 font_size="20px",
                 color=_t.get("text_primary")
             ))
         if self._title_label:
-            self._title_label.setStyleSheet("")  # 清空缓存
             self._title_label.setStyleSheet(qss_base.label_qss(
                 font_size="15px",
                 font_weight="600",
                 color=_t.get("text_primary")
             ))
 
-        # 强制 Qt 重新计算样式
-        self.style().unpolish(self)
-        self.style().polish(self)
-        self.update()
+        # 注意：不调用 unpolish/polish，因为父 dialog 的 _on_theme_changed
+        # 会遍历所有子 widget 并统一刷新，避免重复操作导致延迟
 
     def enterEvent(self, event):
         """鼠标进入时增强阴影"""

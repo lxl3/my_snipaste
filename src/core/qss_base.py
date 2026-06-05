@@ -254,12 +254,16 @@ def slider_qss(
 
 def scrollbar_qss(
     width: str = "8px",
-    handle_bg: str = "$border",
-    handle_hover_bg: str = "$text_placeholder",
+    handle_bg: str = "$text_secondary",
+    handle_hover_bg: str = "$text_primary",
     handle_min: str = "30px",
     border_radius: str = "4px",
 ) -> str:
-    """通用 QScrollBar（垂直 + 水平）样式。"""
+    """通用 QScrollBar（垂直 + 水平）样式。
+
+    使用 text_secondary (#666666 亮色, #999999 暗色) 作为 handle 背景，
+    确保在两种模式下都有足够的对比度。
+    """
     return _theme.qss(f"""
         QScrollBar:vertical {{
             width: {width};
