@@ -15,6 +15,7 @@ from ..overlay.ocr_mixin import OcrMixin
 from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR
 from .pin_rendering import PinWindowRenderingMixin
 from .pin_actions import PinWindowActionsMixin
+from .glass_widget import GlassMenu
 
 logger = setup_logger("pin_window")
 
@@ -869,7 +870,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
     # ─── Context Menu ────────────────────────────────────
 
     def contextMenuEvent(self, event) -> None:
-        menu = QMenu(self)
+        menu = GlassMenu(self)  # 使用玻璃态菜单
         menu.setStyleSheet(_get_menu_style())
 
         # Show Toolbar (toggle)

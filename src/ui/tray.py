@@ -13,6 +13,7 @@ from ..core.hotkeys import get_default_hotkey
 from ..core.screenshot_history import ScreenshotHistory
 from ..core.theme import theme as theme_mgr
 from ..core import qss_base
+from .glass_widget import GlassMenu
 
 logger = setup_logger("tray")
 
@@ -46,7 +47,7 @@ class TrayManager(QObject):
         else:
             self.tray_icon.setToolTip(_("MySnipaste - Click tray icon to capture"))
 
-        menu = QMenu()
+        menu = GlassMenu()  # 使用玻璃态菜单
         self._capture_action = QAction(create_emoji_icon("📸"), _("Capture ({hotkey})").format(hotkey=hotkey_display), self.app)
         self._capture_action.triggered.connect(self.app.start_capture)
         menu.addAction(self._capture_action)
@@ -62,7 +63,7 @@ class TrayManager(QObject):
         menu.addSeparator()
 
         # Recent screenshots submenu (dynamic - rebuilds on show)
-        self._recent_menu = QMenu(_("Recent Screenshots"), menu)
+        self._recent_menu = GlassMenu(_("Recent Screenshots"), menu)  # 使用玻璃态子菜单
         self._recent_menu.aboutToShow.connect(lambda: self._populate_recent_menu(self._recent_menu))
         self._recent_menu_action = menu.addMenu(self._recent_menu)
         self._recent_menu_action.setIcon(create_emoji_icon("🕒"))

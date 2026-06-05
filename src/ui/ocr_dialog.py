@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QTimer, QEvent, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, QTimer, QEvent, QPropertyAnimation, QEasingCurve, QRectF
 from PySide6.QtWidgets import (
     QApplication, QDialog, QVBoxLayout, QHBoxLayout,
     QTextEdit, QPushButton, QLabel, QWidget, QGraphicsOpacityEffect,
@@ -7,6 +7,7 @@ from PySide6.QtGui import QPainter, QColor, QLinearGradient
 from ..core.i18n import _
 from ..core import qss_base
 from ..core.theme import theme as _t
+from ..core.glass_effect import draw_glass_morphism
 from .title_bar import TitleBar
 
 
@@ -188,60 +189,23 @@ class OcrResultDialog(QDialog):
             self._fade_in.start()
 
     def paintEvent(self, event) -> None:
-        """绘制玻璃效果背景"""
+        """绘制玻璃效果背景（Big Sur 风格）"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
         # 获取card widget的位置和大小（相对于dialog）
         rect = self._card.geometry()
-
-        # 构造渐变背景（模拟工具栏玻璃效果）
-        try:
-            bg_hex = _t.get("bg_toolbar", "#FFFFFFD7")
-            r = int(bg_hex[1:3], 16)
-            g = int(bg_hex[3:5], 16)
-            b = int(bg_hex[5:7], 16)
-            a = int(bg_hex[7:9], 16) if len(bg_hex) == 9 else 215
-
-            top_a = min(a + 25, 255)
-            bottom_a = max(a - 35, 0)
-
-            # 渐变使用相对于rect的坐标
-            gradient = QLinearGradient(rect.x(), rect.y(), rect.x(), rect.y() + rect.height())
-            gradient.setColorAt(0, QColor(r, g, b, top_a))
-            gradient.setColorAt(1, QColor(r, g, b, bottom_a))
-            painter.setBrush(gradient)
-        except Exception:
-            painter.setBrush(QColor(_t.get("bg_toolbar", "#FFFFFFD7")))
-
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(rect, 12, 12)
-
-        # 边框高光（顶部亮，底部暗）
         is_dark = _t.is_dark()
-        if is_dark:
-            top_color = QColor(255, 255, 255, 60)
-            bottom_color = QColor(0, 0, 0, 120)
-            border_color = QColor(90, 90, 90, 100)
-        else:
-            top_color = QColor(255, 255, 255, 220)
-            bottom_color = QColor(0, 0, 0, 40)
-            border_color = QColor(128, 128, 128, 70)
 
-        # 主边框
-        painter.setPen(border_color)
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRoundedRect(rect.adjusted(0, 0, -1, -1), 12, 12)
-
-        # 顶部高光 - 使用rect的坐标
-        painter.setPen(top_color)
-        painter.drawLine(rect.x() + 12, rect.y(), rect.x() + rect.width() - 12, rect.y())
-        painter.drawLine(rect.x() + 12, rect.y() + 1, rect.x() + rect.width() - 12, rect.y() + 1)
-
-        # 底部阴影 - 使用rect的坐标
-        painter.setPen(bottom_color)
-        painter.drawLine(rect.x() + 12, rect.y() + rect.height() - 1,
-                        rect.x() + rect.width() - 12, rect.y() + rect.height() - 1)
+        # 使用通用 Big Sur 毛玻璃效果
+        draw_glass_morphism(
+            painter,
+            QRectF(rect),
+            radius=12,
+            is_dark=is_dark,
+            draw_shadow=True,  # OCR 对话框需要投影
+            shadow_intensity=0.8,  # 柔和的投影
+        )
 
     def _on_theme_changed(self, _mode: str) -> None:
         """主题切换时刷新"""

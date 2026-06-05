@@ -1,9 +1,10 @@
 from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QEasingCurve, QRect, QSize
+from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QEasingCurve, QRect, QRectF, QSize
 from PySide6.QtGui import QColor, QPainter, QLinearGradient, QPen
 
 from ..core import qss_base
 from ..core.theme import theme as _t
+from ..core.glass_effect import draw_glass_morphism
 
 
 class ToastNotification(QWidget):
@@ -59,32 +60,21 @@ class ToastNotification(QWidget):
         self.setMinimumWidth(220)
 
     def paintEvent(self, event):
-        """绘制玻璃态背景"""
+        """绘制玻璃态背景（Big Sur 风格）"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
         rect = self.rect()
+        is_dark = _t.is_dark()
 
-        # 1. 绘制主背景（玻璃态渐变）
-        bg_hex = _t.get("bg_toolbar", "#FFFFFFD7")
-        try:
-            r = int(bg_hex[1:3], 16)
-            g = int(bg_hex[3:5], 16)
-            b = int(bg_hex[5:7], 16)
-            a = int(bg_hex[7:9], 16) if len(bg_hex) == 9 else 215
-
-            top_a = min(a + 20, 255)
-            bottom_a = max(a - 30, 0)
-
-            gradient = QLinearGradient(0, 0, 0, rect.height())
-            gradient.setColorAt(0, QColor(r, g, b, top_a))
-            gradient.setColorAt(1, QColor(r, g, b, bottom_a))
-            painter.setBrush(gradient)
-        except Exception:
-            painter.setBrush(QColor(_t.get("bg_toolbar", "#FFFFFFD7")))
-
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(rect, 10, 10)
+        # 1. 使用通用 Big Sur 毛玻璃效果绘制主背景
+        draw_glass_morphism(
+            painter,
+            QRectF(rect),
+            radius=10,
+            is_dark=is_dark,
+            draw_shadow=False,  # Toast 不需要外部投影（已有淡入动画）
+        )
 
         # 2. 绘制图标圆形背景（渐变）- 根据实际图标容器位置
         icon_pos = self._icon_container.pos()
@@ -94,32 +84,8 @@ class ToastNotification(QWidget):
         icon_gradient.setColorAt(0, QColor(color_top))
         icon_gradient.setColorAt(1, QColor(color_bottom))
         painter.setBrush(icon_gradient)
+        painter.setPen(Qt.NoPen)
         painter.drawEllipse(icon_rect)
-
-        # 3. 绘制边框高光
-        is_dark = _t.is_dark()
-        if is_dark:
-            top_color = QColor(255, 255, 255, 50)
-            bottom_color = QColor(0, 0, 0, 100)
-            border_color = QColor(80, 80, 80, 80)
-        else:
-            top_color = QColor(255, 255, 255, 200)
-            bottom_color = QColor(0, 0, 0, 30)
-            border_color = QColor(128, 128, 128, 60)
-
-        # 主边框
-        painter.setPen(QPen(border_color, 1))
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRoundedRect(rect.adjusted(0, 0, -1, -1), 10, 10)
-
-        # 顶部高光
-        painter.setPen(top_color)
-        painter.drawLine(10, 0, rect.width() - 10, 0)
-        painter.drawLine(10, 1, rect.width() - 10, 1)
-
-        # 底部阴影线
-        painter.setPen(bottom_color)
-        painter.drawLine(10, rect.height() - 1, rect.width() - 10, rect.height() - 1)
 
 
 class ToastManager:

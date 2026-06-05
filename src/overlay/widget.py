@@ -32,6 +32,7 @@ from ..core.constants import (
 from ..core.i18n import _
 from ..core.logger import setup_logger
 from ..core.theme import theme as _tw
+from ..core.glass_effect import draw_glass_morphism, draw_glass_text
 
 logger = setup_logger("overlay")
 
@@ -731,6 +732,14 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def _draw_auto_action_hint(self, painter: QPainter, rect: QRect) -> None:
         """Draw hint text for auto-finish action if enabled."""
+        # 只在拖动选区时显示提示（避免遮挡工具栏）
+        if self._drag_mode is None:
+            return  # 不在拖动状态，不显示
+
+        mode = self._drag_mode[0]
+        if mode not in ("move", "resize"):
+            return  # 只在拖动选区时显示，不在拖动标注时显示
+
         s = get_settings()
         action = s.capture_after_action
 
@@ -766,52 +775,21 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         bh = th + padding_v * 2
         hint_rect = QRectF(bx, by, bw, bh)
 
-        # 深色半透明渐变背景（确保文字清晰可见）
-        # 使用深色背景 + 白色文字，对比度更好
+        # macOS Big Sur 毛玻璃效果（使用通用函数）
         is_dark = _tw.is_dark()
-        if is_dark:
-            # 暗色模式：使用亮一点的半透明背景
-            gradient = QLinearGradient(bx, by, bx, by + bh)
-            gradient.setColorAt(0, QColor(60, 60, 60, 230))
-            gradient.setColorAt(1, QColor(45, 45, 45, 210))
-            painter.setBrush(gradient)
-        else:
-            # 亮色模式：使用深色半透明背景
-            gradient = QLinearGradient(bx, by, bx, by + bh)
-            gradient.setColorAt(0, QColor(40, 40, 40, 230))
-            gradient.setColorAt(1, QColor(25, 25, 25, 210))
-            painter.setBrush(gradient)
 
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(hint_rect, 8, 8)
+        # 绘制玻璃态背景
+        draw_glass_morphism(painter, hint_rect, radius=12, is_dark=is_dark, draw_shadow=True)
 
-        # 边框高光（深色背景上的高光）
-        top_color = QColor(255, 255, 255, 80)
-        bottom_color = QColor(0, 0, 0, 120)
-        border_color = QColor(255, 255, 255, 40)
-
-        # 主边框
-        painter.setPen(QPen(border_color, 1))
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRoundedRect(hint_rect.adjusted(0, 0, -1, -1), 8, 8)
-
-        # 顶部高光
-        painter.setPen(top_color)
-        painter.drawLine(int(bx + 8), int(by), int(bx + bw - 8), int(by))
-        painter.drawLine(int(bx + 8), int(by + 1), int(bx + bw - 8), int(by + 1))
-
-        # 底部阴影
-        painter.setPen(bottom_color)
-        painter.drawLine(int(bx + 8), int(by + bh - 1), int(bx + bw - 8), int(by + bh - 1))
-
-        # 文字带阴影效果，确保在任何背景下都清晰
-        # 先绘制深色阴影（偏移1像素）
-        painter.setPen(QColor(0, 0, 0, 180))
-        painter.drawText(int(bx + padding_h + 1), int(by + padding_v + fm.ascent() + 1), hint_text)
-
-        # 再绘制白色文字
-        painter.setPen(QColor(255, 255, 255, 255))
-        painter.drawText(int(bx + padding_h), int(by + padding_v + fm.ascent()), hint_text)
+        # 绘制文字
+        draw_glass_text(
+            painter,
+            int(bx + padding_h),
+            int(by + padding_v + fm.ascent()),
+            hint_text,
+            is_dark=is_dark,
+            glow_enabled=True
+        )
 
     # ─── Coord tooltip ───
 

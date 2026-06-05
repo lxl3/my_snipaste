@@ -1,11 +1,12 @@
 """OCR 识别进度对话框 - 玻璃效果设计"""
 
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QWidget, QGraphicsOpacityEffect
 from PySide6.QtGui import QPainter, QColor, QLinearGradient
 
 from ..core.i18n import _
 from ..core.theme import theme as _t
+from ..core.glass_effect import draw_glass_morphism
 
 
 class OcrProgressDialog(QDialog):
@@ -152,56 +153,22 @@ class OcrProgressDialog(QDialog):
         self._pulse_container.update()
 
     def paintEvent(self, event):
-        """绘制玻璃效果背景"""
+        """绘制玻璃效果背景（Big Sur 风格）"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
         rect = self.rect()
-
-        # 构造渐变背景（模拟工具栏玻璃效果）
-        try:
-            bg_hex = _t.get("bg_toolbar", "#FFFFFFD7")
-            r = int(bg_hex[1:3], 16)
-            g = int(bg_hex[3:5], 16)
-            b = int(bg_hex[5:7], 16)
-            a = int(bg_hex[7:9], 16) if len(bg_hex) == 9 else 215
-
-            top_a = min(a + 30, 255)
-            bottom_a = max(a - 40, 0)
-
-            gradient = QLinearGradient(0, 0, 0, rect.height())
-            gradient.setColorAt(0, QColor(r, g, b, top_a))
-            gradient.setColorAt(1, QColor(r, g, b, bottom_a))
-            painter.setBrush(gradient)
-        except Exception:
-            painter.setBrush(QColor(_t.get("bg_toolbar", "#FFFFFFD7")))
-
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(rect, 8, 8)
-
-        # 边框高光（顶部亮，底部暗）
         is_dark = _t.is_dark()
-        if is_dark:
-            top_color = QColor(255, 255, 255, 50)
-            bottom_color = QColor(0, 0, 0, 100)
-            border_color = QColor(80, 80, 80, 80)
-        else:
-            top_color = QColor(255, 255, 255, 200)
-            bottom_color = QColor(0, 0, 0, 30)
-            border_color = QColor(128, 128, 128, 60)
 
-        # 主边框
-        painter.setPen(border_color)
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRoundedRect(rect.adjusted(0, 0, -1, -1), 8, 8)
-
-        # 顶部高光
-        painter.setPen(top_color)
-        painter.drawLine(8, 0, rect.width() - 8, 0)
-
-        # 底部阴影
-        painter.setPen(bottom_color)
-        painter.drawLine(8, rect.height() - 1, rect.width() - 8, rect.height() - 1)
+        # 使用通用 Big Sur 毛玻璃效果
+        draw_glass_morphism(
+            painter,
+            QRectF(rect),
+            radius=8,
+            is_dark=is_dark,
+            draw_shadow=True,
+            shadow_intensity=0.7,  # 较柔和的投影
+        )
 
         # 绘制脉冲进度条（在 pulse_container 区域）
         if self._pulse_container:

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..ui.color_picker import get_color
+from ..ui.glass_widget import GlassFrame
 from PySide6.QtCore import Qt, QPoint, QSize, QPropertyAnimation, QAbstractAnimation
 
 from ..resources.icons.toolbar_icons import TOOLBAR_ICONS
@@ -232,39 +233,18 @@ def _control_style() -> str:
     return label_style + controls_style
 
 
-def _toolbar_style() -> str:
-    """生成工具栏 QSS，包含毛玻璃渐变背景。"""
-    # 构造渐变色：顶部稍亮（simulate glass reflection），底部稍暗
-    try:
-        bg_hex = _t.get("bg_toolbar", "#FFFFFFD7")
-        r = int(bg_hex[1:3], 16)
-        g = int(bg_hex[3:5], 16)
-        b = int(bg_hex[5:7], 16)
-        a = int(bg_hex[7:9], 16)
-        top_a = min(a + 30, 255)
-        bottom_a = max(a - 40, 0)
-        gradient = ("background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-                    f" stop:0 rgba({r},{g},{b},{top_a}),"
-                    f" stop:1 rgba({r},{g},{b},{bottom_a}));")
-    except Exception:
-        gradient = "background: $bg_toolbar;"  # fallback: flat color
-
+def _toolbar_buttons_style() -> str:
+    """生成工具栏按钮 QSS（背景由 GlassFrame 绘制）"""
     # 暗色/亮色模式差异化设计
     is_dark = _t.is_dark()
     if is_dark:
         # 暗色模式：精致科技感
-        border_top = "rgba(255,255,255,50)"      # 柔和高光
-        border_bottom = "rgba(0,0,0,100)"        # 深阴影
-        border_main = "rgba(80,80,80,80)"        # 主边框
         btn_hover_bg = "rgba(255,255,255,10)"    # 按钮悬停
         btn_hover_border = "rgba(255,255,255,15)"
         btn_checked_bg = "rgba(32,127,240,0.18)" # 选中背景（更明显）
         btn_pressed_bg = "rgba(255,255,255,8)"   # 按下
     else:
         # 亮色模式：明亮清新
-        border_top = "rgba(255,255,255,200)"
-        border_bottom = "rgba(0,0,0,30)"
-        border_main = "rgba(128,128,128,60)"
         btn_hover_bg = "rgba(128,128,128,25)"
         btn_hover_border = "rgba(128,128,128,15)"
         btn_checked_bg = "rgba(32,127,240,0.10)"
@@ -272,11 +252,8 @@ def _toolbar_style() -> str:
 
     return _t.qss(f"""
     #overlayToolbar {{
-        {gradient}
-        border: 1px solid {border_main};
-        border-top: 2px solid {border_top};
-        border-bottom: 1px solid {border_bottom};
-        border-radius: 6px;
+        border: none;  /* GlassFrame 自己绘制边框 */
+        background: transparent;  /* GlassFrame 自己绘制背景 */
     }}
     QToolTip {{
         background: {"#2D2D2D" if is_dark else "#FFFFFF"};
@@ -331,9 +308,11 @@ class OverlayToolbar:
         self._anim: QPropertyAnimation | None = None
 
     def setup(self) -> None:
-        self.toolbar = QFrame(self.overlay)
+        self.toolbar = GlassFrame(self.overlay)
         self.toolbar.setObjectName("overlayToolbar")
-        self.toolbar.setStyleSheet(_toolbar_style())
+        self.toolbar.setGlassRadius(6)  # Big Sur 风格圆角
+        self.toolbar.setGlassShadow(False)  # 工具栏不需要外部投影
+        self.toolbar.setStyleSheet(_toolbar_buttons_style())  # 只设置按钮样式，背景由 GlassFrame 绘制
         self.toolbar.setGraphicsEffect(None)  # 清除可能的旧动画效果
         self.toolbar.setFixedSize(420, 32)  # 固定尺寸，防止动态变化导致位置跳动
         toolbar_layout = QHBoxLayout(self.toolbar)
@@ -398,7 +377,7 @@ class OverlayToolbar:
 
         try:
             # 刷新工具栏样式
-            self.toolbar.setStyleSheet(_toolbar_style())
+            self.toolbar.setStyleSheet(_toolbar_buttons_style())
 
             # 刷新所有 QToolButton 的图标（遍历所有子控件）
             for btn in self.toolbar.findChildren(QToolButton):
