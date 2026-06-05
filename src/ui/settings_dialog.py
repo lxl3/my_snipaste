@@ -399,7 +399,6 @@ class SettingsDialog(ThemeAwareDialog):
             qss_base.combobox_qss(),
             qss_base.label_qss(),
             qss_base.slider_qss(),
-            qss_base.scrollbar_qss(),
         ])
         self.setStyleSheet(dialog_specific + shared)
 
@@ -565,6 +564,28 @@ class SettingsDialog(ThemeAwareDialog):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        # 将滚动条 QSS 直接应用到 scrollbar 控件（而非依赖父控件 QSS 级联），
+        # 解决 Windows windowsvista 样式下滚动条颜色不跟随主题的问题
+        vsb = scroll.verticalScrollBar()
+        if vsb:
+            self._add_themed_widget(vsb, """
+                QScrollBar::handle:vertical {
+                    background: $border;
+                    min-height: 30px;
+                    border-radius: 4px;
+                }
+                QScrollBar::handle:vertical:hover {
+                    background: $text_placeholder;
+                }
+                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                    height: 0;
+                    border: none;
+                }
+                QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                    background: none;
+                }
+            """)
 
         # 内容容器
         content = QWidget()
@@ -846,9 +867,10 @@ class SettingsDialog(ThemeAwareDialog):
         if theme_mode:
             logger.info(f"👁️ 主题预览切换: {theme_mode}")
             _theme.set_mode(theme_mode)
+            # set_mode 已通过 theme_changed 信号同步触发 _on_theme_changed
+            # （DirectConnection，同一线程），不需要再手动调用。
+            # 全局调色板更新：确保对话框外控件（pin_window 等）同步
             _theme.apply_to_app(QApplication.instance())
-            # 直接调用刷新，确保对话框立即更新（不依赖信号时序）
-            self._on_theme_changed(_theme.resolved)
 
     def _open_permission_settings(self) -> None:
         """Open macOS System Settings for permissions."""
