@@ -226,5 +226,11 @@
   "Redone": "已重做",
   "Changes are previewed immediately": "變更立即生效",
   "Controls the opacity of pinned screenshots": "控制懸浮視窗的透明度",
-  "Higher levels show fewer messages": "日誌級別越高，顯示資訊越少"
+  "Higher levels show fewer messages": "日誌級別越高，顯示資訊越少",
+  "Mode:": "模式：",
+  "Accent Color:": "主題色：",
+  "Click to select accent color": "點擊選擇主題色",
+  "Default": "預設",
+  "Select Accent Color": "選擇主題色",
+  "Theme": "主題"
 }

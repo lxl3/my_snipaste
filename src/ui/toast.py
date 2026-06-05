@@ -79,7 +79,19 @@ class ToastNotification(QWidget):
         # 2. 绘制图标圆形背景（渐变）- 根据实际图标容器位置
         icon_pos = self._icon_container.pos()
         icon_rect = QRect(icon_pos.x(), icon_pos.y(), 28, 28)
-        color_top, color_bottom = self.ICON_COLORS.get(self.toast_type, self.ICON_COLORS["info"])
+
+        # info 类型使用主题色，其他类型使用预设颜色
+        if self.toast_type == "info":
+            accent = _t.accent_color
+            # 生成渐变色：顶部为主题色，底部稍暗
+            color_top = accent
+            c = QColor(accent)
+            h, s, l, a = c.getHslF()
+            darker = QColor.fromHslF(h, s, max(l - 0.08, 0.1), a)
+            color_bottom = darker.name()
+        else:
+            color_top, color_bottom = self.ICON_COLORS.get(self.toast_type, self.ICON_COLORS["success"])
+
         icon_gradient = QLinearGradient(icon_rect.topLeft(), icon_rect.bottomLeft())
         icon_gradient.setColorAt(0, QColor(color_top))
         icon_gradient.setColorAt(1, QColor(color_bottom))

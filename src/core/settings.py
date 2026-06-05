@@ -91,6 +91,7 @@ class AppSettings:
 
     # 主题设置
     theme: str = "light"  # "light", "dark", "system"
+    accent_color: str = ""  # 自定义主题色，空字符串表示使用默认深青色
 
     # Pin 窗口设置
     pin_window_geometry: str = ""  # Stores "x,y,width,height" as string

@@ -77,7 +77,7 @@ class OverlayActionsMixin:
         self.pin_requested.emit(pixmap, self._capture_pos())
         # 先关闭覆盖层，再显示 Toast（parent=None 避免阻塞关闭）
         self.close()
-        ToastManager.show(_("Pinned to desktop"), "📌", "success", parent=None)
+        ToastManager.show(_("Pinned to desktop"), "📌", "info", parent=None)
 
     def on_copy(self) -> None:
         if self.selection_rect.isNull():

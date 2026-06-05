@@ -63,7 +63,7 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
     """配置并返回增强的日志记录器
 
     Args:
-        name: 日志记录器名称
+        name: 日志记录器名称，非 "MySnipaste" 时自动作为子 logger
         level: 日志级别
         enable_colors: 是否在控制台启用颜色（Windows/Linux 均支持）
 
@@ -73,6 +73,10 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
         - 单独的错误日志文件
         - 自动创建按日期命名的日志目录
     """
+    # 非主 logger 时返回子 logger（继承父 logger 的 handlers）
+    if name != "MySnipaste":
+        return get_logger(name)
+
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
@@ -176,10 +180,37 @@ logger = setup_logger()
 
 
 def apply_log_level(level_str: str) -> None:
-    """Apply a log level string (DEBUG/INFO/WARNING/ERROR) to the root logger at runtime."""
+    """Apply a log level string (DEBUG/INFO/WARNING/ERROR) to all MySnipaste loggers at runtime.
+
+    Updates both the logger levels and handler levels, except for error.log handlers
+    which always remain at ERROR level.
+    """
     level = getattr(logging, level_str.upper(), logging.DEBUG)
-    logging.getLogger("MySnipaste").setLevel(level)
-    for handler in logging.getLogger("MySnipaste").handlers:
+
+    # Update all loggers that start with "MySnipaste"
+    for name, lg in logging.Logger.manager.loggerDict.items():
+        if isinstance(lg, logging.Logger) and name.startswith("MySnipaste"):
+            lg.setLevel(level)
+            for handler in lg.handlers:
+                # Keep error.log handler at ERROR level
+                if isinstance(handler, logging.FileHandler):
+                    try:
+                        if handler.baseFilename.endswith("error.log"):
+                            continue
+                    except AttributeError:
+                        pass
+                handler.setLevel(level)
+
+    # Also update the main MySnipaste logger (may not be in loggerDict if not a PlaceHolder)
+    main_logger = logging.getLogger("MySnipaste")
+    main_logger.setLevel(level)
+    for handler in main_logger.handlers:
+        if isinstance(handler, logging.FileHandler):
+            try:
+                if handler.baseFilename.endswith("error.log"):
+                    continue
+            except AttributeError:
+                pass
         handler.setLevel(level)
 
 

@@ -232,5 +232,11 @@
   "{days} days ago": "{days}天前",
   "Changes are previewed immediately": "更改立即生效",
   "Controls the opacity of pinned screenshots": "控制贴图窗口的透明度",
-  "Higher levels show fewer messages": "日志级别越高，显示信息越少"
+  "Higher levels show fewer messages": "日志级别越高，显示信息越少",
+  "Mode:": "模式：",
+  "Accent Color:": "主题色：",
+  "Click to select accent color": "点击选择主题色",
+  "Default": "默认",
+  "Select Accent Color": "选择主题色",
+  "Theme": "主题"
 }

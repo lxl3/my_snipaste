@@ -132,6 +132,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.text_bold: bool = False
         self.text_italic: bool = False
         self.text_color: QColor = QColor(s.default_color)
+        logger.debug(f"加载标注设置: color={s.default_color}, width={s.default_line_width}, "
+                     f"font={s.default_font_family}, size={s.default_font_size}")
 
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
@@ -143,8 +145,6 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if self.current_tool in self.toolbar._tool_btns:
             for tid, btn in self.toolbar._tool_btns.items():
                 btn.setChecked(tid == self.current_tool)
-
-        self.grabKeyboard()
 
         self._hotkey_panel = None
 
@@ -162,6 +162,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def _position_toolbar(self) -> None:
         """Position toolbar at bottom-right of selection (right-aligned)."""
+        # 工具栏移动时关闭子菜单（避免菜单位置不同步）
+        self.toolbar.close_menus()
+
         rect = self.selection_rect
         if rect.isNull():
             self.toolbar.toolbar.hide()
@@ -355,6 +358,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.releaseKeyboard()
         except RuntimeError:
             pass
+        self.toolbar.close_menus()  # 关闭子菜单
         self.toolbar.toolbar.hide()
         self.deleteLater()
         super().closeEvent(event)
@@ -370,6 +374,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self._drag_mode = None
                 self._deselect_annotation()
                 self.annotations.clear()
+                self.toolbar.close_menus()  # 关闭子菜单
                 self.toolbar.toolbar.hide()
                 self.setCursor(Qt.CrossCursor)
                 self.update()

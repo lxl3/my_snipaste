@@ -168,6 +168,46 @@ DARK_TOKENS: dict[str, str] = {
 ThemeMode = Literal["light", "dark", "system"]
 
 
+def _derive_accent_colors(base_color: str, is_dark: bool) -> dict[str, str]:
+    """根据基础主题色生成衍生色（hover、disabled、边框等）。
+
+    Args:
+        base_color: 基础颜色 hex 字符串，如 "#FF5722"
+        is_dark: 是否为暗色模式
+
+    Returns:
+        包含所有 accent 相关 token 的字典
+    """
+    from PySide6.QtGui import QColor
+    c = QColor(base_color)
+    h, s, l, _ = c.getHslF()
+
+    if is_dark:
+        # 暗色模式：hover 更亮，disabled 更淡
+        hover_l = min(l + 0.1, 0.9)
+        disabled_s = s * 0.5
+        disabled_l = min(l + 0.2, 0.8)
+    else:
+        # 亮色模式：hover 更暗
+        hover_l = max(l - 0.1, 0.1)
+        disabled_s = s * 0.5
+        disabled_l = min(l + 0.15, 0.7)
+
+    hover = QColor.fromHslF(h, s, hover_l)
+    disabled = QColor.fromHslF(h, disabled_s, disabled_l)
+
+    return {
+        ACCENT: base_color,
+        ACCENT_HOVER: hover.name(),
+        ACCENT_DISABLED: disabled.name(),
+        BORDER_FOCUS: base_color,
+        COLOR_BTN_BORDER_ON: base_color,
+        SEL_BORDER: base_color,
+        SEL_FILL: base_color + "1E",  # alpha=30
+        INFO_ACCENT: base_color + "B4",  # alpha=180
+    }
+
+
 def _detect_system_theme() -> Literal["light", "dark"]:
     """检测操作系统当前主题（仅 Windows 实现）。"""
     if sys.platform == "win32":
@@ -223,6 +263,7 @@ class ThemeManager(QObject):
         self._mode: ThemeMode = "light"     # 用户偏好设置值
         self._resolved: str = "light"       # 实际生效（跟随系统时=系统值）
         self._tokens: dict[str, str] = LIGHT_TOKENS.copy()
+        self._custom_accent: str = ""       # 自定义主题色
 
     # ─── Public API ───
 
@@ -275,9 +316,29 @@ class ThemeManager(QObject):
     def resolved(self) -> str:
         return self._resolved
 
+    @property
+    def accent_color(self) -> str:
+        """获取当前主题色（自定义或默认）"""
+        return self._custom_accent or self.get(ACCENT)
+
+    def set_accent_color(self, color: str) -> None:
+        """设置自定义主题色。
+
+        Args:
+            color: 颜色 hex 字符串，如 "#FF5722"；空字符串恢复默认
+        """
+        self._custom_accent = color
+        self._resolve_and_apply()
+
     def build_palette(self, theme: str) -> QPalette:
         """根据主题名生成 QPalette。"""
         palette = QPalette()
+        # 使用自定义主题色或默认色
+        if self._custom_accent:
+            accent = self._custom_accent
+        else:
+            accent = "#00897B" if theme == "light" else "#4DB6AC"
+
         if theme == "light":
             palette.setColor(QPalette.Window, QColor("#F0F0F0"))
             palette.setColor(QPalette.WindowText, QColor("#333333"))
@@ -287,7 +348,7 @@ class ThemeManager(QObject):
             palette.setColor(QPalette.Button, QColor("#CCCCCC"))
             palette.setColor(QPalette.ButtonText, QColor("#333333"))
             palette.setColor(QPalette.BrightText, QColor("#FFFFFF"))
-            palette.setColor(QPalette.Highlight, QColor("#00897B"))
+            palette.setColor(QPalette.Highlight, QColor(accent))
             palette.setColor(QPalette.HighlightedText, QColor("#FFFFFF"))
             palette.setColor(QPalette.ToolTipBase, QColor("#FFFFFF"))
             palette.setColor(QPalette.ToolTipText, QColor("#333333"))
@@ -308,7 +369,7 @@ class ThemeManager(QObject):
             palette.setColor(QPalette.Button, QColor("#5A5A5A"))
             palette.setColor(QPalette.ButtonText, QColor("#CCCCCC"))
             palette.setColor(QPalette.BrightText, QColor("#FFFFFF"))
-            palette.setColor(QPalette.Highlight, QColor("#4DB6AC"))
+            palette.setColor(QPalette.Highlight, QColor(accent))
             palette.setColor(QPalette.HighlightedText, QColor("#FFFFFF"))
             palette.setColor(QPalette.ToolTipBase, QColor("#333333"))
             palette.setColor(QPalette.ToolTipText, QColor("#CCCCCC"))
@@ -345,6 +406,12 @@ class ThemeManager(QObject):
         else:
             self._resolved = self._mode
         self._tokens = (DARK_TOKENS if self._resolved == "dark" else LIGHT_TOKENS).copy()
+
+        # 应用自定义主题色
+        if self._custom_accent:
+            derived = _derive_accent_colors(self._custom_accent, self._resolved == "dark")
+            self._tokens.update(derived)
+
         self.theme_changed.emit(self._resolved)
 
 

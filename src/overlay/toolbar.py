@@ -1159,5 +1159,14 @@ class OverlayToolbar:
             # Color is already added to recent in _set_text_color
 
     def update_undo_redo_state(self) -> None:
-        self._undo_btn.setEnabled(len(self.overlay._undo_stack) > 0)
-        self._redo_btn.setEnabled(len(self.overlay._redo_stack) > 0)
+        undo_enabled = len(self.overlay._undo_stack) > 0
+        redo_enabled = len(self.overlay._redo_stack) > 0
+
+        self._undo_btn.setEnabled(undo_enabled)
+        self._redo_btn.setEnabled(redo_enabled)
+
+        # 根据启用状态设置图标颜色（禁用时使用更淡的颜色）
+        undo_color = _t.get("text_primary") if undo_enabled else _t.get("text_disabled")
+        redo_color = _t.get("text_primary") if redo_enabled else _t.get("text_disabled")
+        self._undo_btn.setIcon(self._load_icon("undo", undo_color))
+        self._redo_btn.setIcon(self._load_icon("redo", redo_color))

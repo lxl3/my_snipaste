@@ -113,6 +113,9 @@ class SnipasteApp(QApplication):
 
         # 初始化主题（必须在任何 UI 组件创建前）
         theme_manager.set_mode(self.settings.theme)
+        # 加载自定义主题色
+        if self.settings.accent_color:
+            theme_manager.set_accent_color(self.settings.accent_color)
         theme_manager.apply_to_app(self)
 
         # 设置应用图标
@@ -353,14 +356,14 @@ class SnipasteApp(QApplication):
             }
         """
 
-        # High contrast colors
+        # High contrast colors (使用主题系统的 accent 颜色)
         if _t.is_dark():
             theme_vars = {
                 'bg': '#1A1A1A',
                 'border': '#333333',
                 'text_primary': '#FFFFFF',
                 'text_secondary': '#999999',
-                'accent': '#4DB6AC',
+                'accent': _t.accent_color,
                 'hover': 'rgba(255, 255, 255, 0.08)',
                 'card_bg': '#242424',
                 'card_border': '#333333',
@@ -372,7 +375,7 @@ class SnipasteApp(QApplication):
                 'border': '#E5E5E5',
                 'text_primary': '#000000',
                 'text_secondary': '#666666',
-                'accent': '#00897B',
+                'accent': _t.accent_color,
                 'hover': 'rgba(0, 0, 0, 0.05)',
                 'card_bg': '#F8F8F8',
                 'card_border': '#E5E5E5',
@@ -411,7 +414,7 @@ class SnipasteApp(QApplication):
                         'border': '#333333',
                         'text_primary': '#FFFFFF',
                         'text_secondary': '#999999',
-                        'accent': '#4DB6AC',
+                        'accent': _t.accent_color,
                         'hover': 'rgba(255, 255, 255, 0.08)',
                         'card_bg': '#242424',
                         'card_border': '#333333',
@@ -423,7 +426,7 @@ class SnipasteApp(QApplication):
                         'border': '#E5E5E5',
                         'text_primary': '#000000',
                         'text_secondary': '#666666',
-                        'accent': '#00897B',
+                        'accent': _t.accent_color,
                         'hover': 'rgba(0, 0, 0, 0.05)',
                         'card_bg': '#F8F8F8',
                         'card_border': '#E5E5E5',
@@ -543,10 +546,22 @@ class SnipasteApp(QApplication):
         self.overlay.pin_requested.connect(self._on_pin)
         self.overlay.copy_requested.connect(self._on_copy)
         self.overlay.save_requested.connect(self._on_save)
-        self.overlay.destroyed.connect(lambda: setattr(self, 'overlay', None))
+        self.overlay.destroyed.connect(self._on_overlay_destroyed)
         self.overlay.show()
         self.overlay.raise_()
         self.overlay.activateWindow()
+        # 延迟抓取键盘，确保窗口完全显示后再执行
+        QTimer.singleShot(50, lambda: self._grab_overlay_keyboard())
+
+    def _grab_overlay_keyboard(self) -> None:
+        """抓取 overlay 键盘焦点，确保键盘事件被正确接收。"""
+        if self.overlay:
+            self.overlay.setFocus()
+            self.overlay.grabKeyboard()
+
+    def _on_overlay_destroyed(self) -> None:
+        """截图覆盖层关闭后的清理工作。"""
+        self.overlay = None
 
     def _on_pin(self, pixmap: QPixmap, pos) -> None:
         win = PinWindow(pixmap, pos)
@@ -694,7 +709,7 @@ class SnipasteApp(QApplication):
         # Brief toast notification
         try:
             from .ui.toast import ToastManager
-            ToastManager.show(_("Screenshot pinned"), icon="📌", toast_type="success")
+            ToastManager.show(_("Screenshot pinned"), icon="📌", toast_type="info")
         except Exception:
             pass
 
@@ -741,28 +756,34 @@ class SnipasteApp(QApplication):
 
     def _open_settings(self) -> None:
         try:
-            parent = getattr(self, '_menu_widget', None)
-            result = SettingsDialog.open(parent)
-            if result is not None:
-                self.settings = result
-                logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
-                load_translations(self.settings.language)
-                # 重新应用主题
-                theme_manager.set_mode(self.settings.theme)
-                theme_manager.apply_to_app(self)
-                have_hotkey = check_macos_accessibility()
-                self.tray.refresh_menu_text(have_hotkey)
-                if self.hotkey_listener:
-                    self.hotkey_listener.set_hotkeys({
-                        "capture": self.settings.hotkey,
-                        "ocr": self.settings.hotkey_ocr,
-                        "delay_capture": self.settings.hotkey_delay,
-                        "pin_capture": self.settings.hotkey_pin,
-                        "full_capture": self.settings.hotkey_full,
-                        "color_picker": self.settings.hotkey_color_picker,
-                    })
+            # 非模态方式打开设置，不阻塞截图功能
+            SettingsDialog.open_non_modal(
+                parent=None,
+                on_saved=self._on_settings_saved
+            )
         except Exception:
             logger.exception("settings error")
+
+    def _on_settings_saved(self, new_settings: AppSettings) -> None:
+        """设置保存后的回调处理。"""
+        self.settings = new_settings
+        logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
+        load_translations(self.settings.language)
+        # 重新应用主题和自定义主题色
+        theme_manager.set_mode(self.settings.theme)
+        theme_manager.set_accent_color(self.settings.accent_color)
+        theme_manager.apply_to_app(self)
+        have_hotkey = check_macos_accessibility()
+        self.tray.refresh_menu_text(have_hotkey)
+        if self.hotkey_listener:
+            self.hotkey_listener.set_hotkeys({
+                "capture": self.settings.hotkey,
+                "ocr": self.settings.hotkey_ocr,
+                "delay_capture": self.settings.hotkey_delay,
+                "pin_capture": self.settings.hotkey_pin,
+                "full_capture": self.settings.hotkey_full,
+                "color_picker": self.settings.hotkey_color_picker,
+            })
 
     def _play_capture_sound(self) -> None:
         """Play capture sound (platform-specific)."""

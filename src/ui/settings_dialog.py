@@ -25,6 +25,14 @@ from .settings_card import SettingsCard
 logger = setup_logger("settings_dialog")
 
 
+class NoScrollComboBox(QComboBox):
+    """禁用滚轮选择的 QComboBox，避免误触"""
+
+    def wheelEvent(self, event):
+        # 忽略滚轮事件，不改变选项
+        event.ignore()
+
+
 class HotkeyRecorderWidget(QWidget):
     """Widget for recording keyboard shortcuts."""
 
@@ -35,6 +43,9 @@ class HotkeyRecorderWidget(QWidget):
         self._recording = False
         self._current_keys = set()
         self._hotkey = ""
+
+        # 必须设置焦点策略才能接收键盘事件
+        self.setFocusPolicy(Qt.StrongFocus)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -244,8 +255,8 @@ class SettingsDialog(ThemeAwareDialog):
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setAttribute(Qt.WA_StyledBackground)
         self.setAutoFillBackground(True)
-        # 无边框窗口：自定义标题栏代替原生标题栏（支持暗色模式）
-        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)
+        # 无边框窗口 + Tool 标志：自定义标题栏、不在任务栏显示、不阻止全局热键
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint)
 
         # 外层布局：标题栏 + 内容区域（零边距）
         outer = QVBoxLayout(self)
@@ -430,6 +441,10 @@ class SettingsDialog(ThemeAwareDialog):
             if style and '$' in style:
                 label.setStyleSheet(_theme.qss(style))
 
+        # 刷新主题色按钮样式
+        if hasattr(self, '_accent_btn'):
+            self._update_accent_btn_style()
+
     # ─── General Tab ───
 
     def _build_general_tab(self) -> QWidget:
@@ -448,18 +463,9 @@ class SettingsDialog(ThemeAwareDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        # ⌨️ 全局快捷键卡片
-        hotkey_card = SettingsCard(icon="⌨️", title=_("Global Hotkey"))
-        self._hotkey_recorder = HotkeyRecorderWidget()
-        hotkey_card.add_widget(self._hotkey_recorder)
-        hint = QLabel(_("Click 'Record' and press your desired key combination"))
-        hint.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
-        hotkey_card.add_widget(hint)
-        layout.addWidget(hotkey_card)
-
         # 🌐 语言卡片
         lang_card = SettingsCard(icon="🌐", title=_("Language"))
-        self._lang_combo = QComboBox()
+        self._lang_combo = NoScrollComboBox()
         self._lang_combo.setMinimumWidth(200)
         for code, label in available_languages():
             self._lang_combo.addItem(label, code)
@@ -468,13 +474,43 @@ class SettingsDialog(ThemeAwareDialog):
 
         # 🎨 主题卡片
         theme_card = SettingsCard(icon="🎨", title=_("Theme"))
-        self._theme_combo = QComboBox()
+
+        # 主题模式行
+        mode_row = QHBoxLayout()
+        mode_label = QLabel(_("Mode:"))
+        self._add_themed_widget(mode_label, "QLabel { color: $text_primary; }")
+        self._theme_combo = NoScrollComboBox()
         self._theme_combo.setMinimumWidth(200)
         self._theme_combo.addItem(_("Light"), "light")
         self._theme_combo.addItem(_("Dark"), "dark")
         self._theme_combo.addItem(_("Follow System"), "system")
         self._theme_combo.currentIndexChanged.connect(self._on_theme_preview)
-        theme_card.add_widget(self._theme_combo)
+        mode_row.addWidget(mode_label)
+        mode_row.addStretch()
+        mode_row.addWidget(self._theme_combo)
+        theme_card.add_layout(mode_row)
+
+        theme_card.add_spacing(8)
+
+        # 主题色选择行
+        accent_row = QHBoxLayout()
+        accent_row.setSpacing(8)
+        accent_label = QLabel(_("Accent Color:"))
+        self._add_themed_widget(accent_label, "QLabel { color: $text_primary; }")
+        self._accent_btn = QPushButton()
+        self._accent_btn.setFixedSize(32, 32)
+        self._accent_btn.setCursor(Qt.PointingHandCursor)
+        self._accent_btn.setToolTip(_("Click to select accent color"))
+        self._accent_btn.clicked.connect(self._on_accent_color_click)
+        self._accent_reset_btn = QPushButton(_("Default"))
+        self._accent_reset_btn.setFixedWidth(70)
+        self._accent_reset_btn.clicked.connect(self._on_accent_reset)
+        accent_row.addWidget(accent_label)
+        accent_row.addStretch()
+        accent_row.addWidget(self._accent_btn)
+        accent_row.addWidget(self._accent_reset_btn)
+        theme_card.add_layout(accent_row)
+
         hint_theme = QLabel(_("Changes are previewed immediately"))
         hint_theme.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
         theme_card.add_widget(hint_theme)
@@ -665,7 +701,7 @@ class SettingsDialog(ThemeAwareDialog):
         format_row = QHBoxLayout()
         format_label = QLabel(_("Format:"))
         format_label.setStyleSheet(qss_base.label_qss())
-        self._format_combo = QComboBox()
+        self._format_combo = NoScrollComboBox()
         self._format_combo.setMinimumWidth(120)
         self._format_combo.addItems(["PNG", "JPEG"])
         format_row.addWidget(format_label)
@@ -717,7 +753,7 @@ class SettingsDialog(ThemeAwareDialog):
         after_row = QHBoxLayout()
         after_label = QLabel(_("After capture:"))
         after_label.setStyleSheet(qss_base.label_qss())
-        self._after_action_combo = QComboBox()
+        self._after_action_combo = NoScrollComboBox()
         self._after_action_combo.setMinimumWidth(180)
         self._after_action_combo.addItem(_("None (show editor)"), "none")
         self._after_action_combo.addItem(_("Auto copy to clipboard"), "copy")
@@ -878,6 +914,43 @@ class SettingsDialog(ThemeAwareDialog):
             # （DirectConnection，同一线程），不需要再手动调用。
             # 全局调色板更新：确保对话框外控件（pin_window 等）同步
             _theme.apply_to_app(QApplication.instance())
+            # 更新主题色按钮样式
+            self._update_accent_btn_style()
+
+    def _on_accent_color_click(self) -> None:
+        """Open color picker for accent color selection."""
+        current = QColor(_theme.accent_color)
+        new_color = get_color(current, self, _("Select Accent Color"))
+        if new_color.isValid():
+            hex_color = new_color.name()
+            self._settings.accent_color = hex_color
+            _theme.set_accent_color(hex_color)
+            _theme.apply_to_app(QApplication.instance())
+            self._update_accent_btn_style()
+            logger.info(f"🎨 自定义主题色: {hex_color}")
+
+    def _on_accent_reset(self) -> None:
+        """Reset accent color to default."""
+        self._settings.accent_color = ""
+        _theme.set_accent_color("")
+        _theme.apply_to_app(QApplication.instance())
+        self._update_accent_btn_style()
+        logger.info("🎨 主题色恢复默认")
+
+    def _update_accent_btn_style(self) -> None:
+        """Update accent button appearance to reflect current color."""
+        color = _theme.accent_color
+        border = _theme.get("border")
+        self._accent_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {color};
+                border: 2px solid {border};
+                border-radius: 6px;
+            }}
+            QPushButton:hover {{
+                border-color: {color};
+            }}
+        """)
 
     def _open_permission_settings(self) -> None:
         """Open macOS System Settings for permissions."""
@@ -907,7 +980,6 @@ class SettingsDialog(ThemeAwareDialog):
             defaults = AppSettings()
 
             # Update UI with default values
-            self._hotkey_recorder.set_hotkey(defaults.hotkey)
             self._ocr_lang_input.setText(defaults.ocr_language)
 
             idx = self._color_combo.findData(defaults.default_color)
@@ -1017,7 +1089,8 @@ class SettingsDialog(ThemeAwareDialog):
         s = self._settings
 
         # General
-        data["hotkey"] = self._hotkey_recorder.get_hotkey() or s.hotkey
+        capture_widget = self._shortcut_widgets.get("capture")
+        data["hotkey"] = capture_widget.get_hotkey() if capture_widget else s.hotkey
         data["language"] = self._lang_combo.currentData() or "zh_CN"
         data["theme"] = self._theme_combo.currentData() or "light"
         if hasattr(self, "_launch_checkbox"):
@@ -1092,7 +1165,9 @@ class SettingsDialog(ThemeAwareDialog):
 
         # General
         if "hotkey" in data:
-            self._hotkey_recorder.set_hotkey(str(data["hotkey"]))
+            capture_widget = self._shortcut_widgets.get("capture")
+            if capture_widget:
+                capture_widget.set_hotkey(str(data["hotkey"]))
         if "language" in data:
             idx = self._lang_combo.findData(data["language"])
             if idx >= 0:
@@ -1177,7 +1252,6 @@ class SettingsDialog(ThemeAwareDialog):
     def _reset_tab_general(self) -> None:
         """Reset General tab settings to defaults."""
         defaults = AppSettings()
-        self._hotkey_recorder.set_hotkey(defaults.hotkey)
         lidx = self._lang_combo.findData(defaults.language)
         if lidx >= 0:
             self._lang_combo.setCurrentIndex(lidx)
@@ -1270,7 +1344,7 @@ class SettingsDialog(ThemeAwareDialog):
         color_row_layout = QHBoxLayout()
         color_label = QLabel(_("Color:"))
         color_label.setStyleSheet(qss_base.label_qss())
-        self._color_combo = QComboBox()
+        self._color_combo = NoScrollComboBox()
         self._color_combo.setMinimumWidth(150)
         for c in PRESET_COLORS:
             pix = QPixmap(16, 16)
@@ -1302,7 +1376,7 @@ class SettingsDialog(ThemeAwareDialog):
         font_row = QHBoxLayout()
         font_label = QLabel(_("Font:"))
         font_label.setStyleSheet(qss_base.label_qss())
-        self._font_combo = QComboBox()
+        self._font_combo = NoScrollComboBox()
         self._font_combo.setMinimumWidth(180)
         self._font_combo.addItems(["Segoe UI", "Arial", "Helvetica", "PingFang SC", "Microsoft YaHei"])
         self._font_combo.setEditable(True)
@@ -1397,7 +1471,7 @@ class SettingsDialog(ThemeAwareDialog):
         log_row = QHBoxLayout()
         log_label = QLabel(_("Log Level:"))
         log_label.setStyleSheet(qss_base.label_qss())
-        self._log_level_combo = QComboBox()
+        self._log_level_combo = NoScrollComboBox()
         self._log_level_combo.setMinimumWidth(150)
         self._log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR"])
         log_row.addWidget(log_label)
@@ -1546,12 +1620,19 @@ class SettingsDialog(ThemeAwareDialog):
 
     def _load_settings(self) -> None:
         s = self._settings
-        self._hotkey_recorder.set_hotkey(s.hotkey)
         self._ocr_lang_input.setText(s.ocr_language)
 
         idx = self._color_combo.findData(s.default_color)
         if idx >= 0:
             self._color_combo.setCurrentIndex(idx)
+        else:
+            # 自定义颜色不在预设列表中，添加到下拉框
+            if s.default_color:
+                pix = QPixmap(16, 16)
+                pix.fill(QColor(s.default_color))
+                self._color_combo.addItem(f"  {s.default_color} (custom)", s.default_color)
+                self._color_combo.setItemIcon(self._color_combo.count() - 1, QIcon(pix))
+                self._color_combo.setCurrentIndex(self._color_combo.count() - 1)
         self._width_spin.setValue(s.default_line_width)
         self._font_combo.setCurrentText(s.default_font_family)
         self._font_size_spin.setValue(s.default_font_size)
@@ -1577,6 +1658,11 @@ class SettingsDialog(ThemeAwareDialog):
         theme_idx = self._theme_combo.findData(s.theme)
         if theme_idx >= 0:
             self._theme_combo.setCurrentIndex(theme_idx)
+
+        # Load accent color
+        if s.accent_color:
+            _theme.set_accent_color(s.accent_color)
+        self._update_accent_btn_style()
 
         if hasattr(self, '_launch_checkbox'):
             self._launch_checkbox.setChecked(s.launch_at_startup)
@@ -1612,13 +1698,25 @@ class SettingsDialog(ThemeAwareDialog):
 
     def _save_and_close(self) -> None:
         s = self._settings
-        s.hotkey = self._hotkey_recorder.get_hotkey() or s.hotkey
         s.ocr_language = self._ocr_lang_input.text().strip() or "eng+chi_sim"
 
-        s.default_color = self._color_combo.currentData() or PRESET_COLORS[0]
-        s.default_line_width = self._width_spin.value()
-        s.default_font_family = self._font_combo.currentText()
-        s.default_font_size = self._font_size_spin.value()
+        new_color = self._color_combo.currentData() or PRESET_COLORS[0]
+        new_width = self._width_spin.value()
+        new_font_family = self._font_combo.currentText()
+        new_font_size = self._font_size_spin.value()
+
+        # 如果默认标注设置有变化，清除工具记忆让新默认值生效
+        if (new_color != s.default_color or new_width != s.default_line_width or
+            new_font_family != s.default_font_family or new_font_size != s.default_font_size):
+            s.tool_settings = {}  # 清除所有工具的记忆设置
+            logger.info("标注默认设置已更改，清除工具记忆")
+
+        s.default_color = new_color
+        s.default_line_width = new_width
+        s.default_font_family = new_font_family
+        s.default_font_size = new_font_size
+        logger.debug(f"保存标注设置: color={s.default_color}, width={s.default_line_width}, "
+                     f"font={s.default_font_family}, size={s.default_font_size}")
 
         if self._auto_save_checkbox.isChecked():
             s.auto_save_dir = self._save_dir_input.text().strip()
@@ -1634,6 +1732,7 @@ class SettingsDialog(ThemeAwareDialog):
 
         s.language = self._lang_combo.currentData() or "zh_CN"
         s.theme = self._theme_combo.currentData() or "light"
+        s.accent_color = self._settings.accent_color  # 保存自定义主题色
 
         if hasattr(self, '_launch_checkbox'):
             s.launch_at_startup = self._launch_checkbox.isChecked()
@@ -1641,6 +1740,10 @@ class SettingsDialog(ThemeAwareDialog):
 
         s.pin_window_opacity = self._opacity_slider.value()
         s.log_level = self._log_level_combo.currentText()
+
+        # 立即应用新的日志级别
+        from ..core.logger import apply_log_level
+        apply_log_level(s.log_level)
 
         # ─── Save shortcut settings with conflict detection ───
         shortcut_save_map = {
@@ -1673,7 +1776,8 @@ class SettingsDialog(ThemeAwareDialog):
                         conflicts.append(f"'{widget_key}' and '{seen_values[val]}' both use '{val}'")
                     else:
                         seen_values[val] = widget_key
-                    setattr(s, setting_attr, val)
+                # 保存值（包括空值，允许清除快捷键）
+                setattr(s, setting_attr, val)
 
         if conflicts:
             reply = QMessageBox.warning(
@@ -1689,6 +1793,13 @@ class SettingsDialog(ThemeAwareDialog):
 
         s.save()
         logger.info("Settings saved")
+
+        # 非模态模式：调用回调函数
+        if hasattr(self, '_on_saved_callback') and self._on_saved_callback:
+            new_settings = AppSettings.reload()
+            load_translations(new_settings.language)
+            self._on_saved_callback(new_settings)
+
         self.accept()
 
     def _apply_launch_at_startup(self, enable: bool) -> None:
@@ -1732,8 +1843,38 @@ class SettingsDialog(ThemeAwareDialog):
         except Exception as e:
             logger.warning(f"Failed to update login item: {e}")
 
+    # 类属性：保存当前打开的对话框实例（单例模式）
+    _instance: "SettingsDialog | None" = None
+
+    @classmethod
+    def open_non_modal(cls, parent=None, on_saved=None) -> "SettingsDialog":
+        """非模态方式打开设置对话框，不阻塞主应用。
+
+        Args:
+            parent: 父窗口
+            on_saved: 保存成功后的回调函数，接收 AppSettings 参数
+        """
+        # 单例模式：如果已有实例，激活并返回
+        if cls._instance is not None:
+            cls._instance.raise_()
+            cls._instance.activateWindow()
+            return cls._instance
+
+        dialog = cls(parent)
+        cls._instance = dialog
+        dialog._on_saved_callback = on_saved
+
+        # 对话框关闭时清理实例引用
+        dialog.destroyed.connect(lambda: setattr(cls, '_instance', None))
+
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        return dialog
+
     @staticmethod
     def open(parent=None) -> AppSettings | None:
+        """模态方式打开设置对话框（阻塞直到关闭）。"""
         dialog = SettingsDialog(parent)
         result = dialog.exec()
         if result == QDialog.Accepted:

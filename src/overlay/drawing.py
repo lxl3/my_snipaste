@@ -202,6 +202,7 @@ class OverlayDrawingMixin:
             logger.warning(f"_start_selection called during eraser mode (annotations={len(self.annotations)}), ignoring")
             return
         self.is_selecting = True
+        self.toolbar.close_menus()  # 关闭子菜单
         self.toolbar.toolbar.hide()
         self._deselect_annotation()
         self._detected_window_rect = None  # clear window highlight
@@ -219,6 +220,7 @@ class OverlayDrawingMixin:
         self._drag_mode = mode
         self._drag_start_pos = event.position()
         self._drag_start_rect = QRect(self.selection_rect)
+        self.toolbar.close_menus()  # 关闭子菜单
         self.toolbar.toolbar.hide()
 
     def _update_drag(self, current_pos: QPointF) -> None:

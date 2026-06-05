@@ -24,6 +24,9 @@ class HotkeyRecorderWidget(QWidget):
         self._current_keys = set()
         self._hotkey = ""
 
+        # 必须设置焦点策略才能接收键盘事件
+        self.setFocusPolicy(Qt.StrongFocus)
+
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
