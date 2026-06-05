@@ -11,7 +11,7 @@ Composed of CaptureOverlay (main class) + 5 mixins:
 import math
 import os
 from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
-from PySide6.QtGui import QPainter, QColor, QPen, QFont, QFontMetrics
+from PySide6.QtGui import QPainter, QColor, QPen, QFont, QFontMetrics, QLinearGradient
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, QTimer
 
 from ..core.utils import capture_all_screens
@@ -766,37 +766,29 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         bh = th + padding_v * 2
         hint_rect = QRectF(bx, by, bw, bh)
 
-        # 玻璃态渐变背景（使用主题 token）
-        bg_hex = _tw.get("bg_toolbar", "#FFFFFFD7")
-        try:
-            r = int(bg_hex[1:3], 16)
-            g = int(bg_hex[3:5], 16)
-            b = int(bg_hex[5:7], 16)
-            a = int(bg_hex[7:9], 16) if len(bg_hex) == 9 else 215
-
-            top_a = min(a + 20, 255)
-            bottom_a = max(a - 30, 0)
-
+        # 深色半透明渐变背景（确保文字清晰可见）
+        # 使用深色背景 + 白色文字，对比度更好
+        is_dark = _tw.is_dark()
+        if is_dark:
+            # 暗色模式：使用亮一点的半透明背景
             gradient = QLinearGradient(bx, by, bx, by + bh)
-            gradient.setColorAt(0, QColor(r, g, b, top_a))
-            gradient.setColorAt(1, QColor(r, g, b, bottom_a))
+            gradient.setColorAt(0, QColor(60, 60, 60, 230))
+            gradient.setColorAt(1, QColor(45, 45, 45, 210))
             painter.setBrush(gradient)
-        except Exception:
-            painter.setBrush(QColor(_tw.get("bg_toolbar", "#FFFFFFD7")))
+        else:
+            # 亮色模式：使用深色半透明背景
+            gradient = QLinearGradient(bx, by, bx, by + bh)
+            gradient.setColorAt(0, QColor(40, 40, 40, 230))
+            gradient.setColorAt(1, QColor(25, 25, 25, 210))
+            painter.setBrush(gradient)
 
         painter.setPen(Qt.NoPen)
         painter.drawRoundedRect(hint_rect, 8, 8)
 
-        # 边框高光
-        is_dark = _tw.is_dark()
-        if is_dark:
-            top_color = QColor(255, 255, 255, 50)
-            bottom_color = QColor(0, 0, 0, 100)
-            border_color = QColor(80, 80, 80, 80)
-        else:
-            top_color = QColor(255, 255, 255, 200)
-            bottom_color = QColor(0, 0, 0, 30)
-            border_color = QColor(128, 128, 128, 60)
+        # 边框高光（深色背景上的高光）
+        top_color = QColor(255, 255, 255, 80)
+        bottom_color = QColor(0, 0, 0, 120)
+        border_color = QColor(255, 255, 255, 40)
 
         # 主边框
         painter.setPen(QPen(border_color, 1))
@@ -812,7 +804,12 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         painter.setPen(bottom_color)
         painter.drawLine(int(bx + 8), int(by + bh - 1), int(bx + bw - 8), int(by + bh - 1))
 
-        # 文字（完全不透明的白色，确保清晰）
+        # 文字带阴影效果，确保在任何背景下都清晰
+        # 先绘制深色阴影（偏移1像素）
+        painter.setPen(QColor(0, 0, 0, 180))
+        painter.drawText(int(bx + padding_h + 1), int(by + padding_v + fm.ascent() + 1), hint_text)
+
+        # 再绘制白色文字
         painter.setPen(QColor(255, 255, 255, 255))
         painter.drawText(int(bx + padding_h), int(by + padding_v + fm.ascent()), hint_text)
 
