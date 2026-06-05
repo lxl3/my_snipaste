@@ -417,22 +417,19 @@ class SettingsDialog(ThemeAwareDialog):
     def _on_theme_changed(self, mode: str) -> None:
         """主题切换时重新应用样式（刷新token值）
 
-        利用基类的 6 步刷新流程（QPalette → 清空 QSS → 重建 →
-        themed_widgets → unpolish/polish → scrollArea viewport → repaint），
-        额外修复 QScrollArea 的 content widget 内联背景色（不在 themed_widgets 列表中）。
+        所有需要主题更新的 widget（包括 scroll viewport 和 content）
+        现在都通过 _add_themed_widget 注册，基类会自动更新它们。
         """
-        # 步骤①～⑧：基类统一处理
+        # 基类统一处理所有注册的 themed widgets
         super()._on_theme_changed(mode)
 
-        # 步骤⑨：刷新 QScrollArea 的 content widget 内联背景色
-        # （_create_scroll_area 里 content.setStyleSheet("background: $bg_primary")
-        #   调用时已展开 token，基类未刷新这些 widget）
-        for sa in self.findChildren(QScrollArea):
-            inner = sa.widget()
-            if inner and inner.styleSheet():
-                inner.setStyleSheet(_theme.qss("background: $bg_primary;"))
-                inner.style().unpolish(inner)
-                inner.style().polish(inner)
+        # 额外处理：刷新所有使用 inline styles 的 QLabel
+        # （这些 label 可能在 tab 构建时直接设置了样式，未通过 _add_themed_widget 注册）
+        for label in self.findChildren(QLabel):
+            style = label.styleSheet()
+            # 只处理包含 token 的样式（避免影响无样式或固定样式的 label）
+            if style and '$' in style:
+                label.setStyleSheet(_theme.qss(style))
 
     # ─── General Tab ───
 
@@ -568,15 +565,13 @@ class SettingsDialog(ThemeAwareDialog):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        # 不在此处设置 scrollbar QSS — dialog 的 _apply_styles() 已通过
-        # qss_base.scrollbar_qss() 全局包含，主题切换时自动刷新
 
-        # viewport 背景由 ThemeAwareDialog._on_theme_changed 步骤⑦刷新
-        scroll.viewport().setStyleSheet(_theme.qss("background: $bg_primary;"))
-
-        # 内容容器背景由 SettingsDialog._on_theme_changed 步骤⑨刷新
+        # 内容容器
         content = QWidget()
-        content.setStyleSheet(_theme.qss("background: $bg_primary;"))
+
+        # 注册 viewport 和 content 到主题系统（使用 token 模板）
+        self._add_themed_widget(scroll.viewport(), "background: $bg_primary;")
+        self._add_themed_widget(content, "background: $bg_primary;")
 
         return scroll, content
 

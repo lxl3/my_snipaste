@@ -229,5 +229,8 @@
   "Just now": "刚才",
   "{minutes} minutes ago": "{minutes}分钟前",
   "{hours} hours ago": "{hours}小时前",
-  "{days} days ago": "{days}天前"
+  "{days} days ago": "{days}天前",
+  "Changes are previewed immediately": "更改立即生效",
+  "Controls the opacity of pinned screenshots": "控制贴图窗口的透明度",
+  "Higher levels show fewer messages": "日志级别越高，显示信息越少"
 }

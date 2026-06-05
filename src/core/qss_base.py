@@ -264,6 +264,7 @@ def scrollbar_qss(
         QScrollBar:vertical {{
             width: {width};
             background: transparent;
+            border: none;
             margin: 0;
         }}
         QScrollBar::handle:vertical {{
@@ -284,6 +285,7 @@ def scrollbar_qss(
         QScrollBar:horizontal {{
             height: {width};
             background: transparent;
+            border: none;
             margin: 0;
         }}
         QScrollBar::handle:horizontal {{
