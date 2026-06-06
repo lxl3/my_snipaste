@@ -292,7 +292,9 @@ class ThemeManager(QObject):
             # → "background: rgba(255,255,255,215); color: #333333;"
         """
         result = template
-        for token, color in self._tokens.items():
+        # Sort by key length descending so longer keys (e.g. "border_light")
+        # are replaced before shorter prefix keys (e.g. "border").
+        for token, color in sorted(self._tokens.items(), key=lambda kv: len(kv[0]), reverse=True):
             # QSS 不支持 #RRGGBBAA，转换为 rgba(r,g,b,a)
             if color.startswith("#") and len(color) == 9:
                 r = int(color[1:3], 16)

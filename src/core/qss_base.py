@@ -362,4 +362,4 @@ def label_qss(
         parts.append(f"font-size: {font_size}")
     if font_weight:
         parts.append(f"font-weight: {font_weight}")
-    return "; ".join(parts) + ";"
+    return _theme.qss("; ".join(parts) + ";")
