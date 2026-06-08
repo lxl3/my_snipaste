@@ -244,5 +244,6 @@
   "Click to select accent color": "点击选择主题色",
   "Default": "默认",
   "Select Accent Color": "选择主题色",
-  "Theme": "主题"
+  "Theme": "主题",
+  "Drag to select area, Enter to confirm, Esc to cancel": "拖拽选择区域，回车确认，Esc 取消"
 }

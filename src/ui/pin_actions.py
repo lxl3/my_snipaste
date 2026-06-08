@@ -467,41 +467,47 @@ class PinWindowActionsMixin:
     # ─── Crop ────────────────────────────────────────────
 
     def _crop(self) -> None:
-        """Crop the pinned image to the selected annotation rectangle.
-
-        If not in edit mode (toolbar hidden), enters edit mode so the user
-        can draw a rectangle annotation and then click the toolbar crop button.
-
-        In edit mode, crops to the currently selected rectangle/ellipse
-        annotation, or the first rect/ellipse found.  Does nothing silently
-        if no suitable annotation exists.
-        """
-        # Not in edit mode → show toolbar so user can draw a selection
-        if not self._toolbar_shown:
-            self._show_toolbar()
-            self._on_tool_selected("select")
+        """Enter crop mode or execute crop if already in crop mode with selection."""
+        # Already in crop mode with valid selection → execute crop
+        if self._crop_mode and self._crop_rect and not self._crop_rect.isEmpty():
+            self._execute_crop()
             return
 
-        # In edit mode → find a rect annotation to crop to
-        ann = None
-        if 0 <= self._selected_annotation_index < len(self.annotations):
-            ann = self.annotations[self._selected_annotation_index]
-        if ann is None or ann["type"] not in ("rect", "ellipse"):
-            for a in self.annotations:
-                if a["type"] in ("rect", "ellipse"):
-                    ann = a
-                    break
-        if ann is None:
-            return  # nothing to crop to – silently ignored
+        # Enter crop mode
+        self._crop_mode = True
+        self._crop_rect = None
+        self._crop_dragging = False
+        self._crop_handle = ""
+        # Hide toolbar to focus on cropping
+        if self._toolbar_shown:
+            self._hide_toolbar()
+        self.setCursor(Qt.CrossCursor)
+        self.update()
+        # Show usage hint
+        from ..core.i18n import _
+        from ..ui.toast import ToastManager
+        ToastManager.show(
+            _("Drag to select area, Enter to confirm, Esc to cancel"),
+            "✂", "info", parent=self, duration=3000
+        )
 
-        rect_data = ann["rect"]
-        if isinstance(rect_data, QRectF):
-            x, y, w, h = rect_data.x(), rect_data.y(), rect_data.width(), rect_data.height()
-        else:
-            x, y, w, h = rect_data
+    def _execute_crop(self) -> None:
+        """Execute the crop operation with current crop_rect."""
+        if not self._crop_rect or self._crop_rect.isEmpty():
+            return
+
+        x, y = self._crop_rect.x(), self._crop_rect.y()
+        w, h = self._crop_rect.width(), self._crop_rect.height()
 
         if w <= 1 or h <= 1:
+            self._exit_crop_mode()
             return
+
+        # Clamp to image bounds
+        x = max(0, x)
+        y = max(0, y)
+        w = min(w, self._base_img_w - x)
+        h = min(h, self._base_img_h - y)
 
         pil_img = qpixmap_to_pil(self.pixmap)
         dpr = self.pixmap.devicePixelRatio()
@@ -513,13 +519,13 @@ class PinWindowActionsMixin:
 
         new_w = int(w)
         new_h = int(h)
+        self._base_img_w = new_w
+        self._base_img_h = new_h
         crop_rect = QRectF(0, 0, new_w, new_h)
 
         # Filter & offset surviving annotations
         surviving = []
         for a in self.annotations:
-            if a is ann:
-                continue  # drop the crop-target annotation itself
             t = a["type"]
             keep = False
             if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
@@ -556,6 +562,9 @@ class PinWindowActionsMixin:
 
         self.annotations = surviving
         self._selected_annotation_index = -1
+
+        # Exit crop mode and update
+        self._exit_crop_mode()
         self._after_transform()
 
         from ..core.i18n import _
@@ -564,6 +573,15 @@ class PinWindowActionsMixin:
             _("Cropped to {w} × {h}").format(w=new_w, h=new_h),
             "✂", "success", parent=self
         )
+
+    def _exit_crop_mode(self) -> None:
+        """Exit crop mode without cropping."""
+        self._crop_mode = False
+        self._crop_rect = None
+        self._crop_dragging = False
+        self._crop_handle = ""
+        self.setCursor(Qt.ArrowCursor)
+        self.update()
 
     def _after_transform(self) -> None:
         """Common post-transform steps: reset zoom, resize window, clear undo/redo."""

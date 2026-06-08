@@ -12,7 +12,7 @@ import math
 import os
 from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
 from PySide6.QtGui import QPainter, QColor, QPen, QFont, QFontMetrics, QLinearGradient
-from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, Signal, QEvent, QTimer
+from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QSizeF, Signal, QEvent, QTimer
 
 from ..core.utils import capture_all_screens
 from ..core.settings import get_settings
@@ -127,6 +127,13 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         # ─── Annotation selection / editing state ───
         self._selected_annotation_idx: int | None = None
         self._annotation_drag_orig: dict = {}  # original position data for drag
+
+        # ─── Crop mode state ───
+        self._crop_mode: bool = False
+        self._crop_rect: QRectF | None = None
+        self._crop_dragging: bool = False
+        self._crop_start: QPointF = QPointF()
+        self._crop_handle: str = ""  # "", "move", "nw", "ne", "sw", "se"
 
         self.text_font_family: str = s.default_font_family
         self.text_font_size: int = s.default_font_size
@@ -324,6 +331,35 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 painter.setBrush(QColor(52, 152, 219, 30))
                 painter.drawRect(erase_rect)
 
+            # Crop mode overlay
+            if self._crop_mode and not self.selection_rect.isNull():
+                sr = self.selection_rect
+                if self._crop_rect and not self._crop_rect.isEmpty():
+                    # Convert crop rect to screen coordinates
+                    crop_screen = QRectF(
+                        self._crop_rect.x() + sr.x(),
+                        self._crop_rect.y() + sr.y(),
+                        self._crop_rect.width(),
+                        self._crop_rect.height()
+                    )
+                    # Darken area outside crop rect (within selection)
+                    painter.fillRect(sr.x(), sr.y(), sr.width(), int(self._crop_rect.y()),
+                                     QColor(0, 0, 0, 120))
+                    painter.fillRect(sr.x(), int(crop_screen.bottom()), sr.width(),
+                                     int(sr.height() - self._crop_rect.y() - self._crop_rect.height()),
+                                     QColor(0, 0, 0, 120))
+                    painter.fillRect(sr.x(), int(crop_screen.y()), int(self._crop_rect.x()),
+                                     int(self._crop_rect.height()), QColor(0, 0, 0, 120))
+                    painter.fillRect(int(crop_screen.right()), int(crop_screen.y()),
+                                     int(sr.width() - self._crop_rect.x() - self._crop_rect.width()),
+                                     int(self._crop_rect.height()), QColor(0, 0, 0, 120))
+                    # Draw crop border
+                    painter.setPen(QPen(Qt.white, 2, Qt.DashLine))
+                    painter.setBrush(Qt.NoBrush)
+                    painter.drawRect(crop_screen)
+                    # Draw crop handles
+                    self._draw_crop_handles(painter, crop_screen)
+
             if not (self.toolbar.toolbar.isVisible() and self.toolbar.toolbar.geometry().contains(self.current_mouse_pos)):
                 self._draw_coord_tooltip(painter)
 
@@ -410,6 +446,23 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.update()
                 return
 
+            # ─── Crop mode handling ───
+            if self._crop_mode:
+                local_pos = self._sel_to_local(pos)
+                handle = self._get_crop_handle(local_pos)
+                if handle:
+                    # Start resize/move existing crop rect
+                    self._crop_handle = handle
+                    self._crop_start = local_pos
+                    self._crop_dragging = True
+                else:
+                    # Start new crop rect
+                    self._crop_rect = QRectF(local_pos, QSizeF(0, 0))
+                    self._crop_start = local_pos
+                    self._crop_dragging = True
+                    self._crop_handle = ""
+                return
+
             # ─── Annotation selection / hit-test ───
             if not self.selection_rect.isNull() and self.annotations:
                 hit_idx = self._hit_test_annotation(pos)
@@ -464,6 +517,27 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         # fill eraser selection preview
         if self._erase_fill_rect_start is not None:
             self._erase_fill_rect_current = self.current_mouse_pos
+            self.update()
+            return
+        # Crop mode handling
+        if self._crop_mode:
+            local_pos = self._sel_to_local(self.current_mouse_pos)
+            if self._crop_dragging:
+                if self._crop_handle == "":
+                    # Drawing new crop rect
+                    self._crop_rect = QRectF(self._crop_start, local_pos).normalized()
+                elif self._crop_handle == "move":
+                    # Moving existing crop rect
+                    delta = local_pos - self._crop_start
+                    self._crop_rect.translate(delta)
+                    self._crop_start = local_pos
+                else:
+                    # Resizing crop rect
+                    self._resize_crop_rect(local_pos)
+            else:
+                # Update cursor based on handle hover
+                handle = self._get_crop_handle(local_pos)
+                self._update_crop_cursor(handle)
             self.update()
             return
         if self._drawing:
@@ -535,6 +609,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._erase_fill_rect_current = None
             self.update()
             return
+        # End crop mode drag
+        if self._crop_mode and self._crop_dragging:
+            self._crop_dragging = False
+            self._crop_handle = ""
+            return
         if self._drawing:
             self._finish_drawing()
             return
@@ -567,6 +646,13 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             return
         if self.selection_rect.isNull():
             return
+
+        # Crop mode: double-click inside crop rect to confirm
+        if self._crop_mode and self._crop_rect:
+            local_pos = self._sel_to_local(event.pos())
+            if self._crop_rect.contains(local_pos):
+                self._execute_crop()
+                return
 
         # Text annotation re-edit (takes priority)
         hit_idx = self._hit_test_annotation(event.pos())
@@ -662,6 +748,11 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.grabKeyboard()
                 return
 
+            # Cancel crop mode
+            if self._crop_mode:
+                self._exit_crop_mode()
+                return
+
             # Cancel any active operation
             if self._drawing or self._erasing or self._erase_fill_rect_start is not None:
                 self._drawing = False
@@ -698,6 +789,13 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.update()
                 return
         elif event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            # Enter key: confirm crop if in crop mode
+            if self._crop_mode:
+                if self._crop_rect and not self._crop_rect.isEmpty():
+                    self._execute_crop()
+                else:
+                    self._exit_crop_mode()
+                return
             # Enter key: auto-finish if selection exists
             if not self.selection_rect.isNull():
                 self._auto_finish()
@@ -838,3 +936,65 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._hotkey_panel.hide()
         else:
             self._hotkey_panel.show()
+
+    # ─── Crop mode helpers ───
+
+    def _get_crop_handle(self, pos: QPointF) -> str:
+        """Check if pos is over a crop handle. Returns handle name or empty string."""
+        if not self._crop_rect or self._crop_rect.isEmpty():
+            return ""
+        HANDLE_SIZE = 8
+        r = self._crop_rect
+        handles = {
+            "nw": QRectF(r.left() - HANDLE_SIZE / 2, r.top() - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE),
+            "ne": QRectF(r.right() - HANDLE_SIZE / 2, r.top() - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE),
+            "sw": QRectF(r.left() - HANDLE_SIZE / 2, r.bottom() - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE),
+            "se": QRectF(r.right() - HANDLE_SIZE / 2, r.bottom() - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE),
+        }
+        for name, rect in handles.items():
+            if rect.contains(pos):
+                return name
+        if r.contains(pos):
+            return "move"
+        return ""
+
+    def _update_crop_cursor(self, handle: str) -> None:
+        """Update cursor based on crop handle."""
+        cursors = {
+            "nw": Qt.SizeFDiagCursor,
+            "se": Qt.SizeFDiagCursor,
+            "ne": Qt.SizeBDiagCursor,
+            "sw": Qt.SizeBDiagCursor,
+            "move": Qt.SizeAllCursor,
+        }
+        self.setCursor(cursors.get(handle, Qt.CrossCursor))
+
+    def _resize_crop_rect(self, pos: QPointF) -> None:
+        """Resize crop rect by dragging a corner handle."""
+        if not self._crop_rect:
+            return
+        r = self._crop_rect
+        if self._crop_handle == "nw":
+            r.setTopLeft(pos)
+        elif self._crop_handle == "ne":
+            r.setTopRight(pos)
+        elif self._crop_handle == "sw":
+            r.setBottomLeft(pos)
+        elif self._crop_handle == "se":
+            r.setBottomRight(pos)
+        self._crop_rect = r.normalized()
+
+    def _draw_crop_handles(self, painter: QPainter, rect: QRectF) -> None:
+        """Draw resize handles at corners of crop rect."""
+        HANDLE_SIZE = 8
+        painter.setPen(QPen(Qt.white, 1))
+        painter.setBrush(Qt.white)
+        corners = [
+            (rect.left() - HANDLE_SIZE / 2, rect.top() - HANDLE_SIZE / 2),
+            (rect.right() - HANDLE_SIZE / 2, rect.top() - HANDLE_SIZE / 2),
+            (rect.left() - HANDLE_SIZE / 2, rect.bottom() - HANDLE_SIZE / 2),
+            (rect.right() - HANDLE_SIZE / 2, rect.bottom() - HANDLE_SIZE / 2),
+        ]
+        for x, y in corners:
+            painter.fillRect(int(x), int(y), HANDLE_SIZE, HANDLE_SIZE, Qt.white)
+            painter.drawRect(int(x), int(y), HANDLE_SIZE, HANDLE_SIZE)

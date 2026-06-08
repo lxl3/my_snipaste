@@ -494,55 +494,153 @@ class OverlayActionsMixin:
     # ────────────────────────────────────────────────────────────────
 
     def _crop(self) -> None:
-        """Crop full_screenshot to selection_rect.
-
-        Annotations whose rect/pos falls outside the crop area are dropped.
-        Surviving annotations keep their relative coords (they are already
-        relative to selection_rect, and the new selection starts at (0,0)).
-        """
+        """Enter crop mode or execute crop if already in crop mode with selection."""
         if self.selection_rect.isNull():
             return
-        dpr = self.full_screenshot.devicePixelRatio()
+
+        # Already in crop mode with valid selection → execute crop
+        if self._crop_mode and self._crop_rect and not self._crop_rect.isEmpty():
+            self._execute_crop()
+            return
+
+        # Enter crop mode
+        self._crop_mode = True
+        self._crop_rect = None
+        self._crop_dragging = False
+        self._crop_handle = ""
+        # Close menus and hide toolbar to focus on cropping
+        self.toolbar.close_menus()
+        self.toolbar.toolbar.hide()
+        self.setCursor(Qt.CrossCursor)
+        self.update()
+        # Show usage hint
+        ToastManager.show(
+            _("Drag to select area, Enter to confirm, Esc to cancel"),
+            "✂", "info", parent=self, duration=3000
+        )
+
+    def _execute_crop(self) -> None:
+        """Execute crop: pin cropped area at original position and exit overlay."""
+        if not self._crop_rect or self._crop_rect.isEmpty():
+            return
+
+        x, y = self._crop_rect.x(), self._crop_rect.y()
+        w, h = self._crop_rect.width(), self._crop_rect.height()
+
+        if w <= 1 or h <= 1:
+            self._exit_crop_mode()
+            return
+
+        # Clamp to selection bounds
         sr = self.selection_rect
+        x = max(0, x)
+        y = max(0, y)
+        w = min(w, sr.width() - x)
+        h = min(h, sr.height() - y)
 
-        # Physical copy
-        phys = QRect(round(sr.x() * dpr), round(sr.y() * dpr),
-                     round(sr.width() * dpr), round(sr.height() * dpr))
-        self.full_screenshot = self.full_screenshot.copy(phys)
-        self.full_screenshot.setDevicePixelRatio(dpr)
+        # Calculate screen position of cropped area
+        crop_screen_pos = self.total_geometry.topLeft() + sr.topLeft() + QPoint(int(x), int(y))
 
-        new_w = self.full_screenshot.width() / dpr
-        new_h = self.full_screenshot.height() / dpr
+        dpr = self.full_screenshot.devicePixelRatio()
 
-        # Drop annotations entirely outside the crop rect
-        crop_rect = QRectF(0, 0, new_w, new_h)
+        # Physical copy - crop is relative to selection_rect which starts at sr.x(), sr.y()
+        phys = QRect(round((sr.x() + x) * dpr), round((sr.y() + y) * dpr),
+                     round(w * dpr), round(h * dpr))
+        cropped_pixmap = self.full_screenshot.copy(phys)
+        cropped_pixmap.setDevicePixelRatio(dpr)
+
+        new_w = int(w)
+        new_h = int(h)
+        crop_rect_bounds = QRectF(0, 0, new_w, new_h)
+
+        # Filter & offset surviving annotations, then render them onto cropped pixmap
         surviving = []
         for ann in self.annotations:
             t = ann["type"]
             keep = False
+            ann_copy = dict(ann)
             if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                keep = QRectF(ann["rect"]).intersects(crop_rect)
+                r = QRectF(ann["rect"])
+                r_offset = QRectF(r.x() - x, r.y() - y, r.width(), r.height())
+                keep = r_offset.intersects(crop_rect_bounds)
+                if keep:
+                    ann_copy["rect"] = r_offset
                 if t in ("mosaic", "blur", "magnifier"):
-                    ann.pop("_cached", None)
+                    ann_copy.pop("_cached", None)
             elif t in ("arrow", "line"):
-                keep = crop_rect.contains(ann["start"]) or crop_rect.contains(ann["end"])
+                sp = QPointF(ann["start"])
+                ep = QPointF(ann["end"])
+                sp_offset = QPointF(sp.x() - x, sp.y() - y)
+                ep_offset = QPointF(ep.x() - x, ep.y() - y)
+                keep = crop_rect_bounds.contains(sp_offset) or crop_rect_bounds.contains(ep_offset)
+                if keep:
+                    ann_copy["start"] = sp_offset
+                    ann_copy["end"] = ep_offset
             elif t == "freehand":
-                keep = any(crop_rect.contains(p) for p in ann["points"])
-                ann.pop("_path", None)
+                pts = [QPointF(p) for p in ann["points"]]
+                pts_offset = [QPointF(p.x() - x, p.y() - y) for p in pts]
+                keep = any(crop_rect_bounds.contains(p) for p in pts_offset)
+                if keep:
+                    ann_copy["points"] = pts_offset
+                ann_copy.pop("_path", None)
             elif t in ("text", "number_marker"):
-                keep = crop_rect.contains(ann["pos"])
+                pos = QPointF(ann["pos"])
+                pos_offset = QPointF(pos.x() - x, pos.y() - y)
+                keep = crop_rect_bounds.contains(pos_offset)
+                if keep:
+                    ann_copy["pos"] = pos_offset
             if keep:
-                surviving.append(ann)
-        self.annotations = surviving
+                surviving.append(ann_copy)
 
-        self.selection_rect = QRect(0, 0, round(new_w), round(new_h))
-        self._deselect_annotation()
-        self.update()
-        logger.info("Cropped to %g × %g", new_w, new_h)
+        # Render annotations onto cropped pixmap
+        from PySide6.QtGui import QPixmap
+        result = QPixmap(cropped_pixmap.size())
+        result.setDevicePixelRatio(dpr)
+        result.fill(Qt.transparent)
+        painter = QPainter(result)
+        painter.drawPixmap(0, 0, cropped_pixmap)
+        # Draw annotations using the rendering mixin
+        old_annotations = self.annotations
+        self.annotations = surviving
+        self._draw_annotations(painter, result.size() / dpr, QPoint(0, 0))
+        self.annotations = old_annotations
+        painter.end()
+
+        # Save to history
+        has_annotations = len(surviving) > 0
+        try:
+            ScreenshotHistory().add_screenshot(result, has_annotations)
+        except Exception as e:
+            logger.error(f"Failed to save screenshot to history: {e}")
+
+        # Reset crop mode state before closing
+        self._crop_mode = False
+        self._crop_rect = None
+        self._crop_dragging = False
+        self._crop_handle = ""
+
+        # Pin at original position and close
+        self.pin_requested.emit(result, crop_screen_pos)
+        self.close()
+        logger.info("Cropped and pinned at (%d, %d), size %d × %d",
+                    crop_screen_pos.x(), crop_screen_pos.y(), new_w, new_h)
         ToastManager.show(
-            _("Cropped to {w} × {h}").format(w=round(new_w), h=round(new_h)),
-            "✂", "success", parent=self
+            _("Cropped to {w} × {h}").format(w=new_w, h=new_h),
+            "✂", "success", parent=None
         )
+
+    def _exit_crop_mode(self) -> None:
+        """Exit crop mode without cropping."""
+        self._crop_mode = False
+        self._crop_rect = None
+        self._crop_dragging = False
+        self._crop_handle = ""
+        self.setCursor(Qt.ArrowCursor)
+        # Show toolbar again
+        self._position_toolbar()
+        self.toolbar.toolbar.show()
+        self.toolbar.animate_show()
+        self.update()
 
     # ── helpers ──────────────────────────────────────────────────
 

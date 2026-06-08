@@ -1,6 +1,6 @@
 import math
 from PIL import ImageFilter
-from PySide6.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QSize, Signal
+from PySide6.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QSize, QSizeF, Signal
 from PySide6.QtGui import QPixmap, QPainter, QAction, QColor, QPen, QFont, QFontMetrics, QPainterPath
 from PySide6.QtWidgets import QWidget, QMenu, QApplication, QInputDialog, QLineEdit, QMessageBox
 
@@ -81,6 +81,13 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         # Mouse tracking
         self._current_mouse_pos: QPoint = QPoint()
 
+        # Crop mode state
+        self._crop_mode: bool = False
+        self._crop_rect: QRectF | None = None
+        self._crop_dragging: bool = False
+        self._crop_start: QPointF = QPointF()
+        self._crop_handle: str = ""  # "", "move", "nw", "ne", "sw", "se"
+
         # Tool state (matching overlay toolbar expectations)
         # Load defaults from settings
         s = get_settings()
@@ -96,6 +103,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         self.text_bold: bool = False
         self.text_italic: bool = False
         self.text_color: QColor = QColor(s.default_color)
+        self.current_arrow_style: str = "solid"  # solid / hollow / solid_tail / hollow_tail
 
         # Text editor for inline editing
         self._text_editor: QLineEdit | None = None
@@ -184,6 +192,46 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
                 painter.drawEllipse(mouse_in_img, scaled_r, scaled_r)
 
         painter.restore()
+
+        # --- Draw crop mode overlay ---
+        if self._crop_mode:
+            painter.save()
+            if self._crop_rect and not self._crop_rect.isEmpty():
+                # Convert crop rect to window coordinates
+                zoom = self._zoom_factor if not self._resized_by_user else 1.0
+                crop_window = QRectF(
+                    self._crop_rect.x() * zoom + s,
+                    self._crop_rect.y() * zoom + s,
+                    self._crop_rect.width() * zoom,
+                    self._crop_rect.height() * zoom
+                )
+
+                # Draw semi-transparent mask outside selection
+                mask_color = QColor(0, 0, 0, 128)
+                painter.setBrush(mask_color)
+                painter.setPen(Qt.NoPen)
+
+                # Top region
+                painter.drawRect(QRectF(img_rect.x(), img_rect.y(),
+                                        img_rect.width(), crop_window.y() - img_rect.y()))
+                # Bottom region
+                painter.drawRect(QRectF(img_rect.x(), crop_window.bottom(),
+                                        img_rect.width(), img_rect.bottom() - crop_window.bottom()))
+                # Left region
+                painter.drawRect(QRectF(img_rect.x(), crop_window.y(),
+                                        crop_window.x() - img_rect.x(), crop_window.height()))
+                # Right region
+                painter.drawRect(QRectF(crop_window.right(), crop_window.y(),
+                                        img_rect.right() - crop_window.right(), crop_window.height()))
+
+                # Draw selection border
+                painter.setPen(QPen(QColor(255, 255, 255), 2, Qt.DashLine))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawRect(crop_window)
+
+                # Draw resize handles
+                self._draw_crop_handles(painter, crop_window)
+            painter.restore()
 
     # ─── Zoom ────────────────────────────────────────────
 
@@ -358,6 +406,24 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
             super().mousePressEvent(event)
             return
 
+        # Crop mode handling
+        if self._crop_mode:
+            pos = self._content_pos(event)
+            handle = self._get_crop_handle(pos)
+            if handle:
+                # Start adjusting existing selection
+                self._crop_handle = handle
+                self._crop_start = pos
+                self._crop_dragging = True
+            else:
+                # Start drawing new crop selection
+                self._crop_rect = QRectF(pos, QSizeF(0, 0))
+                self._crop_start = pos
+                self._crop_dragging = True
+                self._crop_handle = ""
+            event.accept()
+            return
+
         # Finish text input if clicking outside the text editor
         if self._text_editor and not self._text_editor.geometry().contains(event.position().toPoint()):
             self._finish_text_input()
@@ -410,6 +476,29 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
     def mouseMoveEvent(self, event) -> None:
         self._current_mouse_pos = event.position().toPoint()
 
+        # Crop mode handling
+        if self._crop_mode:
+            pos = self._content_pos(event)
+            if self._crop_dragging:
+                if self._crop_handle == "":
+                    # Drawing new crop selection
+                    self._crop_rect = QRectF(self._crop_start, pos).normalized()
+                elif self._crop_handle == "move":
+                    # Moving selection
+                    delta = pos - self._crop_start
+                    self._crop_rect.translate(delta)
+                    self._crop_start = pos
+                else:
+                    # Resizing selection
+                    self._resize_crop_rect(pos)
+                self.update()
+            else:
+                # Update cursor based on handle
+                handle = self._get_crop_handle(pos)
+                self._update_crop_cursor(handle)
+            event.accept()
+            return
+
         if self._resizing and self._resize_dir:
             self._handle_resize(event.globalPosition().toPoint())
             event.accept()
@@ -456,6 +545,13 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
     def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
+            # Crop mode handling
+            if self._crop_mode and self._crop_dragging:
+                self._crop_dragging = False
+                self._crop_handle = ""
+                event.accept()
+                return
+
             if self._drawing and self._toolbar_shown:
                 self._finish_drawing()
                 event.accept()
@@ -475,10 +571,32 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event) -> None:
+        # Crop mode: double-click inside selection to confirm
+        if self._crop_mode and self._crop_rect:
+            pos = self._content_pos(event)
+            if self._crop_rect.contains(pos):
+                self._execute_crop()
+                event.accept()
+                return
+
         if self._thumbnail_mode:
             self._exit_thumbnail_mode()
         else:
             self.close()
+
+    def keyPressEvent(self, event) -> None:
+        # Crop mode keyboard handling
+        if self._crop_mode:
+            if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+                if self._crop_rect and not self._crop_rect.isEmpty():
+                    self._execute_crop()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_Escape:
+                self._exit_crop_mode()
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
     # ─── Drawing Logic ───────────────────────────────────
 
@@ -790,6 +908,80 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         self._cleanup_ocr()
         self._hide_toolbar()
         super().closeEvent(event)
+
+    # ─── Crop Mode Helpers ───────────────────────────────
+
+    def _get_crop_handle(self, pos: QPointF) -> str:
+        """Detect which crop handle the mouse is over."""
+        if not self._crop_rect or self._crop_rect.isEmpty():
+            return ""
+
+        HANDLE_SIZE = 10
+        r = self._crop_rect
+
+        # Corner handles
+        corners = {
+            "nw": r.topLeft(),
+            "ne": r.topRight(),
+            "sw": r.bottomLeft(),
+            "se": r.bottomRight(),
+        }
+        for handle, corner in corners.items():
+            handle_rect = QRectF(
+                corner.x() - HANDLE_SIZE / 2,
+                corner.y() - HANDLE_SIZE / 2,
+                HANDLE_SIZE, HANDLE_SIZE
+            )
+            if handle_rect.contains(pos):
+                return handle
+
+        # Inside = move
+        if r.contains(pos):
+            return "move"
+
+        return ""
+
+    def _update_crop_cursor(self, handle: str) -> None:
+        """Update cursor based on crop handle."""
+        cursors = {
+            "nw": Qt.SizeFDiagCursor,
+            "se": Qt.SizeFDiagCursor,
+            "ne": Qt.SizeBDiagCursor,
+            "sw": Qt.SizeBDiagCursor,
+            "move": Qt.SizeAllCursor,
+            "": Qt.CrossCursor,
+        }
+        self.setCursor(cursors.get(handle, Qt.CrossCursor))
+
+    def _resize_crop_rect(self, pos: QPointF) -> None:
+        """Resize crop rect based on active handle."""
+        if not self._crop_rect:
+            return
+
+        r = self._crop_rect
+        if self._crop_handle == "nw":
+            r.setTopLeft(pos)
+        elif self._crop_handle == "ne":
+            r.setTopRight(pos)
+        elif self._crop_handle == "sw":
+            r.setBottomLeft(pos)
+        elif self._crop_handle == "se":
+            r.setBottomRight(pos)
+
+        self._crop_rect = r.normalized()
+
+    def _draw_crop_handles(self, painter: QPainter, rect: QRectF) -> None:
+        """Draw resize handles at corners of crop rect."""
+        HANDLE_SIZE = 8
+        painter.setBrush(QColor(255, 255, 255))
+        painter.setPen(QPen(QColor(0, 120, 215), 1))
+
+        for corner in [rect.topLeft(), rect.topRight(), rect.bottomLeft(), rect.bottomRight()]:
+            painter.drawRect(QRectF(
+                corner.x() - HANDLE_SIZE / 2,
+                corner.y() - HANDLE_SIZE / 2,
+                HANDLE_SIZE, HANDLE_SIZE
+            ))
 
     # ─── Resize / Drag ───────────────────────────────────
 
