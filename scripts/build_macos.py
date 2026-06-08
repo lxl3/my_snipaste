@@ -51,6 +51,7 @@ def build_app() -> bool:
         cmd.extend(["--icon", str(PROJECT_DIR / "icon.ico")])
 
     cmd.extend(["--add-data", f"{PROJECT_DIR / 'assets' / 'icons'}:assets/icons"])
+    cmd.extend(["--add-data", f"{PROJECT_DIR / 'src' / 'resources' / 'locales'}:resources/locales"])
 
     for p in tess_bin_paths:
         cmd.extend(["--add-binary", f"{Path(p)}:tesseract"])

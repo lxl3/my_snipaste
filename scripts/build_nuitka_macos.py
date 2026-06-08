@@ -56,6 +56,7 @@ def build_and_package():
 
     include_data = [
         f"{PROJECT_DIR / 'assets' / 'icons'}=assets/icons",
+        f"{PROJECT_DIR / 'src' / 'resources' / 'locales'}=resources/locales",
     ]
     if tess_bundle_src.exists():
         include_data.append(f"{tess_bundle_src}=tesseract")

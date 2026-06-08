@@ -170,6 +170,10 @@ def run_pyinstaller(use_spec=True, force_rebuild=False, onedir=False) -> bool:
         if assets_icons.exists():
             add_data_args.extend(["--add-data", f"{assets_icons};assets/icons"])
 
+        locales_dir = PROJECT_DIR / "src" / "resources" / "locales"
+        if locales_dir.exists():
+            add_data_args.extend(["--add-data", f"{locales_dir};resources/locales"])
+
         cmd = [
             sys.executable, "-m", "PyInstaller",
             "--onedir" if onedir else "--onefile",
