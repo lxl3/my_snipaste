@@ -1105,10 +1105,10 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         rotate_ccw_act.triggered.connect(self._rotate_ccw)
         transform_menu.addAction(rotate_ccw_act)
         transform_menu.addSeparator()
-        flip_h_act = QAction(create_emoji_icon("↔️"), _("Flip Horizontally"), self)
+        flip_h_act = QAction(create_emoji_icon("⇆"), _("Flip Horizontally"), self)
         flip_h_act.triggered.connect(self._flip_h)
         transform_menu.addAction(flip_h_act)
-        flip_v_act = QAction(create_emoji_icon("↕️"), _("Flip Vertically"), self)
+        flip_v_act = QAction(create_emoji_icon("⇅"), _("Flip Vertically"), self)
         flip_v_act.triggered.connect(self._flip_v)
         transform_menu.addAction(flip_v_act)
 

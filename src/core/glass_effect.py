@@ -78,7 +78,7 @@ def draw_glass_morphism(
             )
             painter.setPen(Qt.NoPen)
             painter.setBrush(QColor(0, 0, 0, alpha))
-            painter.drawRoundedRect(shadow_rect, radius + 1, radius + 1)
+            painter.drawRoundedRect(shadow_rect, radius, radius)
 
     # 2. 主背景：半透明渐变（根据主题模式调整颜色）
     if bg_opacity is None:
