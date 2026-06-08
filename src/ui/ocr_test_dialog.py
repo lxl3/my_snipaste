@@ -182,7 +182,7 @@ class OcrTestDialog(QDialog):
             QRectF(self.rect()),
             radius=12,
             is_dark=_t.is_dark(),
-            draw_shadow=True,
+            draw_shadow=False,  # 不画阴影：阴影向外扩展超出窗口边界会被裁剪，且多层黑色在边缘处累积形成黑边
         )
 
     def _on_theme_changed(self, _mode: str) -> None:
