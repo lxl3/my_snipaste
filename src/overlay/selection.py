@@ -141,6 +141,8 @@ class OverlaySelectionMixin:
             ann["italic"] = value
         elif key == "text_color" and ann["type"] == "text":
             ann["color"] = QColor(value) if isinstance(value, str) else value
+        elif key == "arrow_style" and ann["type"] in ("arrow", "line"):
+            ann["arrow_style"] = value
         self.update()
 
     def _get_annotation_bounds_local(self, ann: dict) -> QRectF:

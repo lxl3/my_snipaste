@@ -1,13 +1,15 @@
-"""日志查看器对话框 - Big Sur 风格毛玻璃设计"""
+"""日志查看器对话框 - Big Sur 风格毛玻璃设计
+
+参考 frosted_glass_demo.py 实现，直接在 self.rect() 绘制，无嵌套结构。
+"""
 
 import os
 import platform
 import subprocess
 
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF
+from PySide6.QtCore import Qt, QRectF, QPoint
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton,
-    QWidget, QGraphicsOpacityEffect, QLabel,
+    QDialog, QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel,
 )
 from PySide6.QtGui import QPainter
 
@@ -16,11 +18,10 @@ from ..core import qss_base
 from ..core.theme import theme as _t
 from ..core.glass_effect import draw_glass_morphism
 from ..core.logger import get_log_dir, get_current_log_path
-from .title_bar import TitleBar
 
 
 class LogViewerDialog(QDialog):
-    """日志查看器 - 非模态、毛玻璃效果、自定义标题栏"""
+    """日志查看器 - 非模态、毛玻璃效果"""
 
     _instance: "LogViewerDialog | None" = None
 
@@ -32,73 +33,92 @@ class LogViewerDialog(QDialog):
         self.setMinimumSize(700, 450)
         self.resize(800, 550)
 
+        self._drag_pos = QPoint()
+
         self._build_ui()
-        self._setup_entrance_animation()
         self._load_log()
 
         _t.theme_changed.connect(self._on_theme_changed)
 
     def _build_ui(self) -> None:
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
+        # 确保子控件背景透明
+        self.setStyleSheet("""
+            QWidget#titleBar, QWidget#footer { background: transparent; }
+            QLabel { background: transparent; }
+        """)
 
-        card = QWidget()
-        card.setObjectName("card")
-        card.setAttribute(Qt.WA_StyledBackground, False)
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(0, 0, 0, 0)
-        card_layout.setSpacing(0)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
         # 标题栏
-        card_layout.addWidget(TitleBar(
-            self, title=_("MySnipaste Log"), show_minimize=False,
-            height=44, title_size="14px", close_size=28,
-            margins=(16, 0, 8, 0),
-            enable_drag=False,
-        ))
+        title_bar = QWidget()
+        title_bar.setObjectName("titleBar")
+        title_bar.setFixedHeight(44)
+        title_layout = QHBoxLayout(title_bar)
+        title_layout.setContentsMargins(16, 0, 8, 0)
+
+        title_label = QLabel(_("MySnipaste Log"))
+        title_label.setStyleSheet(_t.qss("font-size: 14px; font-weight: 600; color: $text_primary;"))
+        self._title_label = title_label
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+
+        close_btn = QPushButton("×")
+        close_btn.setFixedSize(28, 28)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet(_t.qss("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                font-size: 18px;
+                color: $text_secondary;
+                border-radius: 14px;
+            }
+            QPushButton:hover {
+                background: $hover_bg;
+                color: $text_primary;
+            }
+        """))
+        close_btn.clicked.connect(self.close)
+        title_layout.addWidget(close_btn)
+
+        title_bar.mousePressEvent = self._on_title_press
+        title_bar.mouseMoveEvent = self._on_title_move
+
+        layout.addWidget(title_bar)
 
         # 日志内容
-        card_layout.addWidget(self._build_content(), 1)
-
-        # 底部按钮
-        card_layout.addLayout(self._build_footer())
-
-        root.addWidget(card)
-        self._card = card
-
-    def _build_content(self) -> QTextEdit:
         self._text_edit = QTextEdit()
         self._text_edit.setReadOnly(True)
         self._text_edit.setLineWrapMode(QTextEdit.NoWrap)
-
-        text_style = """
+        self._text_edit.setStyleSheet(_t.qss("""
             QTextEdit {
                 border: none;
-                border-top: 1px solid palette(mid);
-                border-bottom: 1px solid palette(mid);
+                border-top: 1px solid $border;
+                border-bottom: 1px solid $border;
                 padding: 12px 16px;
                 font-family: "Consolas", "SF Mono", "Monaco", "Menlo", monospace;
                 font-size: 12px;
-                color: palette(text);
-                background: palette(base);
-                selection-background-color: palette(highlight);
-                selection-color: palette(highlighted-text);
+                color: $text_primary;
+                background: transparent;
+                selection-background-color: $accent;
+                selection-color: $text_accent;
             }
-        """
-        self._text_edit.setStyleSheet(text_style + qss_base.scrollbar_qss())
-        return self._text_edit
+        """) + qss_base.scrollbar_qss())
+        layout.addWidget(self._text_edit, 1)
 
-    def _build_footer(self) -> QHBoxLayout:
-        footer = QHBoxLayout()
-        footer.setContentsMargins(20, 12, 20, 12)
-        footer.setSpacing(12)
+        # 底部按钮栏
+        footer = QWidget()
+        footer.setObjectName("footer")
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(20, 12, 20, 12)
+        footer_layout.setSpacing(12)
 
-        # 日志路径提示
         self._path_label = QLabel()
-        self._path_label.setStyleSheet(qss_base.label_qss(font_size="11px", color="$text_secondary"))
-        footer.addWidget(self._path_label, 1)
+        self._path_label.setStyleSheet(_t.qss("font-size: 11px; color: $text_secondary;"))
+        footer_layout.addWidget(self._path_label, 1)
 
-        # 刷新按钮
         refresh_btn = QPushButton(_("Refresh"))
         refresh_btn.setCursor(Qt.PointingHandCursor)
         refresh_btn.setStyleSheet(qss_base.pushbutton_qss(
@@ -111,9 +131,8 @@ class LogViewerDialog(QDialog):
             font_size="13px",
         ))
         refresh_btn.clicked.connect(self._load_log)
-        footer.addWidget(refresh_btn)
+        footer_layout.addWidget(refresh_btn)
 
-        # 打开目录按钮
         open_label = _("Open in Explorer") if platform.system() == "Windows" else _("Open in Finder")
         open_btn = QPushButton(open_label)
         open_btn.setCursor(Qt.PointingHandCursor)
@@ -127,12 +146,11 @@ class LogViewerDialog(QDialog):
             font_size="13px",
         ))
         open_btn.clicked.connect(self._open_log_dir)
-        footer.addWidget(open_btn)
+        footer_layout.addWidget(open_btn)
 
-        # 关闭按钮
-        close_btn = QPushButton(_("Close"))
-        close_btn.setCursor(Qt.PointingHandCursor)
-        close_btn.setStyleSheet(qss_base.pushbutton_qss(
+        close_btn2 = QPushButton(_("Close"))
+        close_btn2.setCursor(Qt.PointingHandCursor)
+        close_btn2.setStyleSheet(qss_base.pushbutton_qss(
             padding="6px 20px",
             border="none",
             border_radius="6px",
@@ -142,13 +160,12 @@ class LogViewerDialog(QDialog):
             font_size="13px",
             font_weight="500",
         ))
-        close_btn.clicked.connect(self.close)
-        footer.addWidget(close_btn)
+        close_btn2.clicked.connect(self.close)
+        footer_layout.addWidget(close_btn2)
 
-        return footer
+        layout.addWidget(footer)
 
     def _load_log(self) -> None:
-        """加载日志内容"""
         path = get_current_log_path()
         if not path:
             self._text_edit.setPlainText(_("No log files yet"))
@@ -159,7 +176,6 @@ class LogViewerDialog(QDialog):
             with open(path, encoding="utf-8") as f:
                 content = f.read()
             self._text_edit.setPlainText(content if content else _("(empty)"))
-            # 滚动到底部
             scrollbar = self._text_edit.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum())
         except Exception as e:
@@ -168,7 +184,6 @@ class LogViewerDialog(QDialog):
         self._path_label.setText(path)
 
     def _open_log_dir(self) -> None:
-        """打开日志目录"""
         log_dir = get_log_dir()
         try:
             if platform.system() == "Darwin":
@@ -180,38 +195,35 @@ class LogViewerDialog(QDialog):
         except Exception:
             pass
 
-    def _setup_entrance_animation(self) -> None:
-        """入场淡入动画"""
-        self._opacity_effect = QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(self._opacity_effect)
-        self._opacity_effect.setOpacity(0.0)
+    # ─── 拖拽 ───────────────────────────────────────────────
 
-        self._fade_in = QPropertyAnimation(self._opacity_effect, b"opacity")
-        self._fade_in.setDuration(200)
-        self._fade_in.setStartValue(0.0)
-        self._fade_in.setEndValue(1.0)
-        self._fade_in.setEasingCurve(QEasingCurve.OutCubic)
+    def _on_title_press(self, event) -> None:
+        if event.button() == Qt.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
 
-    def showEvent(self, event) -> None:
-        super().showEvent(event)
-        if hasattr(self, '_fade_in'):
-            self._fade_in.start()
+    def _on_title_move(self, event) -> None:
+        if event.buttons() == Qt.LeftButton and self._drag_pos:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+            event.accept()
+
+    # ─── 绘制 ───────────────────────────────────────────────
 
     def paintEvent(self, event) -> None:
-        """绘制毛玻璃背景"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        rect = self._card.geometry()
         draw_glass_morphism(
             painter,
-            QRectF(rect),
+            QRectF(self.rect()),
             radius=12,
             is_dark=_t.is_dark(),
-            draw_shadow=False,
+            draw_shadow=True,
         )
 
     def _on_theme_changed(self, _mode: str) -> None:
+        self._title_label.setStyleSheet(_t.qss("font-size: 14px; font-weight: 600; color: $text_primary;"))
+        self._path_label.setStyleSheet(_t.qss("font-size: 11px; color: $text_secondary;"))
         self.update()
 
     def closeEvent(self, event) -> None:
@@ -232,11 +244,10 @@ class LogViewerDialog(QDialog):
 
     @classmethod
     def show_viewer(cls, parent=None) -> "LogViewerDialog":
-        """显示日志查看器（单例模式）"""
         if cls._instance is not None:
             cls._instance.raise_()
             cls._instance.activateWindow()
-            cls._instance._load_log()  # 刷新内容
+            cls._instance._load_log()
             return cls._instance
 
         dialog = cls(parent)

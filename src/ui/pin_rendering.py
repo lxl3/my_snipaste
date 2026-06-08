@@ -79,7 +79,7 @@ class PinWindowRenderingMixin:
             return
         ux, uy = dx / length, dy / length
         base = ARROW_SIZE_BASE + width * 2
-        spread = base * ARROW_SPREAD_ANGLE  # ARROW_SPREAD_ANGLE is already tan(angle)
+        spread = base * math.tan(ARROW_SPREAD_ANGLE)
         p1 = QPointF(end.x() - ux * base + uy * spread,
                      end.y() - uy * base - ux * spread)
         p2 = QPointF(end.x() - ux * base - uy * spread,

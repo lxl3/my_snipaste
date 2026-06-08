@@ -1,4 +1,4 @@
-from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter
+from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QWidget, QApplication, QToolButton, QFrame, QHBoxLayout, QMenu,
     QWidgetAction, QPushButton, QSpinBox, QVBoxLayout,
@@ -607,9 +607,19 @@ class OverlayToolbar:
         self._update_arrow_style_button_border(btn, style_key)
         return btn
 
+    def _get_active_arrow_style(self) -> str:
+        """Return the arrow_style that should be highlighted: from selected annotation if any, else global."""
+        idx = getattr(self.overlay, '_selected_annotation_idx', None)
+        if idx is not None and 0 <= idx < len(self.overlay.annotations):
+            ann = self.overlay.annotations[idx]
+            if ann["type"] == "arrow":
+                return ann.get("arrow_style", "solid")
+        return self.overlay.current_arrow_style
+
     def _update_arrow_style_button_border(self, btn: QPushButton, style_key: str) -> None:
-        """Update button border to show selected state."""
-        is_current = (style_key == self.overlay.current_arrow_style)
+        """Update button border to show selected state, matching selected annotation if any."""
+        active = self._get_active_arrow_style()
+        is_current = (style_key == active)
         if is_current:
             border = _t.qss("2px solid $color_btn_border_on")
         else:
@@ -621,6 +631,13 @@ class OverlayToolbar:
         self.overlay.current_arrow_style = style_key
         self.overlay._apply_property_to_selected("arrow_style", style_key)
         self._update_arrow_style_state()
+
+    def _refresh_arrow_style_icons(self) -> None:
+        """Redraw style button icons with the current arrow color."""
+        for btn in self._arrow_style_buttons:
+            s = btn.property("arrow_style")
+            if s:
+                btn.setIcon(self._make_arrow_style_icon(s))
 
     def _update_arrow_style_state(self) -> None:
         """Update arrow style button borders to reflect current selection."""
@@ -669,12 +686,17 @@ class OverlayToolbar:
         self._add_color_picker_btn(arrow_layout, self._open_shape_color_picker)
         self._add_color_buttons_to_submenu(arrow_layout, PRESET_COLORS, self._arrow_color_buttons, self._set_shape_color)
         self._add_separator(arrow_layout)
-        # Arrow style buttons: solid / hollow / solid_tail / hollow_tail
+        # Arrow style group — 仅在 "arrow" 子工具激活时显示
+        self._arrow_style_group = QWidget()
+        asg_layout = QHBoxLayout(self._arrow_style_group)
+        asg_layout.setContentsMargins(0, 0, 0, 0)
+        asg_layout.setSpacing(2)
         for style_key in ("solid", "hollow", "solid_tail", "hollow_tail"):
             sb = self._make_arrow_style_button(style_key)
             sb.clicked.connect(lambda checked, s=style_key: self._set_arrow_style(s))
-            arrow_layout.addWidget(sb)
+            asg_layout.addWidget(sb)
             self._arrow_style_buttons.append(sb)
+        arrow_layout.addWidget(self._arrow_style_group)
 
         arrow_action.setDefaultWidget(arrow_container)
         arrow_menu.addAction(arrow_action)
@@ -683,7 +705,23 @@ class OverlayToolbar:
             if self.overlay.current_tool not in ["arrow", "line"]:
                 self._select_tool("arrow", arrow_btn, "arrow")
             self._update_submenu_state(arrow_menu, ["arrow", "line"])
+
+            # 选中已有箭头标注时，同步 current_arrow_style
+            idx = getattr(self.overlay, '_selected_annotation_idx', None)
+            if idx is not None and 0 <= idx < len(self.overlay.annotations):
+                ann = self.overlay.annotations[idx]
+                if ann["type"] == "arrow":
+                    saved = ann.get("arrow_style", "solid")
+                    if saved in ("solid", "hollow", "solid_tail", "hollow_tail"):
+                        self.overlay.current_arrow_style = saved
+
+            # 根据当前子工具显示/隐藏风格按钮组
+            is_arrow = self.overlay.current_tool == "arrow"
+            self._arrow_style_group.setVisible(is_arrow)
+
             self._update_arrow_style_state()
+            # 颜色变化时刷新风格按钮图标
+            self._refresh_arrow_style_icons()
         arrow_menu.aboutToShow.connect(_setup)
 
         self._tool_btns["arrow"] = arrow_btn

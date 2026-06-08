@@ -1,9 +1,11 @@
-"""OCR 测试结果对话框 - Big Sur 风格毛玻璃设计"""
+"""OCR 测试结果对话框 - Big Sur 风格毛玻璃设计
 
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRectF
+参考 frosted_glass_demo.py 实现，直接在 self.rect() 绘制，无嵌套结构。
+"""
+
+from PySide6.QtCore import Qt, QRectF, QPoint
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton,
-    QWidget, QGraphicsOpacityEffect, QLabel,
+    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QWidget,
 )
 from PySide6.QtGui import QPainter
 
@@ -11,7 +13,6 @@ from ..core.i18n import _
 from ..core import qss_base
 from ..core.theme import theme as _t
 from ..core.glass_effect import draw_glass_morphism
-from .title_bar import TitleBar
 
 
 class OcrTestDialog(QDialog):
@@ -27,45 +28,65 @@ class OcrTestDialog(QDialog):
         self._success = success
         self._message = message
         self._details = details
+        self._drag_pos = QPoint()
 
         self._build_ui()
-        self._setup_entrance_animation()
-
         _t.theme_changed.connect(self._on_theme_changed)
 
     def _build_ui(self) -> None:
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
+        # 确保子控件背景透明（不影响按钮样式）
+        self.setStyleSheet("""
+            QWidget#titleBar, QWidget#content, QWidget#footer { background: transparent; }
+            QLabel { background: transparent; }
+        """)
 
-        card = QWidget()
-        card.setObjectName("card")
-        card.setAttribute(Qt.WA_StyledBackground, False)
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(0, 0, 0, 0)
-        card_layout.setSpacing(0)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
         # 标题栏
-        card_layout.addWidget(TitleBar(
-            self, title=_("OCR Test"), show_minimize=False,
-            height=40, title_size="13px", close_size=24,
-            margins=(14, 0, 6, 0),
-            enable_drag=False,
-        ))
+        title_bar = QWidget()
+        title_bar.setObjectName("titleBar")
+        title_bar.setFixedHeight(40)
+        title_layout = QHBoxLayout(title_bar)
+        title_layout.setContentsMargins(14, 0, 6, 0)
+
+        title_label = QLabel(_("OCR Test"))
+        title_label.setStyleSheet(_t.qss("font-size: 13px; font-weight: 600; color: $text_primary;"))
+        self._title_label = title_label
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+
+        close_btn = QPushButton("×")
+        close_btn.setFixedSize(24, 24)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet(_t.qss("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                font-size: 16px;
+                color: $text_secondary;
+                border-radius: 12px;
+            }
+            QPushButton:hover {
+                background: $hover_bg;
+                color: $text_primary;
+            }
+        """))
+        close_btn.clicked.connect(self.close)
+        title_layout.addWidget(close_btn)
+
+        title_bar.mousePressEvent = self._on_title_press
+        title_bar.mouseMoveEvent = self._on_title_move
+
+        layout.addWidget(title_bar)
 
         # 内容区域
-        card_layout.addWidget(self._build_content(), 1)
-
-        # 底部按钮
-        card_layout.addLayout(self._build_footer())
-
-        root.addWidget(card)
-        self._card = card
-
-    def _build_content(self) -> QWidget:
         content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(24, 16, 24, 8)
-        layout.setSpacing(8)
+        content.setObjectName("content")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(24, 16, 24, 8)
+        content_layout.setSpacing(8)
 
         # 状态图标和消息
         status_layout = QHBoxLayout()
@@ -81,32 +102,29 @@ class OcrTestDialog(QDialog):
 
         message_label = QLabel(self._message)
         message_label.setWordWrap(True)
-        message_label.setStyleSheet(qss_base.label_qss(
-            font_size="14px",
-            color="$text_primary",
-            font_weight="500",
-        ))
+        message_label.setStyleSheet(_t.qss("font-size: 14px; color: $text_primary; font-weight: 500;"))
+        self._message_label = message_label
         status_layout.addWidget(message_label, 1)
 
-        layout.addLayout(status_layout)
+        content_layout.addLayout(status_layout)
 
         # 详细信息
         if self._details:
             details_label = QLabel(self._details)
             details_label.setWordWrap(True)
-            details_label.setStyleSheet(qss_base.label_qss(
-                font_size="12px",
-                color="$text_secondary",
-            ))
-            layout.addWidget(details_label)
+            details_label.setStyleSheet(_t.qss("font-size: 12px; color: $text_secondary;"))
+            self._details_label = details_label
+            content_layout.addWidget(details_label)
 
-        layout.addStretch()
-        return content
+        content_layout.addStretch()
+        layout.addWidget(content, 1)
 
-    def _build_footer(self) -> QHBoxLayout:
-        footer = QHBoxLayout()
-        footer.setContentsMargins(20, 8, 20, 14)
-        footer.addStretch()
+        # 底部按钮
+        footer = QWidget()
+        footer.setObjectName("footer")
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(20, 8, 20, 14)
+        footer_layout.addStretch()
 
         close_btn = QPushButton(_("OK"))
         close_btn.setCursor(Qt.PointingHandCursor)
@@ -122,45 +140,15 @@ class OcrTestDialog(QDialog):
             font_weight="500",
         ))
         close_btn.clicked.connect(self.close)
-        footer.addWidget(close_btn)
+        footer_layout.addWidget(close_btn)
 
-        return footer
-
-    def _setup_entrance_animation(self) -> None:
-        self._opacity_effect = QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(self._opacity_effect)
-        self._opacity_effect.setOpacity(0.0)
-
-        self._fade_in = QPropertyAnimation(self._opacity_effect, b"opacity")
-        self._fade_in.setDuration(180)
-        self._fade_in.setStartValue(0.0)
-        self._fade_in.setEndValue(1.0)
-        self._fade_in.setEasingCurve(QEasingCurve.OutCubic)
-
-    def showEvent(self, event) -> None:
-        super().showEvent(event)
-        if hasattr(self, '_fade_in'):
-            self._fade_in.start()
-
-    def paintEvent(self, event) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-
-        rect = self._card.geometry()
-        draw_glass_morphism(
-            painter,
-            QRectF(rect),
-            radius=12,
-            is_dark=_t.is_dark(),
-            draw_shadow=False,  # 禁用阴影避免透明窗口拖动残影
-        )
+        layout.addWidget(footer)
 
     def _apply_icon_style(self) -> None:
-        """应用图标样式（跟随主题色）"""
         if self._success:
             bg_color = _t.get("accent")
         else:
-            bg_color = "#E53935"  # 红色用于错误
+            bg_color = "#E53935"
         self._icon_label.setStyleSheet(f"""
             QLabel {{
                 background: {bg_color};
@@ -171,8 +159,38 @@ class OcrTestDialog(QDialog):
             }}
         """)
 
+    # ─── 拖拽 ───────────────────────────────────────────────
+
+    def _on_title_press(self, event) -> None:
+        if event.button() == Qt.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def _on_title_move(self, event) -> None:
+        if event.buttons() == Qt.LeftButton and self._drag_pos:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+            event.accept()
+
+    # ─── 绘制 ───────────────────────────────────────────────
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        draw_glass_morphism(
+            painter,
+            QRectF(self.rect()),
+            radius=12,
+            is_dark=_t.is_dark(),
+            draw_shadow=True,
+        )
+
     def _on_theme_changed(self, _mode: str) -> None:
         self._apply_icon_style()
+        self._title_label.setStyleSheet(_t.qss("font-size: 13px; font-weight: 600; color: $text_primary;"))
+        self._message_label.setStyleSheet(_t.qss("font-size: 14px; color: $text_primary; font-weight: 500;"))
+        if hasattr(self, '_details_label'):
+            self._details_label.setStyleSheet(_t.qss("font-size: 12px; color: $text_secondary;"))
         self.update()
 
     def closeEvent(self, event) -> None:
@@ -190,9 +208,7 @@ class OcrTestDialog(QDialog):
 
     @staticmethod
     def show_result(success: bool, message: str, details: str = "", parent=None) -> None:
-        """显示 OCR 测试结果"""
         dialog = OcrTestDialog(success, message, details, parent)
-        # 居中于父窗口
         if parent:
             parent_geo = parent.geometry()
             x = parent_geo.x() + (parent_geo.width() - dialog.width()) // 2

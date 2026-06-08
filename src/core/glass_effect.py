@@ -53,10 +53,11 @@ def draw_glass_morphism(
 
     # 1. 外层投影 — 在 card 外围扩散的平滑阴影（模拟光源在上方）
     if draw_shadow:
-        shadow_layers = 16
-        spread = 8               # 均匀扩展宽度（px）
-        bottom_spread = 12       # 底部额外扩展（光源在上方）
-        base_alpha = 28          # 最内层 alpha
+        shadow_layers = 6
+        spread = 3               # 均匀扩展宽度（px）
+        bottom_spread = 4        # 底部额外扩展（光源在上方）
+        # 亮色模式阴影更淡，避免黑边
+        base_alpha = 12 if not is_dark else 18
 
         # 从外（alpha 低）到内（alpha 高）逐层绘制，多层叠加实现平滑衰减
         for i in range(shadow_layers):
@@ -85,8 +86,8 @@ def draw_glass_morphism(
             # 暗色模式：高透明度（玻璃质感）
             bg_opacity = (120, 110, 100)
         else:
-            # 亮色模式：高透明度（玻璃质感）
-            bg_opacity = (140, 130, 120)
+            # 亮色模式：更不透明以遮盖阴影
+            bg_opacity = (230, 220, 210)
 
     gradient = QLinearGradient(bx, by, bx, by + bh)
     if is_dark:
@@ -126,7 +127,7 @@ def draw_glass_morphism(
     if is_dark:
         border_color = QColor(255, 255, 255, 80)  # 暗色模式：亮边框
     else:
-        border_color = QColor(200, 200, 200, 120)  # 亮色模式：灰边框
+        border_color = QColor(220, 220, 220, 80)  # 亮色模式：浅灰边框
 
     painter.setPen(QPen(border_color, 1))
     painter.setBrush(Qt.NoBrush)
