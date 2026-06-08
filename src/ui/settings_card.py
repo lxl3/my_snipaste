@@ -9,7 +9,6 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGraphi
 from PySide6.QtGui import QColor
 
 from ..core.theme import theme as _t
-from ..core import qss_base
 
 
 class SettingsCard(QWidget):
@@ -48,19 +47,12 @@ class SettingsCard(QWidget):
 
             if icon:
                 self._icon_label = QLabel(icon)
-                self._icon_label.setStyleSheet(qss_base.label_qss(
-                    font_size="20px",
-                    color=_t.get("text_primary")
-                ))
+                self._icon_label.setStyleSheet(_t.qss("color: $text_primary; font-size: 20px;"))
                 header.addWidget(self._icon_label)
 
             if title:
                 self._title_label = QLabel(title)
-                self._title_label.setStyleSheet(qss_base.label_qss(
-                    font_size="15px",
-                    font_weight="600",
-                    color=_t.get("text_primary")
-                ))
+                self._title_label.setStyleSheet(_t.qss("color: $text_primary; font-size: 15px; font-weight: 600;"))
                 header.addWidget(self._title_label)
 
             header.addStretch()
@@ -124,16 +116,9 @@ class SettingsCard(QWidget):
 
         # 更新图标和标题的颜色
         if self._icon_label:
-            self._icon_label.setStyleSheet(qss_base.label_qss(
-                font_size="20px",
-                color=_t.get("text_primary")
-            ))
+            self._icon_label.setStyleSheet(_t.qss("color: $text_primary; font-size: 20px;"))
         if self._title_label:
-            self._title_label.setStyleSheet(qss_base.label_qss(
-                font_size="15px",
-                font_weight="600",
-                color=_t.get("text_primary")
-            ))
+            self._title_label.setStyleSheet(_t.qss("color: $text_primary; font-size: 15px; font-weight: 600;"))
 
         # 注意：不调用 unpolish/polish，因为父 dialog 的 _on_theme_changed
         # 会遍历所有子 widget 并统一刷新，避免重复操作导致延迟

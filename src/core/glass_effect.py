@@ -51,18 +51,33 @@ def draw_glass_morphism(
     """
     bx, by, bw, bh = rect.x(), rect.y(), rect.width(), rect.height()
 
-    # 1. 外层投影（多层叠加，营造深度）
+    # 1. 外层投影 — 在 card 外围扩散的平滑阴影（模拟光源在上方）
     if draw_shadow:
-        base_alpha = [60, 30, 15]
-        shadow_layers = [
-            (QColor(0, 0, 0, int(alpha * shadow_intensity)), 0, offset)
-            for alpha, offset in zip(base_alpha, [4, 8, 12])
-        ]
-        for shadow_color, offset_x, offset_y in shadow_layers:
+        shadow_layers = 16
+        spread = 8               # 均匀扩展宽度（px）
+        bottom_spread = 12       # 底部额外扩展（光源在上方）
+        base_alpha = 28          # 最内层 alpha
+
+        # 从外（alpha 低）到内（alpha 高）逐层绘制，多层叠加实现平滑衰减
+        for i in range(shadow_layers):
+            t = i / shadow_layers                       # 0→1
+            alpha = int(base_alpha * shadow_intensity * t)
+            if alpha <= 0:
+                continue
+
+            # 逐层缩小：外层离 card 远 → 内层贴近 card
+            expand = spread * (1 - t)                    # 向外扩散量
+            bottom_expand = bottom_spread * (1 - t)      # 底部额外扩散
+
+            shadow_rect = QRectF(
+                bx - expand,
+                by - expand,
+                bw + expand * 2,
+                bh + expand * 2 + bottom_expand
+            )
             painter.setPen(Qt.NoPen)
-            painter.setBrush(shadow_color)
-            shadow_rect = rect.adjusted(offset_x, offset_y, offset_x, offset_y)
-            painter.drawRoundedRect(shadow_rect, radius, radius)
+            painter.setBrush(QColor(0, 0, 0, alpha))
+            painter.drawRoundedRect(shadow_rect, radius + 1, radius + 1)
 
     # 2. 主背景：半透明渐变（根据主题模式调整颜色）
     if bg_opacity is None:

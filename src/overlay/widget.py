@@ -99,6 +99,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             # No saved settings, use defaults
             self.current_color: QColor = QColor(s.default_color)
             self.current_width: int = s.default_line_width
+        self.current_arrow_style: str = "solid"  # solid / hollow / solid_tail / hollow_tail
         self.current_blur_radius: int = 10
         self.current_magnifier_zoom: int = 2
         self.current_mosaic_scale: int = 8

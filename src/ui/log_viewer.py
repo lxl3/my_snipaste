@@ -54,6 +54,7 @@ class LogViewerDialog(QDialog):
             self, title=_("MySnipaste Log"), show_minimize=False,
             height=44, title_size="14px", close_size=28,
             margins=(16, 0, 8, 0),
+            enable_drag=False,
         ))
 
         # 日志内容
@@ -207,8 +208,7 @@ class LogViewerDialog(QDialog):
             QRectF(rect),
             radius=12,
             is_dark=_t.is_dark(),
-            draw_shadow=True,
-            shadow_intensity=0.6,
+            draw_shadow=False,
         )
 
     def _on_theme_changed(self, _mode: str) -> None:

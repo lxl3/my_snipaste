@@ -355,11 +355,20 @@ def label_qss(
     color: str = "$text_primary",
     font_size: str = "",
     font_weight: str = "",
+    selector: str = "",
 ) -> str:
-    """通用 QLabel 样式。"""
+    """通用 QLabel 样式。
+
+    Args:
+        selector: CSS 选择器。若为空，返回裸属性（用于 inline setStyleSheet）；
+                  若指定（如 "QLabel"），返回完整规则（用于 dialog 级 QSS）。
+    """
     parts = [f"color: {color}"]
     if font_size:
         parts.append(f"font-size: {font_size}")
     if font_weight:
         parts.append(f"font-weight: {font_weight}")
-    return _theme.qss("; ".join(parts) + ";")
+    props = "; ".join(parts) + ";"
+    if selector:
+        return _theme.qss(f"{selector} {{ {props} }}")
+    return _theme.qss(props)

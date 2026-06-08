@@ -19,7 +19,7 @@ from ..core.theme import theme as _theme
 from ..core import qss_base
 from .theme_dialog import ThemeAwareDialog
 from .title_bar import TitleBar
-from .toggle_switch import ToggleSwitch
+from .toggle_switch import ToggleSwitch, ToggleRow
 from .settings_card import SettingsCard
 
 logger = setup_logger("settings_dialog")
@@ -408,7 +408,7 @@ class SettingsDialog(ThemeAwareDialog):
             qss_base.pushbutton_qss(),
             qss_base.checkbox_qss(),
             qss_base.combobox_qss(),
-            qss_base.label_qss(),
+            qss_base.label_qss(selector="QLabel"),
             qss_base.slider_qss(),
         ])
         self.setStyleSheet(dialog_specific + shared)
@@ -512,7 +512,7 @@ class SettingsDialog(ThemeAwareDialog):
         theme_card.add_layout(accent_row)
 
         hint_theme = QLabel(_("Changes are previewed immediately"))
-        hint_theme.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
+        self._add_themed_widget(hint_theme, "QLabel { color: $text_placeholder; font-size: 11px; }")
         theme_card.add_widget(hint_theme)
         layout.addWidget(theme_card)
 
@@ -529,23 +529,23 @@ class SettingsDialog(ThemeAwareDialog):
             input_label = QLabel()
             if status["input_monitoring"]:
                 input_label.setText("✓ " + _("Input Monitoring: Granted"))
-                input_label.setStyleSheet(qss_base.label_qss(color="#4CAF50", font_weight="600"))
+                input_label.setStyleSheet("color: #4CAF50; font-weight: 600;")
             else:
                 input_label.setText("✗ " + _("Input Monitoring: Not Granted"))
-                input_label.setStyleSheet(qss_base.label_qss(color="#E53935", font_weight="600"))
+                input_label.setStyleSheet("color: #E53935; font-weight: 600;")
             perm_card.add_widget(input_label)
 
             # Screen Recording
             screen_label = QLabel()
             if status["screen_recording"]:
                 screen_label.setText("✓ " + _("Screen Recording: Granted"))
-                screen_label.setStyleSheet(qss_base.label_qss(color="#4CAF50"))
+                screen_label.setStyleSheet("color: #4CAF50;")
             elif status["screen_recording"] is None:
                 screen_label.setText("• " + _("Screen Recording: Unknown"))
-                screen_label.setStyleSheet(qss_base.label_qss(color="$text_placeholder"))
+                self._add_themed_widget(screen_label, "QLabel { color: $text_placeholder; }")
             else:
                 screen_label.setText("✗ " + _("Screen Recording: Not Granted"))
-                screen_label.setStyleSheet(qss_base.label_qss(color="#E53935"))
+                screen_label.setStyleSheet("color: #E53935;")
             perm_card.add_widget(screen_label)
 
             perm_card.add_spacing(8)
@@ -560,14 +560,8 @@ class SettingsDialog(ThemeAwareDialog):
 
             # 🚀 启动卡片
             startup_card = SettingsCard(icon="🚀", title=_("Startup"))
-            startup_row = QHBoxLayout()
-            startup_label = QLabel(_("Launch at login"))
-            startup_label.setStyleSheet(qss_base.label_qss())
-            self._launch_checkbox = ToggleSwitch()
-            startup_row.addWidget(startup_label)
-            startup_row.addStretch()
-            startup_row.addWidget(self._launch_checkbox)
-            startup_card.add_layout(startup_row)
+            self._launch_checkbox = ToggleRow(_("Launch at login"))
+            startup_card.add_widget(self._launch_checkbox)
             layout.addWidget(startup_card)
 
         # 底部重置按钮
@@ -670,22 +664,16 @@ class SettingsDialog(ThemeAwareDialog):
         save_card = SettingsCard(icon="💾", title=_("Auto Save"))
 
         # Toggle 行
-        auto_save_row = QHBoxLayout()
-        auto_save_label = QLabel(_("Auto save to directory"))
-        auto_save_label.setStyleSheet(qss_base.label_qss())
-        self._auto_save_checkbox = ToggleSwitch()
+        self._auto_save_checkbox = ToggleRow(_("Auto save to directory"))
         self._auto_save_checkbox.toggled.connect(self._on_auto_save_toggle)
-        auto_save_row.addWidget(auto_save_label)
-        auto_save_row.addStretch()
-        auto_save_row.addWidget(self._auto_save_checkbox)
-        save_card.add_layout(auto_save_row)
+        save_card.add_widget(self._auto_save_checkbox)
 
         save_card.add_spacing(8)
 
         # 目录选择行
         dir_row = QHBoxLayout()
         dir_label = QLabel(_("Directory:"))
-        dir_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(dir_label, "QLabel { color: $text_primary; }")
         self._save_dir_input = QLineEdit()
         self._save_dir_input.setReadOnly(True)
         self._save_dir_input.setPlaceholderText(_("Select default save directory..."))
@@ -700,7 +688,7 @@ class SettingsDialog(ThemeAwareDialog):
         # 格式行
         format_row = QHBoxLayout()
         format_label = QLabel(_("Format:"))
-        format_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(format_label, "QLabel { color: $text_primary; }")
         self._format_combo = NoScrollComboBox()
         self._format_combo.setMinimumWidth(120)
         self._format_combo.addItems(["PNG", "JPEG"])
@@ -715,31 +703,19 @@ class SettingsDialog(ThemeAwareDialog):
         behavior_card = SettingsCard(icon="🎯", title=_("Capture Behavior"))
 
         # 播放声音
-        sound_row = QHBoxLayout()
-        sound_label = QLabel(_("Play sound when capturing"))
-        sound_label.setStyleSheet(qss_base.label_qss())
-        self._sound_checkbox = ToggleSwitch()
-        sound_row.addWidget(sound_label)
-        sound_row.addStretch()
-        sound_row.addWidget(self._sound_checkbox)
-        behavior_card.add_layout(sound_row)
+        self._sound_checkbox = ToggleRow(_("Play sound when capturing"))
+        behavior_card.add_widget(self._sound_checkbox)
 
         # 包含光标
-        cursor_row = QHBoxLayout()
-        cursor_label = QLabel(_("Include mouse cursor"))
-        cursor_label.setStyleSheet(qss_base.label_qss())
-        self._cursor_checkbox = ToggleSwitch()
-        cursor_row.addWidget(cursor_label)
-        cursor_row.addStretch()
-        cursor_row.addWidget(self._cursor_checkbox)
-        behavior_card.add_layout(cursor_row)
+        self._cursor_checkbox = ToggleRow(_("Include mouse cursor"))
+        behavior_card.add_widget(self._cursor_checkbox)
 
         behavior_card.add_spacing(8)
 
         # 截图延迟
         delay_row = QHBoxLayout()
         delay_label = QLabel(_("Capture delay:"))
-        delay_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(delay_label, "QLabel { color: $text_primary; }")
         self._delay_spin = QSpinBox()
         self._delay_spin.setRange(0, 10)
         self._delay_spin.setSuffix(_(" seconds"))
@@ -752,7 +728,7 @@ class SettingsDialog(ThemeAwareDialog):
         # 截图后操作
         after_row = QHBoxLayout()
         after_label = QLabel(_("After capture:"))
-        after_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(after_label, "QLabel { color: $text_primary; }")
         self._after_action_combo = NoScrollComboBox()
         self._after_action_combo.setMinimumWidth(180)
         self._after_action_combo.addItem(_("None (show editor)"), "none")
@@ -825,7 +801,7 @@ class SettingsDialog(ThemeAwareDialog):
         # 语言输入行
         lang_row = QHBoxLayout()
         lang_label = QLabel(_("Languages:"))
-        lang_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(lang_label, "QLabel { color: $text_primary; }")
         self._ocr_lang_input = QLineEdit()
         self._ocr_lang_input.setPlaceholderText(_("e.g. eng, chi_sim, eng+chi_sim"))
         lang_row.addWidget(lang_label)
@@ -838,7 +814,7 @@ class SettingsDialog(ThemeAwareDialog):
               "Common: eng, chi_sim, jpn, fra, deu, spa\n"
               "Run 'tesseract --list-langs' to see installed.")
         )
-        lang_hint.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
+        self._add_themed_widget(lang_hint, "QLabel { color: $text_placeholder; font-size: 11px; }")
         ocr_card.add_widget(lang_hint)
 
         ocr_card.add_spacing(8)
@@ -1353,7 +1329,7 @@ class SettingsDialog(ThemeAwareDialog):
         # 颜色选择行
         color_row_layout = QHBoxLayout()
         color_label = QLabel(_("Color:"))
-        color_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(color_label, "QLabel { color: $text_primary; }")
         self._color_combo = NoScrollComboBox()
         self._color_combo.setMinimumWidth(150)
         for c in PRESET_COLORS:
@@ -1373,7 +1349,7 @@ class SettingsDialog(ThemeAwareDialog):
         # 线宽行
         width_row = QHBoxLayout()
         width_label = QLabel(_("Line Width:"))
-        width_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(width_label, "QLabel { color: $text_primary; }")
         self._width_spin = QSpinBox()
         self._width_spin.setRange(1, 20)
         self._width_spin.setMinimumWidth(100)
@@ -1385,7 +1361,7 @@ class SettingsDialog(ThemeAwareDialog):
         # 字体行
         font_row = QHBoxLayout()
         font_label = QLabel(_("Font:"))
-        font_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(font_label, "QLabel { color: $text_primary; }")
         self._font_combo = NoScrollComboBox()
         self._font_combo.setMinimumWidth(180)
         self._font_combo.addItems(["Segoe UI", "Arial", "Helvetica", "PingFang SC", "Microsoft YaHei"])
@@ -1398,7 +1374,7 @@ class SettingsDialog(ThemeAwareDialog):
         # 字号行
         font_size_row = QHBoxLayout()
         font_size_label = QLabel(_("Font Size:"))
-        font_size_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(font_size_label, "QLabel { color: $text_primary; }")
         self._font_size_spin = QSpinBox()
         self._font_size_spin.setRange(8, 72)
         self._font_size_spin.setMinimumWidth(100)
@@ -1453,12 +1429,12 @@ class SettingsDialog(ThemeAwareDialog):
         # 不透明度滑块行
         opacity_row = QHBoxLayout()
         opacity_label_text = QLabel(_("Opacity:"))
-        opacity_label_text.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(opacity_label_text, "QLabel { color: $text_primary; }")
         self._opacity_slider = QSlider(Qt.Horizontal)
         self._opacity_slider.setRange(30, 100)
         self._opacity_slider.setStyleSheet(qss_base.slider_qss())
         self._opacity_label = QLabel("100%")
-        self._opacity_label.setStyleSheet(qss_base.label_qss(font_weight="600"))
+        self._add_themed_widget(self._opacity_label, "QLabel { color: $text_primary; font-weight: 600; }")
         self._opacity_label.setMinimumWidth(50)
         self._opacity_slider.valueChanged.connect(
             lambda v: self._opacity_label.setText(f"{v}%")
@@ -1469,7 +1445,7 @@ class SettingsDialog(ThemeAwareDialog):
         pin_card.add_layout(opacity_row)
 
         hint_opacity = QLabel(_("Controls the opacity of pinned screenshots"))
-        hint_opacity.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
+        self._add_themed_widget(hint_opacity, "QLabel { color: $text_placeholder; font-size: 11px; }")
         pin_card.add_widget(hint_opacity)
 
         layout.addWidget(pin_card)
@@ -1480,7 +1456,7 @@ class SettingsDialog(ThemeAwareDialog):
         # 日志级别行
         log_row = QHBoxLayout()
         log_label = QLabel(_("Log Level:"))
-        log_label.setStyleSheet(qss_base.label_qss())
+        self._add_themed_widget(log_label, "QLabel { color: $text_primary; }")
         self._log_level_combo = NoScrollComboBox()
         self._log_level_combo.setMinimumWidth(150)
         self._log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR"])
@@ -1490,7 +1466,7 @@ class SettingsDialog(ThemeAwareDialog):
         log_card.add_layout(log_row)
 
         hint_log = QLabel(_("Higher levels show fewer messages"))
-        hint_log.setStyleSheet(qss_base.label_qss(color="$text_placeholder", font_size="11px"))
+        self._add_themed_widget(hint_log, "QLabel { color: $text_placeholder; font-size: 11px; }")
         log_card.add_widget(hint_log)
 
         layout.addWidget(log_card)
@@ -1557,7 +1533,7 @@ class SettingsDialog(ThemeAwareDialog):
             row = QHBoxLayout()
             row.setSpacing(8)
             label_widget = QLabel(label + ":")
-            label_widget.setStyleSheet(qss_base.label_qss(font_size="13px"))
+            self._add_themed_widget(label_widget, "QLabel { color: $text_primary; font-size: 13px; }")
             label_widget.setMinimumWidth(150)
             rec = HotkeyRecorderWidget()
             self._shortcut_widgets[key] = rec
@@ -1567,7 +1543,7 @@ class SettingsDialog(ThemeAwareDialog):
 
             # 冲突警告（初始隐藏）
             warn = QLabel("")
-            warn.setStyleSheet(qss_base.label_qss(color="$hotkey_conflict", font_size="11px"))
+            self._add_themed_widget(warn, "QLabel { color: $hotkey_conflict; font-size: 11px; }")
             warn.setVisible(False)
             hotkey_row.addWidget(warn)
 
@@ -1596,7 +1572,7 @@ class SettingsDialog(ThemeAwareDialog):
             hotkey_row = QHBoxLayout()
             hotkey_row.setSpacing(8)
             label_widget = QLabel(label + ":")
-            label_widget.setStyleSheet(qss_base.label_qss(font_size="13px"))
+            self._add_themed_widget(label_widget, "QLabel { color: $text_primary; font-size: 13px; }")
             label_widget.setMinimumWidth(150)
             rec = HotkeyRecorderWidget()
             self._shortcut_widgets[key] = rec

@@ -64,9 +64,14 @@ class PinWindowRenderingMixin:
         start = QPointF(*ann["start"])
         end = QPointF(*ann["end"])
         width = ann["width"]
-        painter.setPen(QPen(QColor(ann["color"]), width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        color = QColor(ann["color"])
+        arrow_style = ann.get("arrow_style", "solid")
+
+        # Draw shaft line
+        painter.setPen(QPen(color, width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         painter.drawLine(start, end)
 
+        # Calculate arrowhead geometry
         dx = end.x() - start.x()
         dy = end.y() - start.y()
         length = math.sqrt(dx * dx + dy * dy)
@@ -74,17 +79,36 @@ class PinWindowRenderingMixin:
             return
         ux, uy = dx / length, dy / length
         base = ARROW_SIZE_BASE + width * 2
-        p1 = QPointF(end.x() - ux * base + uy * base * ARROW_SPREAD_ANGLE,
-                     end.y() - uy * base - ux * base * ARROW_SPREAD_ANGLE)
-        p2 = QPointF(end.x() - ux * base - uy * base * ARROW_SPREAD_ANGLE,
-                     end.y() - uy * base + ux * base * ARROW_SPREAD_ANGLE)
-        path = QPainterPath()
-        path.moveTo(end)
-        path.lineTo(p1)
-        path.lineTo(p2)
-        path.closeSubpath()
-        painter.setBrush(QColor(ann["color"]))
-        painter.drawPath(path)
+        spread = base * ARROW_SPREAD_ANGLE  # ARROW_SPREAD_ANGLE is already tan(angle)
+        p1 = QPointF(end.x() - ux * base + uy * spread,
+                     end.y() - uy * base - ux * spread)
+        p2 = QPointF(end.x() - ux * base - uy * spread,
+                     end.y() - uy * base + ux * spread)
+
+        if arrow_style in ("solid", "solid_tail"):
+            # Solid: filled triangle
+            path = QPainterPath()
+            path.moveTo(end)
+            path.lineTo(p1)
+            path.lineTo(p2)
+            path.closeSubpath()
+            painter.setBrush(color)
+            painter.setPen(Qt.NoPen)
+            painter.drawPath(path)
+        else:
+            # Hollow: outline V shape (no fill)
+            painter.setPen(QPen(color, max(1, width), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            painter.setBrush(Qt.NoBrush)
+            v_path = QPainterPath()
+            v_path.moveTo(p1)
+            v_path.lineTo(end)
+            v_path.lineTo(p2)
+            painter.drawPath(v_path)
+
+        if arrow_style in ("solid_tail", "hollow_tail"):
+            # With tail: perpendicular line at the arrow base (p1 → p2)
+            painter.setPen(QPen(color, max(1, width), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            painter.drawLine(p1, p2)
 
     def _draw_line(self, painter: QPainter, ann: dict) -> None:
         start = QPointF(*ann["start"])

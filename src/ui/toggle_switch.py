@@ -4,11 +4,12 @@
 用于设置页面代替传统的 CheckBox。
 """
 
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Property
+from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Property, Signal
 from PySide6.QtGui import QPainter, QColor, QPen
-from PySide6.QtWidgets import QCheckBox
+from PySide6.QtWidgets import QCheckBox, QWidget, QHBoxLayout, QLabel
 
 from ..core.theme import theme as _t
+from ..core import qss_base
 
 
 class ToggleSwitch(QCheckBox):
@@ -133,6 +134,93 @@ class ToggleSwitch(QCheckBox):
 
     def destroy(self, destroyWindow: bool = True, destroySubWindows: bool = True):
         """清理主题信号连接"""
+        try:
+            _t.theme_changed.disconnect(self._on_theme_changed)
+        except (TypeError, RuntimeError):
+            pass
+        return super().destroy(destroyWindow, destroySubWindows)
+
+
+class ToggleRow(QWidget):
+    """整行可点击的开关组件
+
+    包含标签和开关，点击行内任意位置都能切换状态。
+    Hover 时显示背景高亮，提示用户整行可点击。
+
+    用法：
+        row = ToggleRow("启用自动保存")
+        row.toggled.connect(lambda checked: print(checked))
+        row.setChecked(True)
+    """
+
+    toggled = Signal(bool)
+
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(parent)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(8)
+
+        self._label = QLabel(text)
+        color = _t.get("text_primary")
+        self._label.setStyleSheet(f"color: {color};")
+        self._toggle = ToggleSwitch()
+
+        layout.addWidget(self._label)
+        layout.addStretch()
+        layout.addWidget(self._toggle)
+
+        self._toggle.toggled.connect(self.toggled.emit)
+        _t.theme_changed.connect(self._on_theme_changed)
+        self._apply_style()
+
+    def _apply_style(self, hover: bool = False):
+        if hover:
+            bg = _t.get("bg_hover", "#E5E5E5" if not _t.is_dark() else "#3A3A3A")
+        else:
+            bg = "transparent"
+        self.setStyleSheet(f"ToggleRow {{ background: {bg}; border-radius: 6px; }}")
+
+    def _on_theme_changed(self, mode: str):
+        # 强制刷新标签颜色
+        color = _t.get("text_primary")
+        self._label.setStyleSheet(f"color: {color};")
+        self._apply_style()
+
+    def enterEvent(self, event):
+        self._apply_style(hover=True)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._apply_style(hover=False)
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._toggle.setChecked(not self._toggle.isChecked())
+        super().mousePressEvent(event)
+
+    def isChecked(self) -> bool:
+        return self._toggle.isChecked()
+
+    def setChecked(self, checked: bool):
+        self._toggle.setChecked(checked)
+
+    def setEnabled(self, enabled: bool):
+        super().setEnabled(enabled)
+        self._toggle.setEnabled(enabled)
+        self._label.setEnabled(enabled)
+
+    def label(self) -> QLabel:
+        return self._label
+
+    def toggle(self) -> ToggleSwitch:
+        return self._toggle
+
+    def destroy(self, destroyWindow: bool = True, destroySubWindows: bool = True):
         try:
             _t.theme_changed.disconnect(self._on_theme_changed)
         except (TypeError, RuntimeError):

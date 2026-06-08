@@ -144,6 +144,7 @@ class OverlayDrawingMixin:
                 self._preview_annotation = {
                     "type": self.current_tool, "start": QPointF(self._draw_start),
                     "end": QPointF(local), "color": QColor(self.current_color), "width": self.current_width,
+                    "arrow_style": self.current_arrow_style,
                 }
             elif self.current_tool == "mosaic":
                 r = QRectF(self._draw_start, local).normalized()
@@ -265,6 +266,9 @@ class OverlayDrawingMixin:
                 "color": self.current_color.name(),
                 "width": self.current_width,
             }
+            # Save arrow_style for arrow/line tools
+            if self.current_tool in ("arrow", "line"):
+                settings_dict["arrow_style"] = self.current_arrow_style
             s = get_settings()
             s.save_tool_settings(self.current_tool, settings_dict)
 
@@ -302,6 +306,11 @@ class OverlayDrawingMixin:
                 saved_width = tool_settings.get("width")
                 if saved_width is not None:
                     self.current_width = saved_width
+                # Restore arrow_style for arrow/line tools
+                if tool_id in ("arrow", "line"):
+                    saved_arrow_style = tool_settings.get("arrow_style", "solid")
+                    if saved_arrow_style in ("solid", "hollow", "solid_tail", "hollow_tail"):
+                        self.current_arrow_style = saved_arrow_style
 
         # Update UI
         for tid, btn in self.toolbar._tool_btns.items():

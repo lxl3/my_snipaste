@@ -76,6 +76,9 @@ def _mac_activate_app() -> None:
 
 class SnipasteApp(QApplication):
     def __init__(self, argv: list[str]) -> None:
+        # macOS 默认不在菜单中显示图标，需要显式启用
+        if sys.platform == "darwin":
+            QApplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
         super().__init__(argv)
         self.setApplicationName("MySnipaste")
         self.setOrganizationName("MySnipaste")

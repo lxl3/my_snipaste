@@ -49,6 +49,7 @@ class OcrTestDialog(QDialog):
             self, title=_("OCR Test"), show_minimize=False,
             height=40, title_size="13px", close_size=24,
             margins=(14, 0, 6, 0),
+            enable_drag=False,
         ))
 
         # 内容区域
@@ -70,8 +71,12 @@ class OcrTestDialog(QDialog):
         status_layout = QHBoxLayout()
         status_layout.setSpacing(12)
 
-        icon_label = QLabel("✅" if self._success else "⚠️")
-        icon_label.setStyleSheet("font-size: 28px;")
+        # 圆形图标（跟随主题色）
+        icon_label = QLabel("✓" if self._success else "!")
+        icon_label.setFixedSize(36, 36)
+        icon_label.setAlignment(Qt.AlignCenter)
+        self._icon_label = icon_label
+        self._apply_icon_style()
         status_layout.addWidget(icon_label)
 
         message_label = QLabel(self._message)
@@ -147,11 +152,27 @@ class OcrTestDialog(QDialog):
             QRectF(rect),
             radius=12,
             is_dark=_t.is_dark(),
-            draw_shadow=True,
-            shadow_intensity=0.5,
+            draw_shadow=False,  # 禁用阴影避免透明窗口拖动残影
         )
 
+    def _apply_icon_style(self) -> None:
+        """应用图标样式（跟随主题色）"""
+        if self._success:
+            bg_color = _t.get("accent")
+        else:
+            bg_color = "#E53935"  # 红色用于错误
+        self._icon_label.setStyleSheet(f"""
+            QLabel {{
+                background: {bg_color};
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+                border-radius: 18px;
+            }}
+        """)
+
     def _on_theme_changed(self, _mode: str) -> None:
+        self._apply_icon_style()
         self.update()
 
     def closeEvent(self, event) -> None:

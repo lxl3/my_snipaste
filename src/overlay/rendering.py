@@ -109,9 +109,14 @@ class OverlayRenderingMixin:
         start = ann["start"] + offset
         end = ann["end"] + offset
         width = ann["width"]
-        painter.setPen(QPen(QColor(ann["color"]), width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        color = QColor(ann["color"])
+        arrow_style = ann.get("arrow_style", "solid")
+
+        # 画箭杆
+        painter.setPen(QPen(color, width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         painter.drawLine(start, end)
 
+        # 计算箭头几何
         dx = end.x() - start.x()
         dy = end.y() - start.y()
         length = math.sqrt(dx * dx + dy * dy)
@@ -119,17 +124,36 @@ class OverlayRenderingMixin:
             return
         ux, uy = dx / length, dy / length
         base = ARROW_SIZE_BASE + width * 2
-        p1 = QPointF(end.x() - ux * base + uy * base * math.tan(ARROW_SPREAD_ANGLE),
-                     end.y() - uy * base - ux * base * math.tan(ARROW_SPREAD_ANGLE))
-        p2 = QPointF(end.x() - ux * base - uy * base * math.tan(ARROW_SPREAD_ANGLE),
-                     end.y() - uy * base + ux * base * math.tan(ARROW_SPREAD_ANGLE))
-        path = QPainterPath()
-        path.moveTo(end)
-        path.lineTo(p1)
-        path.lineTo(p2)
-        path.closeSubpath()
-        painter.setBrush(QColor(ann["color"]))
-        painter.drawPath(path)
+        spread = base * math.tan(ARROW_SPREAD_ANGLE)
+        p1 = QPointF(end.x() - ux * base + uy * spread,
+                     end.y() - uy * base - ux * spread)
+        p2 = QPointF(end.x() - ux * base - uy * spread,
+                     end.y() - uy * base + ux * spread)
+
+        if arrow_style in ("solid", "solid_tail"):
+            # 实心箭头：填充三角形
+            path = QPainterPath()
+            path.moveTo(end)
+            path.lineTo(p1)
+            path.lineTo(p2)
+            path.closeSubpath()
+            painter.setBrush(color)
+            painter.setPen(Qt.NoPen)
+            painter.drawPath(path)
+        else:
+            # 空心箭头：仅画 V 形线条（无填充）
+            painter.setPen(QPen(color, max(1, width), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            painter.setBrush(Qt.NoBrush)
+            v_path = QPainterPath()
+            v_path.moveTo(p1)
+            v_path.lineTo(end)
+            v_path.lineTo(p2)
+            painter.drawPath(v_path)
+
+        if arrow_style in ("solid_tail", "hollow_tail"):
+            # 带尾箭头：在箭头基部画一条横线 (p1 → p2)
+            painter.setPen(QPen(color, max(1, width), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            painter.drawLine(p1, p2)
 
     def _draw_line(self, painter: QPainter, ann: dict, offset) -> None:
         start = ann["start"] + offset

@@ -16,8 +16,6 @@ class OcrResultDialog(QDialog):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        # 确保移动时正确更新
-        self.setAttribute(Qt.WA_OpaquePaintEvent, False)
         self.setMinimumSize(460, 260)
         self.setMaximumSize(920, 700)
 
@@ -50,7 +48,7 @@ class OcrResultDialog(QDialog):
             self, title=_("Recognition Result"), show_minimize=False,
             height=44, title_size="14px", close_size=28,
             margins=(16, 0, 8, 0),
-            enable_drag=False,  # 禁用拖动，避免残影问题
+            enable_drag=False,
         ))
         card_layout.addWidget(self._build_content(text), 1)
         card_layout.addLayout(self._build_footer())
@@ -203,8 +201,7 @@ class OcrResultDialog(QDialog):
             QRectF(rect),
             radius=12,
             is_dark=is_dark,
-            draw_shadow=True,  # OCR 对话框需要投影
-            shadow_intensity=0.8,  # 柔和的投影
+            draw_shadow=False,  # 禁用阴影避免透明窗口拖动残影
         )
 
     def _on_theme_changed(self, _mode: str) -> None:

@@ -166,8 +166,7 @@ class OcrProgressDialog(QDialog):
             QRectF(rect),
             radius=8,
             is_dark=is_dark,
-            draw_shadow=True,
-            shadow_intensity=0.7,  # 较柔和的投影
+            draw_shadow=False,  # 禁用阴影避免透明窗口拖动残影
         )
 
         # 绘制脉冲进度条（在 pulse_container 区域）
