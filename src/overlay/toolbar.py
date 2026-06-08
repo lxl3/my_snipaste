@@ -298,7 +298,7 @@ class OverlayToolbar:
         self._current_menu: QMenu | None = None
         self._shape_color_buttons: list[QPushButton] = []
         self._arrow_color_buttons: list[QPushButton] = []
-        self._arrow_style_buttons: list[QPushButton] = []
+        self._arrow_style_combo: QComboBox | None = None
         self._text_color_buttons: list[QPushButton] = []
         self._font_combo: QComboBox | None = None
         self._font_size_spinbox: QSpinBox | None = None
@@ -534,117 +534,10 @@ class OverlayToolbar:
         btn.clicked.connect(lambda: open_fn())
         layout.addWidget(btn)
 
-    def _make_arrow_style_icon(self, style_key: str, size: int = 16) -> QIcon:
-        """Paint a tiny arrow indicator icon for arrow style buttons."""
-        px = QPixmap(size, size)
-        px.fill(Qt.transparent)
-        painter = QPainter(px)
-        painter.setRenderHint(QPainter.Antialiasing)
-        color = self.overlay.current_color
-        c = QColor(color) if isinstance(color, QColor) else QColor(color)
-        pen = QPen(c, 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
-        painter.setPen(pen)
-
-        # Draw a small arrow pointing right within the 16x16 icon
-        margin = 2
-        sx, sy = margin, size // 2
-        ex, ey = size - margin, size // 2
-        painter.drawLine(sx, sy, ex, ey)
-
-        # Arrow head at (ex, ey)
-        head_len = 4
-        spread = 3
-        ux, uy = 1, 0
-        p1x = ex - head_len
-        p1y = ey - spread
-        p2x = ex - head_len
-        p2y = ey + spread
-
-        is_solid = style_key in ("solid", "solid_tail")
-        has_tail = style_key in ("solid_tail", "hollow_tail")
-
-        if is_solid:
-            # Filled triangle head
-            path = QPainterPath()
-            path.moveTo(ex, ey)
-            path.lineTo(p1x, p1y)
-            path.lineTo(p2x, p2y)
-            path.closeSubpath()
-            painter.setBrush(c)
-            painter.setPen(Qt.NoPen)
-            painter.drawPath(path)
-        else:
-            # Hollow V head
-            painter.setBrush(Qt.NoBrush)
-            painter.setPen(pen)
-            v_path = QPainterPath()
-            v_path.moveTo(p1x, p1y)
-            v_path.lineTo(ex, ey)
-            v_path.lineTo(p2x, p2y)
-            painter.drawPath(v_path)
-
-        if has_tail:
-            painter.setPen(pen)
-            painter.drawLine(p1x, p1y, p2x, p2y)
-
-        painter.end()
-        return QIcon(px)
-
-    def _make_arrow_style_button(self, style_key: str) -> QPushButton:
-        """Create a toggle button for arrow style selection (20x20)."""
-        btn = QPushButton()
-        btn.setFixedSize(20, 20)
-        btn.setIcon(self._make_arrow_style_icon(style_key))
-        btn.setIconSize(QSize(16, 16))
-        btn.setCheckable(True)
-        btn.setProperty("arrow_style", style_key)
-        btn.setToolTip({
-            "solid": _("Solid Arrow"),
-            "hollow": _("Hollow Arrow"),
-            "solid_tail": _("Solid Arrow with Tail"),
-            "hollow_tail": _("Hollow Arrow with Tail"),
-        }.get(style_key, style_key))
-        self._update_arrow_style_button_border(btn, style_key)
-        return btn
-
-    def _get_active_arrow_style(self) -> str:
-        """Return the arrow_style that should be highlighted: from selected annotation if any, else global."""
-        idx = getattr(self.overlay, '_selected_annotation_idx', None)
-        if idx is not None and 0 <= idx < len(self.overlay.annotations):
-            ann = self.overlay.annotations[idx]
-            if ann["type"] == "arrow":
-                return ann.get("arrow_style", "solid")
-        return self.overlay.current_arrow_style
-
-    def _update_arrow_style_button_border(self, btn: QPushButton, style_key: str) -> None:
-        """Update button border to show selected state, matching selected annotation if any."""
-        active = self._get_active_arrow_style()
-        is_current = (style_key == active)
-        if is_current:
-            border = _t.qss("2px solid $color_btn_border_on")
-        else:
-            border = _t.qss("1px solid $color_btn_border")
-        btn.setStyleSheet(f"background: transparent; border: {border}; border-radius: 3px;")
-
     def _set_arrow_style(self, style_key: str) -> None:
-        """Handle arrow style selection."""
+        """Handle arrow style selection from combo box."""
         self.overlay.current_arrow_style = style_key
         self.overlay._apply_property_to_selected("arrow_style", style_key)
-        self._update_arrow_style_state()
-
-    def _refresh_arrow_style_icons(self) -> None:
-        """Redraw style button icons with the current arrow color."""
-        for btn in self._arrow_style_buttons:
-            s = btn.property("arrow_style")
-            if s:
-                btn.setIcon(self._make_arrow_style_icon(s))
-
-    def _update_arrow_style_state(self) -> None:
-        """Update arrow style button borders to reflect current selection."""
-        for btn in self._arrow_style_buttons:
-            s = btn.property("arrow_style")
-            if s:
-                self._update_arrow_style_button_border(btn, s)
 
     def _build_shape_menu(self, toolbar_layout) -> None:
         shape_btn, shape_menu = self._make_submenu_btn("rectangle", _("Shape (Rectangle / Ellipse)"), toolbar_layout, ["rect", "ellipse"])
@@ -681,22 +574,37 @@ class OverlayToolbar:
         arrow_layout.setSpacing(2)
         arrow_layout.setAlignment(Qt.AlignVCenter)
 
-        self._add_tool_buttons_to_submenu(arrow_layout, [("arrow", "arrow", _("Arrow")), ("line", "line", _("Line"))], arrow_btn, arrow_menu)
+        # Arrow style combo box — 选择样式时自动激活箭头工具
+        self._arrow_style_combo = QComboBox()
+        self._arrow_style_combo.setFixedWidth(85)
+        self._arrow_style_combo.setStyleSheet(_control_style())
+        style_items = [
+            ("solid", "arrow_solid", _("Solid")),
+            ("hollow", "arrow_hollow", _("Hollow")),
+            ("solid_tail", "arrow_solid_tail", _("Solid Tail")),
+            ("hollow_tail", "arrow_hollow_tail", _("Hollow Tail")),
+        ]
+        for style_key, icon_name, label in style_items:
+            icon = self._load_icon(icon_name)
+            self._arrow_style_combo.addItem(icon, label, style_key)
+        self._arrow_style_combo.setCurrentIndex(0)
+
+        def _on_style_changed(idx):
+            style_key = self._arrow_style_combo.itemData(idx)
+            self._set_arrow_style(style_key)
+            # 选择样式时自动切换到箭头工具
+            if self.overlay.current_tool != "arrow":
+                self._select_tool("arrow", arrow_btn, "arrow")
+                self._update_submenu_state(arrow_menu, ["arrow", "line"])
+        self._arrow_style_combo.currentIndexChanged.connect(_on_style_changed)
+        arrow_layout.addWidget(self._arrow_style_combo)
+
+        # Line button (无箭头)
+        self._add_tool_buttons_to_submenu(arrow_layout, [("line", "line", _("Line"))], arrow_btn, arrow_menu)
+
         self._add_separator(arrow_layout)
         self._add_color_picker_btn(arrow_layout, self._open_shape_color_picker)
         self._add_color_buttons_to_submenu(arrow_layout, PRESET_COLORS, self._arrow_color_buttons, self._set_shape_color)
-        self._add_separator(arrow_layout)
-        # Arrow style group — 仅在 "arrow" 子工具激活时显示
-        self._arrow_style_group = QWidget()
-        asg_layout = QHBoxLayout(self._arrow_style_group)
-        asg_layout.setContentsMargins(0, 0, 0, 0)
-        asg_layout.setSpacing(2)
-        for style_key in ("solid", "hollow", "solid_tail", "hollow_tail"):
-            sb = self._make_arrow_style_button(style_key)
-            sb.clicked.connect(lambda checked, s=style_key: self._set_arrow_style(s))
-            asg_layout.addWidget(sb)
-            self._arrow_style_buttons.append(sb)
-        arrow_layout.addWidget(self._arrow_style_group)
 
         arrow_action.setDefaultWidget(arrow_container)
         arrow_menu.addAction(arrow_action)
@@ -715,13 +623,12 @@ class OverlayToolbar:
                     if saved in ("solid", "hollow", "solid_tail", "hollow_tail"):
                         self.overlay.current_arrow_style = saved
 
-            # 根据当前子工具显示/隐藏风格按钮组
-            is_arrow = self.overlay.current_tool == "arrow"
-            self._arrow_style_group.setVisible(is_arrow)
-
-            self._update_arrow_style_state()
-            # 颜色变化时刷新风格按钮图标
-            self._refresh_arrow_style_icons()
+            # 同步下拉框选中状态
+            current_style = self.overlay.current_arrow_style
+            for i in range(self._arrow_style_combo.count()):
+                if self._arrow_style_combo.itemData(i) == current_style:
+                    self._arrow_style_combo.setCurrentIndex(i)
+                    break
         arrow_menu.aboutToShow.connect(_setup)
 
         self._tool_btns["arrow"] = arrow_btn

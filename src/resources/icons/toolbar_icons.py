@@ -169,6 +169,33 @@ TOOLBAR_ICONS = {
   <path d="M16 7l-4-4-4 4"/>
   <path d="M8 17l4 4 4-4"/>
 </svg>""",
+
+    # Arrow styles - 箭头样式图标
+    # solid: 实心三角箭头
+    "arrow_solid": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="4" y1="12" x2="14" y2="12"/>
+  <polygon points="20,12 14,7 14,17" fill="currentColor" stroke="none"/>
+</svg>""",
+
+    # hollow: 空心 V 形箭头
+    "arrow_hollow": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="4" y1="12" x2="18" y2="12"/>
+  <polyline points="14,7 20,12 14,17"/>
+</svg>""",
+
+    # solid_tail: 实心三角 + 尾部封口线
+    "arrow_solid_tail": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="4" y1="12" x2="12" y2="12"/>
+  <polygon points="20,12 12,6 12,18" fill="currentColor" stroke="none"/>
+  <line x1="12" y1="6" x2="12" y2="18" stroke="currentColor" stroke-width="2"/>
+</svg>""",
+
+    # hollow_tail: 空心 V 形 + 尾部封口线
+    "arrow_hollow_tail": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="4" y1="12" x2="14" y2="12"/>
+  <polyline points="14,6 20,12 14,18"/>
+  <line x1="14" y1="6" x2="14" y2="18"/>
+</svg>""",
 }
 
 # ... existing code ...
