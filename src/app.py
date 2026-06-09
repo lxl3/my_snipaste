@@ -28,7 +28,7 @@ from .core.permissions import (
 from .ui.pin_window import PinWindow
 from .ui.color_picker import ScreenColorPicker
 from .ui.tray import TrayManager
-from .ui.settings_dialog import SettingsDialog
+from .ui.settings import SettingsDialog
 from .ui.countdown_overlay import CountdownOverlay
 from .core.screenshot_history import ScreenshotHistory
 

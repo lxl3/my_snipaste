@@ -5,22 +5,22 @@ from PySide6.QtWidgets import (
     QComboBox, QLabel, QGraphicsOpacityEffect,
 )
 
-from ..ui.color_picker import get_color
-from ..ui.glass_widget import GlassFrame
+from ...ui.color_picker import get_color
+from ...ui.glass_widget import GlassFrame
 from PySide6.QtCore import Qt, QPoint, QSize, QPropertyAnimation, QAbstractAnimation
 
-from ..resources.icons.toolbar_icons import TOOLBAR_ICONS
-from ..core.i18n import _
-from ..core.utils import load_icon_from_svg
-from ..core.constants import (
+from ...resources.icons.toolbar_icons import TOOLBAR_ICONS
+from ...core.i18n import _
+from ...core.utils import load_icon_from_svg
+from ...core.constants import (
     PRESET_COLORS, TEXT_PRESET_COLORS, ICON_SIZE_SMALL, ICON_SIZE_MENU,
     ICON_SIZE_BTN, DEFAULT_ANNOTATION_COLOR, DEFAULT_LINE_WIDTH,
     DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE,
 )
-from ..core.logger import setup_logger
-from ..core.settings import get_settings
-from ..core.theme import theme as _t
-from ..core import qss_base
+from ...core.logger import setup_logger
+from ...core.settings import get_settings
+from ...core.theme import theme as _t
+from ...core import qss_base
 
 logger = setup_logger("overlay_toolbar")
 
