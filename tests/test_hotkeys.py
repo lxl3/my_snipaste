@@ -86,4 +86,18 @@ class TestNormalize:
 
         listener = self._make_listener()
         key = keyboard.KeyCode.from_char("a")
-        assert listener._normalize(key) is key
+        assert listener._normalize(key) == key
+
+    def test_normalize_ctrl_letter(self):
+        """Ctrl+A (ASCII 0x01) ~ Ctrl+Z (ASCII 0x1A) → 对应小写字母"""
+        from pynput import keyboard
+
+        listener = self._make_listener()
+        for i, expected_char in enumerate("abcdefghijklmnopqrstuvwxyz"):
+            ctrl_char = chr(0x01 + i)  # 0x01 = Ctrl+A, 0x02 = Ctrl+B, ...
+            key = keyboard.KeyCode.from_char(ctrl_char)
+            result = listener._normalize(key)
+            assert result.char == expected_char, (
+                f"Ctrl+{chr(0x41 + i)} (0x{0x01 + i:02x}) "
+                f"expected '{expected_char}', got '{result.char}'"
+            )

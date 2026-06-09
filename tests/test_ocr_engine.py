@@ -1,5 +1,7 @@
 import sys
 
+import pytest
+
 from src.ocr.engine import ensure_tesseract_ready, setup_bundled_tesseract
 
 
@@ -29,3 +31,9 @@ class TestEnsureTesseractReady:
         first = ensure_tesseract_ready()
         second = ensure_tesseract_ready()
         assert first == second
+
+    def test_called_multiple_times_consistent(self):
+        """ensure_tesseract_ready returns consistent results within a session."""
+        results = [ensure_tesseract_ready() for _ in range(5)]
+        # All should be the same value
+        assert all(r == results[0] for r in results)

@@ -32,12 +32,25 @@ class TestColorConstants:
         assert DIM_OVERLAY_COLOR.alpha() > 0
 
     def test_preset_colors_count(self):
-        assert len(PRESET_COLORS) == 8
+        assert len(PRESET_COLORS) == 5
+
+    def test_preset_colors_valid_hex(self):
+        import re
+        hex_pattern = re.compile(r"^#[0-9a-fA-F]{6}$")
+        for color in PRESET_COLORS:
+            assert hex_pattern.match(color), f"{color} is not a valid hex color"
 
     def test_text_preset_colors_shape(self):
         assert len(TEXT_PRESET_COLORS) == 2
         assert len(TEXT_PRESET_COLORS[0]) == 5
         assert len(TEXT_PRESET_COLORS[1]) == 5
+
+    def test_text_preset_colors_valid_hex(self):
+        import re
+        hex_pattern = re.compile(r"^#[0-9a-fA-F]{6}$")
+        for group in TEXT_PRESET_COLORS:
+            for color in group:
+                assert hex_pattern.match(color), f"{color} is not a valid hex color"
 
 
 class TestSizeConstants:
