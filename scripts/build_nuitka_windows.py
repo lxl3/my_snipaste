@@ -11,6 +11,7 @@ MySnipaste Windows Nuitka 构建脚本
     需要 C 编译器 (MSVC 或 MinGW)
 """
 
+import os
 import sys
 import subprocess
 import shutil
@@ -70,6 +71,9 @@ def build_and_package():
         "--include-package=PIL",
         "--windows-console-mode=disable",
         "--assume-yes-for-downloads",
+        "--show-progress",
+        f"--jobs={os.cpu_count() or 4}",
+        "--msvc=latest",
     ]
 
     if icon_path.exists():
@@ -84,23 +88,35 @@ def build_and_package():
     cmd.append(str(PROJECT_DIR / "main.py"))
 
     print(f"\n执行命令:\n{' '.join(cmd)}\n")
-    result = subprocess.run(cmd, cwd=PROJECT_DIR)
+    sys.stdout.flush()
 
-    if result.returncode != 0:
+    process = subprocess.Popen(
+        cmd, cwd=PROJECT_DIR,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, bufsize=1,
+    )
+    for line in process.stdout:
+        print(line, end="", flush=True)
+    returncode = process.wait()
+
+    if returncode != 0:
         print("\n[FAIL] Nuitka 编译失败")
         return False
 
-    built_exe = NUITKA_OUTPUT / "main.dist" / "main.exe"
+    # Derive output exe path from entry-point filename (main.py → main.exe)
+    entry_stem = Path("main.py").stem  # "main"
+    built_exe = NUITKA_OUTPUT / f"{entry_stem}.dist" / f"{entry_stem}.exe"
     if not built_exe.exists():
         for candidate in NUITKA_OUTPUT.rglob("*.exe"):
-            if candidate.name in ("main.exe", f"{BUILD_NAME}.exe"):
+            if candidate.name in (f"{entry_stem}.exe", f"{BUILD_NAME}.exe"):
                 built_exe = candidate
                 break
 
     if not built_exe.exists():
         print(f"\n[FAIL] 未找到生成的 exe")
         if NUITKA_OUTPUT.exists():
-            for f in sorted(NUITKA_OUTPUT.rglob("*"))[:20]:
+            contents = sorted(NUITKA_OUTPUT.rglob("*"))
+            for f in contents[:20]:
                 print(f"  {f.relative_to(NUITKA_OUTPUT)}")
         return False
 
@@ -122,6 +138,14 @@ def build_and_package():
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="MySnipaste Windows Nuitka 构建工具")
+    parser.add_argument(
+        "--clean", "-c", action="store_true",
+        help="清理旧构建文件，强制从零编译（默认：增量编译，更快）",
+    )
+    args = parser.parse_args()
+
     print("=" * 60)
     print("  MySnipaste Windows Nuitka 构建工具")
     print("=" * 60)
@@ -135,7 +159,13 @@ def main():
         print("[ERROR] Nuitka 未安装，请运行: pip install nuitka")
         sys.exit(1)
 
-    clean_build()
+    if args.clean:
+        clean_build()
+    else:
+        print_step("增量编译（保留缓存，加快速度）")
+        print("  提示: 如需从零编译请加 --clean 参数\n")
+        DIST_DIR.mkdir(exist_ok=True)
+
     if not build_and_package():
         sys.exit(1)
 
