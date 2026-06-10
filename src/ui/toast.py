@@ -80,8 +80,8 @@ class ToastNotification(QWidget):
         icon_pos = self._icon_container.pos()
         icon_rect = QRect(icon_pos.x(), icon_pos.y(), 28, 28)
 
-        # info 类型使用主题色，其他类型使用预设颜色
-        if self.toast_type == "info":
+        # info/success 类型使用主题色，其他类型使用预设颜色
+        if self.toast_type in ("info", "success"):
             accent = _t.accent_color
             # 生成渐变色：顶部为主题色，底部稍暗
             color_top = accent

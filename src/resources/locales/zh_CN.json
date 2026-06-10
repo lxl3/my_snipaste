@@ -116,6 +116,7 @@
   "Zoom:": "缩放：",
   "Mosaic": "马赛克",
   "Text": "文字",
+  "Text (Add / Edit)": "文字（添加/编辑）",
   "Text Recognition": "文字识别",
   "Eraser (Dot Erase / Fill Erase)": "橡皮擦（点擦除/填充擦除）",
   "Dot Erase": "点擦除",
@@ -249,5 +250,6 @@
   "Default": "默认",
   "Select Accent Color": "选择主题色",
   "Theme": "主题",
-  "Drag to select area, Enter to confirm, Esc to cancel": "拖拽选择区域，回车确认，Esc 取消"
+  "Drag to select area, Enter to confirm, Esc to cancel": "拖拽选择区域，回车确认，Esc 取消",
+  "Drag to select area, double-click or Enter to confirm, Esc to cancel": "拖拽选择区域，双击或回车确认，Esc 取消"
 }

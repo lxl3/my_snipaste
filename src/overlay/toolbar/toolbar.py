@@ -1,8 +1,7 @@
-"""工具栏旧版实现（迁移中）
+"""工具栏主类
 
 OverlayToolbar 使用 ToolbarBuilder + TOOLBAR_CONFIG 构建菜单 UI，
-保留动作按钮（undo/redo/crop/pin/save/copy/close）和动画/状态管理等
-无法声明式化的逻辑。
+手动构建动作按钮（undo/redo/crop/pin/save/copy/close）并管理动画/状态。
 """
 
 from PySide6.QtWidgets import (
@@ -15,24 +14,21 @@ from ...ui.glass_widget import GlassFrame
 from ...resources.icons.toolbar_icons import TOOLBAR_ICONS
 from ...core.i18n import _
 from ...core.utils import load_icon_from_svg
-from ...core.logger import setup_logger
 from ...core.theme import theme as _t
 
 from .config import TOOLBAR_CONFIG
 from .builder import ToolbarBuilder
-from .menus.setup_handlers import (
-    shape_setup,
-    arrow_setup,
-    pen_setup,
-    highlighter_setup,
-    mosaic_setup,
-    magnifier_setup,
-    text_setup,
-    eraser_setup,
-)
+from .menus.shape_menu import ShapeMenuHandler
+from .menus.arrow_menu import ArrowMenuHandler
+from .menus.pen_menu import PenMenuHandler
+from .menus.highlighter_menu import HighlighterMenuHandler
+from .menus.mosaic_menu import MosaicMenuHandler
+from .menus.magnifier_menu import MagnifierMenuHandler
+from .menus.text_menu import TextMenuHandler
+from .menus.eraser_menu import EraserMenuHandler
 
-logger = setup_logger("overlay_toolbar")
 
+# ─── 工具栏按钮样式 ───
 
 def _toolbar_buttons_style() -> str:
     """工具栏按钮 QSS"""
@@ -74,6 +70,20 @@ def _toolbar_buttons_style() -> str:
 """)
 
 
+# ─── Menu Handler 注册表 ───
+
+_MENU_HANDLERS: dict[str, type] = {
+    "shape": ShapeMenuHandler,
+    "arrow": ArrowMenuHandler,
+    "pen": PenMenuHandler,
+    "highlighter": HighlighterMenuHandler,
+    "mosaic": MosaicMenuHandler,
+    "magnifier": MagnifierMenuHandler,
+    "text": TextMenuHandler,
+    "eraser": EraserMenuHandler,
+}
+
+
 # ─── OverlayToolbar ───
 
 class OverlayToolbar:
@@ -113,8 +123,16 @@ class OverlayToolbar:
         # ── 使用 Builder 构建工具菜单 ──
         self._builder = ToolbarBuilder(self.overlay, TOOLBAR_CONFIG)
 
-        # 注册各菜单 aboutToShow 回调
-        self._register_menu_setups()
+        # 注册各菜单 aboutToShow 回调（实例化各 MenuHandler）
+        self._menu_handlers = {
+            mid: cls(self.overlay) for mid, cls in _MENU_HANDLERS.items()
+        }
+        for menu_id, handler in self._menu_handlers.items():
+            self._builder.register_menu_setup(
+                menu_id,
+                lambda overlay, menu, btn, tool_ids, extra, h=handler:
+                    h.setup(menu, btn, tool_ids, extra)
+            )
 
         # 构建工具菜单（返回 tool_btns）
         self._tool_btns = self._builder.build(toolbar_layout)
@@ -133,25 +151,9 @@ class OverlayToolbar:
             child.installEventFilter(self.overlay)
 
         _t.theme_changed.connect(self._refresh_icons)
-        # toolbar 销毁时断开信号，防止旧实例残留导致访问已删除 C++ 对象
         self.toolbar.destroyed.connect(
             lambda: _t.theme_changed.disconnect(self._refresh_icons)
         )
-
-    def _register_menu_setups(self) -> None:
-        """为每个菜单注册 setup handler，传入额外控件引用"""
-        b = self._builder
-
-        # 后续通过 builder.get_menu_widgets(menu_id) 获取控件引用
-        b.register_menu_setup("shape", shape_setup)
-        b.register_menu_setup("arrow", arrow_setup,
-                              extra={"arrow_style_combo": None})  # 将在构建后填充
-        b.register_menu_setup("pen", pen_setup)
-        b.register_menu_setup("highlighter", highlighter_setup)
-        b.register_menu_setup("mosaic", mosaic_setup)
-        b.register_menu_setup("magnifier", magnifier_setup)
-        b.register_menu_setup("text", text_setup)
-        b.register_menu_setup("eraser", eraser_setup)
 
     def _fill_menu_extras(self) -> None:
         """构建后填充菜单 extra dict（控件引用已创建）"""
@@ -177,11 +179,10 @@ class OverlayToolbar:
                 extra = self._builder.get_menu_extra("mosaic")
                 extra[group_key] = mosaic_widgets[group_key]
 
-    # ─── 动作按钮（保持手动构建，含 pin_window_mode 逻辑） ───
+    # ─── 动作按钮 ───
 
     def _build_action_buttons(self, layout: QHBoxLayout) -> None:
         """构建 undo/redo/crop/pin/save/copy/close 等操作按钮"""
-        # ── Undo / Redo ──
         self._add_sep(layout)
         self._undo_btn = self._make_action_btn("undo", _("Undo"), self.overlay._undo)
         self._undo_btn.setEnabled(False)
@@ -199,17 +200,14 @@ class OverlayToolbar:
         ))
         layout.addWidget(self._redo_btn)
 
-        # ── 分隔符 ──
         self._add_sep(layout)
 
-        # ── Crop（仅覆盖层有 _crop 方法时）──
         if hasattr(self.overlay, '_crop'):
             btn = self._make_action_btn("crop", _("Crop to selection"), self.overlay._crop)
             layout.addWidget(btn)
 
         self._add_sep(layout)
 
-        # ── 动作按钮 ──
         actions = []
         if not self.pin_window_mode:
             actions.append(("close", _("Close (Exit)"), self.overlay.close))
@@ -228,7 +226,6 @@ class OverlayToolbar:
             layout.addWidget(btn)
 
     def _make_action_btn(self, icon_name: str, tooltip: str, on_click) -> QToolButton:
-        """辅助: 创建操作按钮"""
         btn = QToolButton()
         btn.setIcon(self._load_icon(icon_name))
         btn.setIconSize(QSize(16, 16))
@@ -281,7 +278,6 @@ class OverlayToolbar:
         except RuntimeError:
             pass
 
-        # 刷新 undo/redo disabled 状态的样式
         try:
             for btn in (self._undo_btn, self._redo_btn):
                 if btn:
@@ -292,7 +288,6 @@ class OverlayToolbar:
         except RuntimeError:
             pass
 
-        # 刷新 builder 创建的子控件样式（combo/spinbox 等）
         if self._builder:
             try:
                 self._builder.refresh_widget_styles()

@@ -92,7 +92,7 @@ class OverlayActionsMixin:
             logger.error(f"Failed to save screenshot to history: {e}")
 
         self.copy_requested.emit(pixmap)
-        ToastManager.show(_("Copied to clipboard"), "✓", "success", parent=self)
+        ToastManager.show(_("Copied to clipboard"), "✓", "success", parent=None)
         self.close()
 
     def on_save(self) -> None:
@@ -515,7 +515,7 @@ class OverlayActionsMixin:
         self.update()
         # Show usage hint
         ToastManager.show(
-            _("Drag to select area, Enter to confirm, Esc to cancel"),
+            _("Drag to select area, double-click or Enter to confirm, Esc to cancel"),
             "✂", "info", parent=self, duration=3000
         )
 

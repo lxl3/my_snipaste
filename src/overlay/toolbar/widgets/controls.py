@@ -1,9 +1,7 @@
-"""通用控件工具 - 分隔符、取色器按钮、样式化 ComboBox/SpinBox"""
+"""通用控件工具 - 样式表生成 / 分隔符"""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QFrame, QPushButton, QHBoxLayout, QComboBox, QSpinBox,
-)
+from PySide6.QtWidgets import QFrame, QHBoxLayout
 
 from ....core.theme import theme as _t
 from ....core import qss_base
@@ -102,56 +100,3 @@ def add_separator(layout: QHBoxLayout) -> None:
     sep.setStyleSheet(_t.qss("color: $border_light;"))
     sep.setFixedWidth(1)
     layout.addWidget(sep)
-
-
-def make_color_picker_btn(on_click: callable) -> QPushButton:
-    """创建取色器按钮（🎨）"""
-    btn = QPushButton("🎨")
-    btn.setFixedSize(20, 20)
-    btn.setStyleSheet(_t.qss(
-        "QPushButton { border: 1px solid $border; background: transparent; font-size: 12px; }"
-        "QPushButton:hover { background: $hover_bg; }"
-    ))
-    btn.clicked.connect(on_click)
-    return btn
-
-
-def make_styled_combo(
-    width: int = 85,
-    style_items: list[tuple] = None,
-    on_changed: callable = None,
-) -> QComboBox:
-    """创建样式化的 QComboBox
-
-    style_items: [(data, icon_name, label), ...]
-    """
-    combo = QComboBox()
-    combo.setFixedWidth(width)
-    combo.setStyleSheet(ControlStyles().combo_qss())
-
-    if style_items:
-        for data, icon_name, label in style_items:
-            combo.addItem(label, data)
-
-    if on_changed:
-        combo.currentIndexChanged.connect(on_changed)
-
-    return combo
-
-
-def make_styled_spinbox(
-    range_min: int,
-    range_max: int,
-    value: int,
-    width: int = 50,
-    on_changed: callable = None,
-) -> QSpinBox:
-    """创建样式化的 QSpinBox"""
-    spinbox = QSpinBox()
-    spinbox.setRange(range_min, range_max)
-    spinbox.setValue(value)
-    spinbox.setFixedWidth(width)
-    spinbox.setStyleSheet(ControlStyles().spinbox_qss())
-    if on_changed:
-        spinbox.valueChanged.connect(on_changed)
-    return spinbox
