@@ -17,12 +17,35 @@
             # 使用 self.ctx.theme 代替全局 theme
 """
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from .settings import AppSettings
     from .theme import ThemeManager
     from .screenshot_history import ScreenshotHistory
+
+
+class I18nProvider:
+    """国际化翻译提供者
+
+    包装 i18n._() 函数，通过依赖注入可替换。
+    """
+
+    def __init__(self, translate_fn: Callable[[str], str] | None = None):
+        self._translate_fn = translate_fn
+
+    def t(self, text: str) -> str:
+        if self._translate_fn:
+            return self._translate_fn(text)
+        from .i18n import _
+        return _(text)
+
+    def translate(self, text: str) -> str:
+        return self.t(text)
+
+    def __call__(self, text: str) -> str:
+        """支持直接调用: ctx.i18n("key")"""
+        return self.t(text)
 
 
 @dataclass
@@ -32,11 +55,17 @@ class AppContext:
     Attributes:
         settings: 应用设置
         theme: 主题管理器
+        i18n: 国际化翻译
         history: 截图历史管理器
     """
     settings: "AppSettings"
     theme: "ThemeManager"
+    i18n: "I18nProvider | None" = None
     history: "ScreenshotHistory | None" = None
+
+    def __post_init__(self):
+        if self.i18n is None:
+            self.i18n = I18nProvider()
 
     @classmethod
     def create(cls) -> "AppContext":
@@ -68,6 +97,7 @@ class AppContext:
         cls,
         settings: "AppSettings | None" = None,
         theme: "ThemeManager | None" = None,
+        i18n: "I18nProvider | None" = None,
         history: "ScreenshotHistory | None" = None,
     ) -> "AppContext":
         """创建测试用的模拟上下文
@@ -75,6 +105,7 @@ class AppContext:
         Args:
             settings: 自定义设置实例，None 则使用默认值
             theme: 自定义主题实例，None 则使用默认
+            i18n: 自定义翻译实例，None 则使用默认
             history: 自定义历史实例，None 则不初始化
         """
         from .settings import AppSettings
@@ -83,21 +114,13 @@ class AppContext:
         return cls(
             settings=settings or AppSettings(),
             theme=theme or default_theme,
+            i18n=i18n,
             history=history,
         )
 
     def get_setting(self, key: str, default=None):
         """获取设置值的便捷方法"""
         return getattr(self.settings, key, default)
-
-    def translate(self, text: str) -> str:
-        """翻译文本的便捷方法"""
-        from .i18n import _
-        return _(text)
-
-    def t(self, text: str) -> str:
-        """translate 的别名"""
-        return self.translate(text)
 
 
 # 全局上下文实例（延迟初始化）

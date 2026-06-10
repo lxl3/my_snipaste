@@ -5,7 +5,7 @@ from PySide6.QtGui import QColor, QFont
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QTimer
 
 from ..core.constants import MIN_DRAW_THRESHOLD, MIN_SELECTION_SIZE
-from ..core.settings import get_settings
+
 from ..core.logger import setup_logger
 
 logger = setup_logger("overlay_drawing")
@@ -269,7 +269,7 @@ class OverlayDrawingMixin:
             # Save arrow_style for arrow/line tools
             if self.current_tool in ("arrow", "line"):
                 settings_dict["arrow_style"] = self.current_arrow_style
-            s = get_settings()
+            s = self.ctx.settings
             s.save_tool_settings(self.current_tool, settings_dict)
 
     # ─── Toolbar Callbacks ───
@@ -288,7 +288,7 @@ class OverlayDrawingMixin:
         self.current_tool = tool_id
 
         # Update last_tool in settings
-        s = get_settings()
+        s = self.ctx.settings
         s.last_tool = tool_id
         s.save()
 

@@ -480,8 +480,8 @@ src/core/theme/
 | 2.1 设计配置格式 | ✅ 完成 | 2026-06-09 | toolbar/config.py |
 | 2.2 实现 ToolbarBuilder | ✅ 完成 | 2026-06-09 | toolbar/builder.py |
 | 2.3 提取通用组件 | ✅ 完成 | 2026-06-09 | 集成在 builder 中 |
-| 2.4-2.7 迁移各菜单 | ⏳ 进行中 | | 渐进式迁移 |
-| 2.8 清理旧代码 | ⬜ 待开始 | | legacy.py 保留兼容 |
+| 2.4-2.7 迁移各菜单 | ✅ 完成 | 2026-06-10 | 拆为 8 个菜单 handler 文件 |
+| 2.8 清理旧代码 | ✅ 完成 | 2026-06-10 | 删除 legacy.py, setup_handlers.py |
 
 ### Phase 3: 统一标注系统
 
@@ -500,7 +500,7 @@ src/core/theme/
 |------|------|----------|------|
 | 4.1 创建 AppContext | ✅ 完成 | 2026-06-09 | core/context.py |
 | 4.2 初始化 context | ✅ 完成 | 2026-06-09 | get_context/init_context |
-| 4.3 迁移组件 | ⏳ 进行中 | | 渐进式迁移 |
+| 4.3 迁移组件 | ✅ 完成 | 2026-06-10 | CaptureOverlay, PinWindow, drawing, builder, OCR |
 | 4.4 添加 MockContext | ✅ 完成 | 2026-06-09 | create_mock() |
 
 ### Phase 5: 主题系统整合

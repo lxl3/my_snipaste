@@ -39,7 +39,7 @@ class OverlayActionsMixin:
         from ..ocr.engine import OcrWorker
         from ..core.utils import qpixmap_to_pil
         pil_image = qpixmap_to_pil(captured)
-        self._ocr_worker = OcrWorker(pil_image)
+        self._ocr_worker = OcrWorker(pil_image, self.ctx.settings.ocr_language)
         self._ocr_worker.finished.connect(self._on_ocr_finished)
         self._ocr_worker.error.connect(self._on_ocr_error)
         self._show_ocr_progress(self._cancel_ocr)

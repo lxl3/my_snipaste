@@ -3,7 +3,6 @@
 from PySide6.QtWidgets import QPushButton, QHBoxLayout
 
 from ....core.theme import theme as _t
-from ....core.settings import get_settings
 
 
 def make_color_button(color: str, is_recent: bool, current_color: str = "") -> QPushButton:
@@ -33,16 +32,17 @@ def add_color_buttons_to_layout(
     current_color: str,
     on_color_selected: callable,
     include_picker: bool = True,
+    recent_colors: list[str] | None = None,
 ) -> list[QPushButton]:
     """添加颜色预设按钮（含最近颜色和取色器）到布局
     支持一维（单行）或二维（多行）颜色数组。
     返回创建的按钮列表。
     """
     buttons = []
-    settings = get_settings()
+    rc = recent_colors or []
 
     # 最近颜色（最多3个）— 过滤非字符串脏数据
-    for color in settings.recent_colors[:3]:
+    for color in rc[:3]:
         if not isinstance(color, str):
             continue
         btn = make_color_button(color, is_recent=True, current_color=current_color)
@@ -50,7 +50,7 @@ def add_color_buttons_to_layout(
         layout.addWidget(btn)
         buttons.append(btn)
 
-    if settings.recent_colors:
+    if rc:
         from .controls import add_separator
         add_separator(layout)
 

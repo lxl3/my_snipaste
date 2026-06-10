@@ -14,6 +14,7 @@ from .core.i18n import _, load_translations
 from .core.utils import create_app_icon, ScreenCaptureError, capture_all_screens
 from .core.logger import setup_logger, apply_log_level
 from .core.settings import AppSettings, get_settings
+from .core.context import AppContext, init_context
 from .core.theme import theme as theme_manager
 from .core import qss_base
 from .core.hotkeys import MultiHotkeyListener
@@ -91,6 +92,7 @@ class SnipasteApp(QApplication):
         self.countdown_overlay: CountdownOverlay | None = None
         self.pin_windows: list = []
         self.settings: AppSettings = get_settings()
+        self.ctx: AppContext = init_context(AppContext(settings=self.settings, theme=theme_manager))
         self.hotkey_listener: MultiHotkeyListener | None = None
         self.startup_message: QMessageBox | None = None  # 保存启动提示框引用以支持主题切换
 
@@ -526,7 +528,7 @@ class SnipasteApp(QApplication):
 
         logger.info("启动截图")
         try:
-            self.overlay = CaptureOverlay()
+            self.overlay = CaptureOverlay(self.ctx)
         except ScreenCaptureError as e:
             logger.error(f"截屏失败: {e}")
             show_permission_guide()
@@ -565,7 +567,7 @@ class SnipasteApp(QApplication):
         self.overlay = None
 
     def _on_pin(self, pixmap: QPixmap, pos) -> None:
-        win = PinWindow(pixmap, pos)
+        win = PinWindow(pixmap, pos, self.ctx)
         win.destroyed.connect(lambda: self.pin_windows.remove(win) if win in self.pin_windows else None)
         
         # Connect signals from PinWindow to app handlers
@@ -635,9 +637,9 @@ class SnipasteApp(QApplication):
             if win.isVisible():
                 win.setWindowOpacity(opacity / 100.0)
                 # Update settings to persist the change
-                settings = get_settings()
-                settings.pin_window_opacity = opacity
-                settings.save()
+                s = self.ctx.settings
+                s.pin_window_opacity = opacity
+                s.save()
 
     def ocr_clipboard(self) -> None:
         logger.info("开始 OCR 剪贴板图片")
@@ -651,7 +653,7 @@ class SnipasteApp(QApplication):
             )
             return
 
-        text = extract_text(pixmap)
+        text = extract_text(pixmap, self.settings.ocr_language)
         if text:
             clipboard.setText(text)
             logger.info(f"OCR 识别成功，{len(text)} 个字符已复制到剪贴板")

@@ -15,7 +15,7 @@ from PySide6.QtGui import QPainter, QColor, QPen, QFont, QFontMetrics, QLinearGr
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QSizeF, Signal, QEvent, QTimer
 
 from ..core.utils import capture_all_screens
-from ..core.settings import get_settings
+from ..core.context import AppContext, get_context
 from ..core.window_detector import detect_window_under_cursor
 from .toolbar import OverlayToolbar
 from .rendering import OverlayRenderingMixin
@@ -48,8 +48,9 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
     copy_requested = Signal(object)
     save_requested = Signal(object, bool)  # (pixmap, has_annotations)
 
-    def __init__(self) -> None:
+    def __init__(self, ctx: AppContext | None = None) -> None:
         super().__init__()
+        self.ctx = ctx or get_context()
 
         self.total_geometry: QRect = QRect()
         for screen in QApplication.screens():
@@ -57,7 +58,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
         logger.info(f"init overlay, screen: {self.total_geometry}")
         # Check if cursor should be included
-        s = get_settings()
+        s = self.ctx.settings
         include_cursor = s.capture_cursor
         self.full_screenshot = capture_all_screens(include_cursor=include_cursor)
         logger.debug(f"screenshot size: {self.full_screenshot.width()}x{self.full_screenshot.height()}")
@@ -80,7 +81,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._drag_start_rect: QRect = QRect()
 
         # Restore tool settings from memory
-        s = get_settings()
+        s = self.ctx.settings
         self.current_tool: str = s.last_tool
 
         # Restore tool-specific settings
@@ -666,7 +667,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def _auto_finish(self) -> None:
         """Execute auto action based on capture_after_action setting."""
-        s = get_settings()
+        s = self.ctx.settings
         action = s.capture_after_action
 
         if action == "copy":
@@ -682,7 +683,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if self.selection_rect.isNull():
             return
 
-        s = get_settings()
+        s = self.ctx.settings
         if not s.auto_save_dir:
             # Fallback to manual save dialog if no directory configured
             logger.warning("Auto-save requested but no directory configured")
@@ -844,7 +845,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if mode not in ("move", "resize"):
             return  # 只在拖动选区时显示，不在拖动标注时显示
 
-        s = get_settings()
+        s = self.ctx.settings
         action = s.capture_after_action
 
         if action == "none":

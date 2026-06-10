@@ -253,3 +253,10 @@ class GeneralTab(BaseTab):
             self._theme_combo.setCurrentIndex(tidx)
         if self._launch_checkbox:
             self._launch_checkbox.setChecked(defaults.launch_at_startup)
+
+        # Reset accent color to default
+        if self._dialog:
+            self._dialog._settings.accent_color = ""
+        _theme.set_accent_color("")
+        _theme.apply_to_app(QApplication.instance())
+        self._update_accent_btn_style()

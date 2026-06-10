@@ -9,13 +9,14 @@
 """
 
 import sys
-import logging
 from typing import Literal
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, QTimer
 from PySide6.QtGui import QPalette, QColor
 from PySide6.QtWidgets import QApplication
 
-logger = logging.getLogger("theme")
+from .logger import setup_logger
+
+logger = setup_logger("theme")
 
 
 # ─── Token Keys（供 IDE 补全 / 防 typo） ───
@@ -264,6 +265,7 @@ class ThemeManager(QObject):
         self._resolved: str = "light"       # 实际生效（跟随系统时=系统值）
         self._tokens: dict[str, str] = LIGHT_TOKENS.copy()
         self._custom_accent: str = ""       # 自定义主题色
+        self._system_timer: QTimer | None = None  # 系统主题轮询定时器（延迟创建）
 
     # ─── Public API ───
 
@@ -276,6 +278,19 @@ class ThemeManager(QObject):
         """设置用户偏好模式（light/dark/system）。"""
         self._mode = mode
         self._resolve_and_apply()
+        # 管理系统主题轮询定时器（仅 mode=="system" 时运行）
+        if mode == "system":
+            if self._system_timer is None:
+                self._system_timer = QTimer(self)
+                self._system_timer.setInterval(2000)
+                self._system_timer.timeout.connect(self._check_system_theme)
+            if not self._system_timer.isActive():
+                logger.info(f"Started system theme polling (interval={self._system_timer.interval()}ms, detected={self._resolved})")
+                self._system_timer.start()
+        else:
+            if self._system_timer is not None and self._system_timer.isActive():
+                logger.info("Stopped system theme polling")
+                self._system_timer.stop()
 
     def get(self, token: str, default: str = "") -> str:
         """获取当前主题的色值。"""
@@ -415,6 +430,19 @@ class ThemeManager(QObject):
             self._tokens.update(derived)
 
         self.theme_changed.emit(self._resolved)
+
+    def _check_system_theme(self) -> None:
+        """轮询检测系统主题是否变化（仅 mode=="system" 时由定时器触发）。"""
+        detected = _detect_system_theme()
+        if detected != self._resolved:
+            logger.info(f"System theme changed: {self._resolved} -> {detected}")
+            self._resolve_and_apply()
+            app = QApplication.instance()
+            if app:
+                logger.info("Applying theme palette to QApplication")
+                self.apply_to_app(app)
+        else:
+            logger.debug(f"System theme check: still {detected} (no change)")
 
 
 # 模块级快捷访问

@@ -72,7 +72,7 @@ def _try_system_tesseract() -> bool:
         return False
 
 
-def extract_text(pixmap_or_qimage) -> str:
+def extract_text(pixmap_or_qimage, ocr_lang: str | None = None) -> str:
     """Run OCR on a QPixmap or QImage and return the recognized text."""
     if not ensure_tesseract_ready():
         return ""
@@ -83,8 +83,9 @@ def extract_text(pixmap_or_qimage) -> str:
         pil_image = qimage_to_pil(pixmap_or_qimage)
 
     try:
-        lang = get_settings().ocr_language
-        text = pytesseract.image_to_string(pil_image, lang=lang)
+        if ocr_lang is None:
+            ocr_lang = get_settings().ocr_language
+        text = pytesseract.image_to_string(pil_image, lang=ocr_lang)
         return text.strip()
     except Exception as e:
         logger.error(f"OCR 识别失败: {e}")
@@ -96,12 +97,12 @@ class OcrWorker(QThread):
     finished = Signal(str)
     error = Signal(str)
 
-    def __init__(self, pil_image: Image.Image) -> None:
+    def __init__(self, pil_image: Image.Image, ocr_lang: str | None = None) -> None:
         super().__init__()
         self.pil_image = pil_image
         self._proc: subprocess.Popen | None = None
         self._cancelled: bool = False
-        self._ocr_lang: str = get_settings().ocr_language
+        self._ocr_lang: str = ocr_lang or get_settings().ocr_language
 
     def cancel(self) -> None:
         self._cancelled = True

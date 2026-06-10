@@ -16,7 +16,6 @@ from ...core.i18n import _
 from ...core.utils import load_icon_from_svg
 from ...core.theme import theme as _t
 from ...core import qss_base
-from ...core.settings import get_settings
 from ...resources.icons.toolbar_icons import TOOLBAR_ICONS
 
 from .widgets import (
@@ -282,6 +281,7 @@ class ToolbarBuilder:
                     target=opt.get("target", ""),
                     current_color=current_color,
                     on_color_selected=lambda c, t=opt.get("target"): self._set_color(c, t),
+                    recent_colors=self.overlay.ctx.settings.recent_colors,
                 )
 
             elif opt_type == "width_spinbox":
@@ -520,8 +520,7 @@ class ToolbarBuilder:
         self.overlay.current_color = qc
         if hasattr(self.overlay, '_apply_property_to_selected') and target:
             self.overlay._apply_property_to_selected("color", color)
-        settings = get_settings()
-        settings.add_recent_color(color)
+        self.overlay.ctx.settings.add_recent_color(color)
 
     # ─── 公共访问 ───
 

@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QWidget, QMenu, QApplication, QInputDialog, QLineE
 
 from ..core.logger import setup_logger
 from ..ui.toast import ToastManager
-from ..core.settings import get_settings
+from ..core.context import AppContext, get_context
 from ..core.i18n import _
 from ..core.utils import qpixmap_to_pil, pil_to_qpixmap, create_emoji_icon
 from ..core import qss_base
@@ -42,8 +42,9 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
     MIN_HEIGHT = 100
     THUMBNAIL_SIZE = QSize(64, 64)
 
-    def __init__(self, pixmap: QPixmap, pos) -> None:
+    def __init__(self, pixmap: QPixmap, pos, ctx: AppContext | None = None) -> None:
         super().__init__()
+        self.ctx = ctx or get_context()
         self.pixmap = pixmap
         self._dragging: bool = False
         self._drag_pos: QPoint | None = None
@@ -90,7 +91,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
         # Tool state (matching overlay toolbar expectations)
         # Load defaults from settings
-        s = get_settings()
+        s = self.ctx.settings
         self.current_tool: str = "select"
         self.current_color: QColor = QColor(s.default_color)
         self.current_width: int = s.default_line_width
@@ -136,7 +137,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         if pos is not None:
             self.move(pos.x(), pos.y())
 
-        opacity = get_settings().pin_window_opacity
+        opacity = self.ctx.settings.pin_window_opacity
         self.setWindowOpacity(opacity / 100.0)
 
         self.setMouseTracking(True)
@@ -708,7 +709,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         captured = self._render_annotated_pixmap()
         from ..ocr.engine import OcrWorker
         pil_image = qpixmap_to_pil(captured)
-        self._ocr_worker = OcrWorker(pil_image)
+        self._ocr_worker = OcrWorker(pil_image, self.ctx.settings.ocr_language)
         self._ocr_worker.finished.connect(self._on_ocr_finished)
         self._ocr_worker.error.connect(self._on_ocr_error)
         self._show_ocr_progress(self._cancel_ocr)
@@ -1130,7 +1131,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         for opacity in [30, 50, 70, 80, 90, 100]:
             opacity_action = QAction(f"{opacity}%", self)
             opacity_action.setCheckable(True)
-            opacity_action.setChecked(get_settings().pin_window_opacity == opacity)
+            opacity_action.setChecked(self.ctx.settings.pin_window_opacity == opacity)
             opacity_action.triggered.connect(lambda checked, op=opacity: self._on_opacity_changed(op))
             opacity_menu.addAction(opacity_action)
 
@@ -1169,16 +1170,16 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         else:
             self.setWindowFlags(flags & ~Qt.WindowStaysOnTopHint)
         self.show()
-        settings = get_settings()
-        settings.pin_window_topmost = checked
-        settings.save()
+        s = self.ctx.settings
+        s.pin_window_topmost = checked
+        s.save()
         self.toggle_topmost_requested.emit(checked)
 
     def _on_opacity_changed(self, opacity: int) -> None:
         self.setWindowOpacity(opacity / 100.0)
-        settings = get_settings()
-        settings.pin_window_opacity = opacity
-        settings.save()
+        s = self.ctx.settings
+        s.pin_window_opacity = opacity
+        s.save()
         self.opacity_changed.emit(opacity)
 
     def _on_thumbnail_mode_toggled(self, checked: bool) -> None:
