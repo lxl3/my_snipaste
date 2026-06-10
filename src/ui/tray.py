@@ -9,7 +9,6 @@ from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
 from ..core.i18n import _
 from ..core.utils import create_app_icon, create_emoji_icon
 from ..core.logger import setup_logger, get_current_log_path, get_log_dir
-from ..core.hotkeys import get_default_hotkey
 from ..core.screenshot_history import ScreenshotHistory
 from ..core.theme import theme as theme_mgr
 from ..core import qss_base
@@ -38,7 +37,7 @@ class TrayManager(QObject):
         if not QSystemTrayIcon.isSystemTrayAvailable():
             return
 
-        hotkey_display = get_default_hotkey().upper().replace('+', ' + ')
+        hotkey_display = self.app.settings.hotkey.upper().replace('+', ' + ')
 
         icon = create_app_icon()
         self.tray_icon = QSystemTrayIcon(icon)

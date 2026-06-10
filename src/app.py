@@ -145,6 +145,7 @@ class SnipasteApp(QApplication):
             "pin_capture": self.settings.hotkey_pin,
             "full_capture": self.settings.hotkey_full,
             "color_picker": self.settings.hotkey_color_picker,
+            "settings": "ctrl+,",
         })
         self.hotkey_listener.capture_signal.connect(self.start_capture)
         self.hotkey_listener.ocr_signal.connect(self.ocr_clipboard)
@@ -152,6 +153,7 @@ class SnipasteApp(QApplication):
         self.hotkey_listener.pin_capture_signal.connect(self._capture_full_and_pin)
         self.hotkey_listener.full_capture_signal.connect(self._capture_full)
         self.hotkey_listener.color_picker_signal.connect(self._open_color_picker)
+        self.hotkey_listener.settings_signal.connect(self._open_settings)
 
         if have_hotkey:
             self.hotkey_listener.start()
@@ -172,9 +174,6 @@ class SnipasteApp(QApplication):
     def setup_focused_hotkey(self) -> None:
         self.f12_shortcut = QShortcut(QKeySequence("F12"), self)
         self.f12_shortcut.activated.connect(self.start_capture)
-        self.settings_shortcut = QShortcut(QKeySequence("Ctrl+,"), self)
-        self.settings_shortcut.setContext(Qt.ApplicationShortcut)
-        self.settings_shortcut.activated.connect(self._open_settings)
 
     def _setup_macos_menu(self) -> None:
         self._menu_widget = QWidget()
@@ -190,11 +189,10 @@ class SnipasteApp(QApplication):
         quit_act.triggered.connect(self.quit)
 
     def _show_startup_notification(self) -> None:
-        from .core.hotkeys import get_default_hotkey
         from .core.theme import theme as _t
         from PySide6.QtCore import QPropertyAnimation, QEasingCurve
 
-        hotkey_display = get_default_hotkey().upper().replace('+', ' + ')
+        hotkey_display = self.settings.hotkey.upper().replace('+', ' + ')
 
         if sys.platform == 'darwin':
             settings_key = '⌘,'

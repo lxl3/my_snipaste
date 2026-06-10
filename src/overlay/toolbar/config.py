@@ -10,6 +10,9 @@
 
 from ...core.constants import PRESET_COLORS, TEXT_PRESET_COLORS
 
+# 高亮笔预设颜色（荧光黄/绿/蓝/粉）
+HIGH_LIGHTER_COLORS = ["#FFFF00", "#00FF00", "#00BFFF", "#FF69B4"]
+
 
 # 工具栏配置
 TOOLBAR_CONFIG = [
@@ -68,8 +71,16 @@ TOOLBAR_CONFIG = [
     {
         "id": "highlighter",
         "icon": "highlighter",
-        "tooltip": "Highlighter",
-        "single_tool": "highlighter",
+        "tooltip": "Highlighter / Number Marker",
+        "tools": [
+            {"id": "highlighter", "icon": "highlighter", "tooltip": "Highlighter"},
+            {"id": "number_marker", "icon": "number_marker", "tooltip": "Number Marker"},
+        ],
+        "default_tool": "highlighter",
+        "options": [
+            {"type": "separator"},
+            {"type": "color_buttons", "colors": HIGH_LIGHTER_COLORS, "target": "highlighter"},
+        ],
     },
     {
         "id": "mosaic",
@@ -106,15 +117,20 @@ TOOLBAR_CONFIG = [
         "id": "magnifier",
         "icon": "magnifier",
         "tooltip": "Magnifier",
-        "single_tool": "magnifier",
+        "tools": [
+            {"id": "magnifier", "icon": "magnifier", "tooltip": "Magnifier", "implicit": True},
+        ],
+        "default_tool": "magnifier",
+        "options": [
+            {"type": "magnifier_zoom", "range": (2, 8), "width": 55},
+        ],
     },
     {
         "id": "text",
         "icon": "text",
-        "tooltip": "Text / Number Marker",
+        "tooltip": "Text (Add / Edit)",
         "tools": [
-            {"id": "text", "icon": "text", "tooltip": "Text"},
-            {"id": "number_marker", "icon": "number_marker", "tooltip": "Number Marker"},
+            {"id": "text", "icon": "text", "tooltip": "Text", "implicit": True},
         ],
         "default_tool": "text",
         "options": [
@@ -129,8 +145,12 @@ TOOLBAR_CONFIG = [
     {
         "id": "eraser",
         "icon": "eraser",
-        "tooltip": "Eraser (Click annotation to delete)",
-        "single_tool": "eraser",
+        "tooltip": "Eraser (Dot Erase / Fill Erase)",
+        "tools": [
+            {"id": "eraser_dot", "icon": "eraser_dot", "tooltip": "Dot Erase"},
+            {"id": "eraser_fill", "icon": "eraser_fill", "tooltip": "Fill Erase"},
+        ],
+        "default_tool": "eraser_dot",
     },
     {
         "id": "ocr",

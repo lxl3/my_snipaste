@@ -220,10 +220,10 @@ class SettingsDialog(ThemeAwareDialog):
 
     def _on_theme_changed(self, mode: str) -> None:
         """主题切换时重新应用样式"""
-        super()._on_theme_changed(mode)
-
-        # 重新应用所有 QSS 样式（包括 combobox 等）
+        # 先应用新 QSS（避免 super 中 unpolish/polish 使用旧样式导致闪烁）
         self._apply_styles()
+
+        super()._on_theme_changed(mode)
 
         # 刷新所有包含 token 的内联样式
         for label in self.findChildren(QLabel):

@@ -201,6 +201,7 @@ class MultiHotkeyListener(QObject):
     pin_capture_signal = Signal()
     full_capture_signal = Signal()
     color_picker_signal = Signal()
+    settings_signal = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -238,6 +239,7 @@ class MultiHotkeyListener(QObject):
             "pin_capture": self.pin_capture_signal,
             "full_capture": self.full_capture_signal,
             "color_picker": self.color_picker_signal,
+            "settings": self.settings_signal,
         }
         # Connect matched signals
         self._listener.hotkey_triggered.connect(self._on_hotkey_triggered)
@@ -322,7 +324,7 @@ class _MultiPynputListener(QObject):
                 keys.add(keyboard.Key.alt_l)
             elif part.startswith('f') and part[1:].isdigit():
                 keys.add(getattr(keyboard.Key, f'f{int(part[1:])}'))
-            elif len(part) == 1 and part.isalpha():
+            elif len(part) == 1:
                 keys.add(keyboard.KeyCode.from_char(part))
             else:
                 logger.warning(f"未识别的快捷键部分: {part}")

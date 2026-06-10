@@ -94,12 +94,18 @@ def combobox_qss(
     bg: str = "$bg_input",
     color: str = "$text_primary",
     arrow_color: str = "$text_primary",
+    font_size: str = "",
     menu_bg: str = "$bg_input",
     menu_color: str = "$text_primary",
     menu_selection_bg: str = "$accent",
     menu_selection_color: str = "$text_accent",
 ) -> str:
-    """通用 QComboBox 样式。"""
+    """通用 QComboBox 样式。
+
+    Args:
+        font_size: 如 "12px"，子菜单紧凑场景使用。
+    """
+    font_part = f"font-size: {font_size}; " if font_size else ""
     return _theme.qss(f"""
         QComboBox {{
             padding: {padding};
@@ -107,6 +113,7 @@ def combobox_qss(
             border-radius: {border_radius};
             background: {bg};
             color: {color};
+            {font_part}
         }}
         QComboBox::drop-down {{
             border: none;

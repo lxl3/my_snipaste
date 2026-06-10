@@ -65,10 +65,8 @@ class ThemeAwareDialog(QDialog):
         _theme.apply_to_widget(self)
         self._on_before_theme_apply()
 
-        # 步骤 1：清空样式表，强制 Qt 清除缓存的样式
-        self.setStyleSheet("")
-
-        # 步骤 2：重新构建并应用样式表
+        # 步骤 1：直接构建并应用新样式表（不先清空，避免白色闪烁）
+        # 后续的 unpolish/polish 已足够强制 Qt 清除缓存样式
         self._build_stylesheet_qss()
 
         # 步骤 3：更新所有保存的动态样式 widget
