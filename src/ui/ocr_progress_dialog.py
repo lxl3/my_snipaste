@@ -11,8 +11,8 @@ from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QWidget
 from PySide6.QtGui import QPainter, QColor
 
 from ..core.i18n import _
-from ..core.theme import theme as _t
-from ..core.glass_effect import draw_glass_morphism
+from ..core.theme_pkg import theme as _t
+from ..core.theme_pkg import draw_glass_morphism
 
 
 class OcrProgressDialog(QDialog):

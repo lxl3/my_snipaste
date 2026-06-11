@@ -3,7 +3,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout
 
-from ....core.theme import theme as _t
+from ....core.theme_pkg import theme as _t
 from ....core import qss_base
 
 

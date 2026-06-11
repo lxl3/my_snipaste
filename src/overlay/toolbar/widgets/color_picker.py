@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import QPushButton
 
-from ....core.theme import theme as _t
+from ....core.theme_pkg import theme as _t
 
 
 def make_color_picker_btn(on_click: callable) -> QPushButton:

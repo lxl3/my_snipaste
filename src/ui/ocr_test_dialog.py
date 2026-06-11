@@ -11,8 +11,8 @@ from PySide6.QtGui import QPainter
 
 from ..core.i18n import _
 from ..core import qss_base
-from ..core.theme import theme as _t
-from ..core.glass_effect import draw_glass_morphism
+from ..core.theme_pkg import theme as _t
+from ..core.theme_pkg import draw_glass_morphism
 
 
 class OcrTestDialog(QDialog):

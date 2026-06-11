@@ -6,7 +6,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QToolButton, QPushButton, QMenu, QWidget
 
-from ....core.theme import theme as _t
+from ....core.theme_pkg import theme as _t
 
 
 class MenuHandler:

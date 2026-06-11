@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Property, Signa
 from PySide6.QtGui import QPainter, QColor, QPen
 from PySide6.QtWidgets import QCheckBox, QWidget, QHBoxLayout, QLabel
 
-from ..core.theme import theme as _t
+from ..core.theme_pkg import theme as _t
 from ..core import qss_base
 
 

@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import QLabel, QSpinBox, QWidget, QHBoxLayout
 
-from ....core.theme import theme as _t
+from ....core.theme_pkg import theme as _t
 from ....core.i18n import _
 from .controls import ControlStyles
 

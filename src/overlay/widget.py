@@ -31,8 +31,8 @@ from ..core.constants import (
 )
 from ..core.i18n import _
 from ..core.logger import setup_logger
-from ..core.theme import theme as _tw
-from ..core.glass_effect import draw_glass_morphism, draw_glass_text
+from ..core.theme_pkg import theme as _tw
+from ..core.theme_pkg import draw_glass_morphism, draw_glass_text
 
 logger = setup_logger("overlay")
 

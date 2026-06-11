@@ -15,7 +15,7 @@ from ..theme_dialog import ThemeAwareDialog
 from ..title_bar import TitleBar
 from ...core.i18n import _, load_translations
 from ...core.settings import AppSettings, get_settings
-from ...core.theme import theme as _theme
+from ...core.theme_pkg import theme as _theme
 from ...core import qss_base
 from ...core.logger import setup_logger
 

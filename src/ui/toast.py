@@ -3,8 +3,8 @@ from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QEasingCurve,
 from PySide6.QtGui import QColor, QPainter, QLinearGradient, QPen
 
 from ..core import qss_base
-from ..core.theme import theme as _t
-from ..core.glass_effect import draw_glass_morphism
+from ..core.theme_pkg import theme as _t
+from ..core.theme_pkg import draw_glass_morphism
 
 
 class ToastNotification(QWidget):

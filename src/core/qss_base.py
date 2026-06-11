@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from .theme import theme as _theme
+from .theme_pkg import theme as _theme
 
 
 # ─── 基础控件 ────────────────────────────────────────

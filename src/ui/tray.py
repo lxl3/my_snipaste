@@ -10,7 +10,7 @@ from ..core.i18n import _
 from ..core.utils import create_app_icon, create_emoji_icon
 from ..core.logger import setup_logger, get_current_log_path, get_log_dir
 from ..core.screenshot_history import ScreenshotHistory
-from ..core.theme import theme as theme_mgr
+from ..core.theme_pkg import theme as theme_mgr
 from ..core import qss_base
 from .glass_widget import GlassMenu
 

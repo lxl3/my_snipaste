@@ -12,7 +12,7 @@ from ...settings_card import SettingsCard
 from ...toggle_switch import ToggleRow
 from ....core.i18n import _, available_languages
 from ....core.settings import AppSettings
-from ....core.theme import theme as _theme
+from ....core.theme_pkg import theme as _theme
 from ....core.logger import setup_logger
 from ...color_picker import get_color
 from PySide6.QtGui import QColor

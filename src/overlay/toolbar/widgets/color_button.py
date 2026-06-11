@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import QPushButton, QHBoxLayout
 
-from ....core.theme import theme as _t
+from ....core.theme_pkg import theme as _t
 
 
 def make_color_button(color: str, is_recent: bool, current_color: str = "") -> QPushButton:

@@ -3,12 +3,8 @@
 整合主题管理器、QSS 生成器和视觉效果。
 
 使用方式:
-    from src.core.theme_pkg import theme, qss_base, GlassEffect
-
-当前结构（渐进式迁移）:
-    - theme: 从 core.theme 重新导出
-    - qss_base: 从 core.qss_base 重新导出
-    - GlassEffect: 从 core.glass_effect 重新导出
+    from src.core.theme_pkg import theme, ThemeManager
+    from src.core.theme_pkg import pushbutton_qss, draw_glass_morphism
 
 目标结构:
     theme_pkg/
@@ -22,36 +18,52 @@
 from ..theme import (
     theme,
     ThemeManager,
+    get,
+    qss,
     LIGHT_TOKENS,
     DARK_TOKENS,
+    ThemeMode,
+    apply_dark_title_bar,
 )
 from ..qss_base import (
-    groupbox_qss,
-    lineedit_qss,
-    spinbox_qss,
     pushbutton_qss,
-    checkbox_qss,
+    lineedit_qss,
     combobox_qss,
-    label_qss,
+    spinbox_qss,
+    checkbox_qss,
+    groupbox_qss,
     slider_qss,
+    scrollbar_qss,
+    menu_qss,
+    label_qss,
 )
-from ..glass_effect import draw_glass_morphism
+from ..glass_effect import (
+    draw_glass_morphism,
+    draw_glass_text,
+)
 
 __all__ = [
     # Theme manager
     "theme",
     "ThemeManager",
+    "get",
+    "qss",
     "LIGHT_TOKENS",
     "DARK_TOKENS",
+    "ThemeMode",
+    "apply_dark_title_bar",
     # QSS generators
-    "groupbox_qss",
-    "lineedit_qss",
-    "spinbox_qss",
     "pushbutton_qss",
-    "checkbox_qss",
+    "lineedit_qss",
     "combobox_qss",
-    "label_qss",
+    "spinbox_qss",
+    "checkbox_qss",
+    "groupbox_qss",
     "slider_qss",
+    "scrollbar_qss",
+    "menu_qss",
+    "label_qss",
     # Effects
     "draw_glass_morphism",
+    "draw_glass_text",
 ]

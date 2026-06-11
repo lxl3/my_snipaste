@@ -12,7 +12,7 @@
 """
 
 from PySide6.QtWidgets import QDialog, QWidget, QScrollArea
-from ..core.theme import theme as _theme
+from ..core.theme_pkg import theme as _theme
 from ..core.logger import setup_logger
 
 logger = setup_logger("theme_dialog")

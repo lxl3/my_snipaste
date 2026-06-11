@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 
 from ...core.i18n import _
 from ...core.utils import load_icon_from_svg
-from ...core.theme import theme as _t
+from ...core.theme_pkg import theme as _t
 from ...core import qss_base
 from ...resources.icons.toolbar_icons import TOOLBAR_ICONS
 

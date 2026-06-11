@@ -15,7 +15,7 @@ from .core.utils import create_app_icon, ScreenCaptureError, capture_all_screens
 from .core.logger import setup_logger, apply_log_level
 from .core.settings import AppSettings, get_settings
 from .core.context import AppContext, init_context
-from .core.theme import theme as theme_manager
+from .core.theme_pkg import theme as theme_manager
 from .core import qss_base
 from .core.hotkeys import MultiHotkeyListener
 from .core.permissions import (
@@ -191,7 +191,7 @@ class SnipasteApp(QApplication):
         quit_act.triggered.connect(self.quit)
 
     def _show_startup_notification(self) -> None:
-        from .core.theme import theme as _t
+        from .core.theme_pkg import theme as _t
         from PySide6.QtCore import QPropertyAnimation, QEasingCurve
 
         hotkey_display = self.settings.hotkey.upper().replace('+', ' + ')

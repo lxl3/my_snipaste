@@ -14,7 +14,7 @@ from ...ui.glass_widget import GlassFrame
 from ...resources.icons.toolbar_icons import TOOLBAR_ICONS
 from ...core.i18n import _
 from ...core.utils import load_icon_from_svg
-from ...core.theme import theme as _t
+from ...core.theme_pkg import theme as _t
 
 from .config import TOOLBAR_CONFIG
 from .builder import ToolbarBuilder

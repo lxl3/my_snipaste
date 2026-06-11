@@ -15,7 +15,7 @@ from .color_picker import get_color
 from ..core.settings import AppSettings, get_settings
 from ..core.constants import PRESET_COLORS
 from ..core.logger import setup_logger
-from ..core.theme import theme as _theme
+from ..core.theme_pkg import theme as _theme
 from ..core import qss_base
 from .theme_dialog import ThemeAwareDialog
 from .title_bar import TitleBar
