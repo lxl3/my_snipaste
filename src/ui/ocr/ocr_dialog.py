@@ -16,10 +16,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..core import qss_base
-from ..core.i18n import _
-from ..core.theme_pkg import draw_glass_morphism
-from ..core.theme_pkg import theme as _t
+from ...core import qss_base
+from ...core.i18n import _
+from ...core.theme_pkg import draw_glass_morphism
+from ...core.theme_pkg import theme as _t
 
 
 class OcrResultDialog(QDialog):

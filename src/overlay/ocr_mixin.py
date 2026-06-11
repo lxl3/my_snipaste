@@ -3,7 +3,7 @@
 from collections.abc import Callable
 
 from ..core.logger import setup_logger
-from ..ui.ocr_progress_dialog import OcrProgressDialog
+from ..ui.ocr.ocr_progress_dialog import OcrProgressDialog
 
 logger = setup_logger("ocr_mixin")
 
