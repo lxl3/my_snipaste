@@ -7,6 +7,8 @@ from ...core import qss_base
 from ...core.context import AppContext, get_context
 from ...core.i18n import _
 from ...core.logger import setup_logger
+from ...core.geometry import cursor_for_crop_handle, get_crop_handle, \
+    point_to_segment_distance, resize_crop_rect
 from ...core.utils import create_emoji_icon, qpixmap_to_pil
 from ...overlay.ocr_mixin import OcrMixin
 from ...overlay.toolbar import OverlayToolbar
@@ -342,14 +344,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         return None
 
     def _point_to_line_distance(self, p: QPointF, a: QPointF, b: QPointF) -> float:
-        """Distance from point p to line segment ab."""
-        ab = b - a
-        ap = p - a
-        if ab.manhattanLength() == 0:
-            return ap.manhattanLength()
-        t = max(0, min(1, (ap.x() * ab.x() + ap.y() * ab.y()) / (ab.x() * ab.x() + ab.y() * ab.y())))
-        proj = a + t * ab
-        return (p - proj).manhattanLength()
+        return point_to_segment_distance(p, a, b)
 
     def _select_annotation(self, idx: int, event_pos: QPointF) -> None:
         """Select annotation at *idx* and prepare for dragging."""
@@ -911,63 +906,14 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
     # ─── Crop Mode Helpers ───────────────────────────────
 
     def _get_crop_handle(self, pos: QPointF) -> str:
-        """Detect which crop handle the mouse is over."""
-        if not self._crop_rect or self._crop_rect.isEmpty():
-            return ""
-
-        HANDLE_SIZE = 10
-        r = self._crop_rect
-
-        # Corner handles
-        corners = {
-            "nw": r.topLeft(),
-            "ne": r.topRight(),
-            "sw": r.bottomLeft(),
-            "se": r.bottomRight(),
-        }
-        for handle, corner in corners.items():
-            handle_rect = QRectF(
-                corner.x() - HANDLE_SIZE / 2,
-                corner.y() - HANDLE_SIZE / 2,
-                HANDLE_SIZE, HANDLE_SIZE
-            )
-            if handle_rect.contains(pos):
-                return handle
-
-        # Inside = move
-        if r.contains(pos):
-            return "move"
-
-        return ""
+        return get_crop_handle(self._crop_rect, pos, 10) if self._crop_rect else ""
 
     def _update_crop_cursor(self, handle: str) -> None:
-        """Update cursor based on crop handle."""
-        cursors = {
-            "nw": Qt.SizeFDiagCursor,
-            "se": Qt.SizeFDiagCursor,
-            "ne": Qt.SizeBDiagCursor,
-            "sw": Qt.SizeBDiagCursor,
-            "move": Qt.SizeAllCursor,
-            "": Qt.CrossCursor,
-        }
-        self.setCursor(cursors.get(handle, Qt.CrossCursor))
+        self.setCursor(cursor_for_crop_handle(handle))
 
     def _resize_crop_rect(self, pos: QPointF) -> None:
-        """Resize crop rect based on active handle."""
-        if not self._crop_rect:
-            return
-
-        r = self._crop_rect
-        if self._crop_handle == "nw":
-            r.setTopLeft(pos)
-        elif self._crop_handle == "ne":
-            r.setTopRight(pos)
-        elif self._crop_handle == "sw":
-            r.setBottomLeft(pos)
-        elif self._crop_handle == "se":
-            r.setBottomRight(pos)
-
-        self._crop_rect = r.normalized()
+        if self._crop_rect:
+            self._crop_rect = resize_crop_rect(self._crop_rect, self._crop_handle, pos)
 
     def _draw_crop_handles(self, painter: QPainter, rect: QRectF) -> None:
         """Draw resize handles at corners of crop rect."""

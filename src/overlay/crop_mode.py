@@ -3,6 +3,8 @@
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSizeF, Qt
 from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 
+from ..core.geometry import cursor_for_crop_handle, draw_crop_handles as _draw_crop_handles, \
+    get_crop_handle, resize_crop_rect
 from ..core.i18n import _
 from ..core.logger import setup_logger
 from ..core.screenshot_history import ScreenshotHistory
@@ -20,8 +22,6 @@ class CropMode:
     - pin_requested signal, close(), update(), setCursor()
     - toolbar (with .toolbar, .close_menus(), .animate_show())
     """
-
-    HANDLE_SIZE = 8
 
     def __init__(self, overlay) -> None:
         self.overlay = overlay
@@ -162,7 +162,7 @@ class CropMode:
 
     def handle_mouse_press(self, pos: QPoint) -> None:
         local_pos = self.overlay._sel_to_local(pos)
-        handle = self._get_handle(local_pos)
+        handle = get_crop_handle(self.rect, local_pos) if self.rect else ""
         if handle:
             self.handle = handle
             self.start = local_pos
@@ -183,9 +183,10 @@ class CropMode:
                 self.rect.translate(delta)
                 self.start = local_pos
             else:
-                self._resize(local_pos)
+                self.rect = resize_crop_rect(self.rect, self.handle, local_pos)
         else:
-            self._update_cursor(self._get_handle(local_pos))
+            h = get_crop_handle(self.rect, local_pos) if self.rect else ""
+            self.overlay.setCursor(cursor_for_crop_handle(h))
         self.overlay.update()
 
     def handle_mouse_release(self) -> None:
@@ -250,60 +251,4 @@ class CropMode:
         painter.setPen(QPen(Qt.white, 2, Qt.DashLine))
         painter.setBrush(Qt.NoBrush)
         painter.drawRect(cs)
-        self._draw_handles(painter, cs)
-
-    # ── Handle helpers ──────────────────────────────────────────
-
-    def _get_handle(self, pos: QPointF) -> str:
-        if not self.rect or self.rect.isEmpty():
-            return ""
-        hs = self.HANDLE_SIZE
-        r = self.rect
-        handles = {
-            "nw": QRectF(r.left() - hs / 2, r.top() - hs / 2, hs, hs),
-            "ne": QRectF(r.right() - hs / 2, r.top() - hs / 2, hs, hs),
-            "sw": QRectF(r.left() - hs / 2, r.bottom() - hs / 2, hs, hs),
-            "se": QRectF(r.right() - hs / 2, r.bottom() - hs / 2, hs, hs),
-        }
-        for name, hr in handles.items():
-            if hr.contains(pos):
-                return name
-        if r.contains(pos):
-            return "move"
-        return ""
-
-    def _update_cursor(self, handle: str) -> None:
-        cursors = {
-            "nw": Qt.SizeFDiagCursor, "se": Qt.SizeFDiagCursor,
-            "ne": Qt.SizeBDiagCursor, "sw": Qt.SizeBDiagCursor,
-            "move": Qt.SizeAllCursor,
-        }
-        self.overlay.setCursor(cursors.get(handle, Qt.CrossCursor))
-
-    def _resize(self, pos: QPointF) -> None:
-        if not self.rect:
-            return
-        r = self.rect
-        if self.handle == "nw":
-            r.setTopLeft(pos)
-        elif self.handle == "ne":
-            r.setTopRight(pos)
-        elif self.handle == "sw":
-            r.setBottomLeft(pos)
-        elif self.handle == "se":
-            r.setBottomRight(pos)
-        self.rect = r.normalized()
-
-    def _draw_handles(self, painter: QPainter, rect: QRectF) -> None:
-        hs = self.HANDLE_SIZE
-        painter.setPen(QPen(Qt.white, 1))
-        painter.setBrush(Qt.white)
-        corners = [
-            (rect.left() - hs / 2, rect.top() - hs / 2),
-            (rect.right() - hs / 2, rect.top() - hs / 2),
-            (rect.left() - hs / 2, rect.bottom() - hs / 2),
-            (rect.right() - hs / 2, rect.bottom() - hs / 2),
-        ]
-        for x, y in corners:
-            painter.fillRect(int(x), int(y), hs, hs, Qt.white)
-            painter.drawRect(int(x), int(y), hs, hs)
+        _draw_crop_handles(painter, cs)

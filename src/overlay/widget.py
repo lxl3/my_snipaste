@@ -1,11 +1,12 @@
 """Full-screen overlay for area selection, annotation, and event handling.
 
-Composed of CaptureOverlay (main class) + 5 mixins:
-- OcrMixin              — OCR progress / cancellation
-- OverlayRenderingMixin — annotation rendering
-- OverlayActionsMixin   — actions / text editing
-- OverlaySelectionMixin — selection / hit-testing / dragging
-- OverlayDrawingMixin   — drawing state / tool selection
+Composed of CaptureOverlay (main class) + 6 mixins:
+- OcrMixin               — OCR progress / cancellation
+- OverlayRenderingMixin  — annotation rendering
+- OverlayActionsMixin    — actions / text editing
+- OverlayTransformsMixin — image rotate / flip
+- OverlaySelectionMixin  — selection / hit-testing / dragging
+- OverlayDrawingMixin    — drawing state / tool selection
 """
 
 import os
@@ -32,6 +33,7 @@ from .ocr_mixin import OcrMixin
 from .rendering import OverlayRenderingMixin
 from .selection import OverlaySelectionMixin
 from .toolbar import OverlayToolbar
+from .transforms import OverlayTransformsMixin
 from .window_snap import WindowSnapDetector
 
 logger = setup_logger("overlay")
@@ -41,7 +43,7 @@ TOOLBAR_FIXED_WIDTH = 420  # px - 足够容纳最宽的工具菜单
 TOOLBAR_FIXED_HEIGHT = 32  # px - 标准工具栏高度
 
 
-class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMixin, OverlaySelectionMixin, OverlayDrawingMixin):
+class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMixin, OverlayTransformsMixin, OverlaySelectionMixin, OverlayDrawingMixin):
     """Full-screen semi-transparent overlay with selection, annotation, and OCR."""
 
     pin_requested = Signal(object, object)
