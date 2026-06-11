@@ -73,11 +73,11 @@ class AppContext:
         """创建生产环境的上下文"""
         from .screenshot_history import ScreenshotHistory
         from .settings import get_settings
-        from .theme import theme as theme_manager
+        from .theme_pkg import theme as _theme
 
         return cls(
             settings=get_settings(),
-            theme=theme_manager,
+            theme=_theme,
             history=ScreenshotHistory(),
         )
 
@@ -85,11 +85,11 @@ class AppContext:
     def create_minimal(cls) -> "AppContext":
         """创建最小上下文（不初始化 history）"""
         from .settings import get_settings
-        from .theme import theme as theme_manager
+        from .theme_pkg import theme as _theme
 
         return cls(
             settings=get_settings(),
-            theme=theme_manager,
+            theme=_theme,
             history=None,
         )
 
@@ -110,11 +110,11 @@ class AppContext:
             history: 自定义历史实例，None 则不初始化
         """
         from .settings import AppSettings
-        from .theme import theme as default_theme
+        from .theme_pkg import theme as _theme
 
         return cls(
             settings=settings or AppSettings(),
-            theme=theme or default_theme,
+            theme=theme or _theme,
             i18n=i18n,
             history=history,
         )

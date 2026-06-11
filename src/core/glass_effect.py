@@ -43,11 +43,11 @@ def draw_glass_morphism(
 
     Example:
         from ..core.glass_effect import draw_glass_morphism
-        from ..core.theme import theme
+        from ..core.theme_pkg import theme as _t
 
         painter = QPainter(self)
         rect = QRectF(10, 10, 200, 60)
-        draw_glass_morphism(painter, rect, is_dark=theme.is_dark())
+        draw_glass_morphism(painter, rect, is_dark=_t.is_dark())
     """
     bx, by, bw, bh = rect.x(), rect.y(), rect.width(), rect.height()
 
