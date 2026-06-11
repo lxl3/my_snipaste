@@ -1,37 +1,46 @@
+# ruff: noqa: I001 — import order matters: qss_base after theme_pkg avoids circular import
 import os
 import sys
 from datetime import datetime
+
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QShortcut, QKeySequence, QPixmap, QAction, QCursor
+from PySide6.QtGui import QAction, QCursor, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QMessageBox, QFileDialog, QWidget, QMenuBar, QMainWindow,
+    QApplication,
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QMenuBar,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
 
-from .overlay.widget import CaptureOverlay
-from .ocr.engine import extract_text
-from .core.i18n import _, load_translations
-from .core.utils import create_app_icon, ScreenCaptureError, capture_all_screens
-from .core.logger import setup_logger, apply_log_level
-from .core.settings import AppSettings, get_settings
 from .core.context import AppContext, init_context
-from .core.theme_pkg import theme as theme_manager
-from .core import qss_base
 from .core.hotkeys import MultiHotkeyListener
+from .core.i18n import _, load_translations
+from .core.logger import apply_log_level, setup_logger
 from .core.permissions import (
     check_macos_accessibility,
     check_screen_recording_permission,
     open_screen_recording_settings,
-    request_screen_recording_permission,
-    show_permission_guide,
     show_permission_dialog,
+    show_permission_guide,
 )
-from .ui.pin_window import PinWindow
-from .ui.color_picker import ScreenColorPicker
-from .ui.tray import TrayManager
-from .ui.settings import SettingsDialog
-from .ui.countdown_overlay import CountdownOverlay
 from .core.screenshot_history import ScreenshotHistory
+from .core.settings import AppSettings, get_settings
+from .core.theme_pkg import theme as theme_manager
+from .core import qss_base  # noqa: I001 — must be after theme_pkg to avoid circular import
+from .core.utils import ScreenCaptureError, capture_all_screens, create_app_icon
+from .ocr.engine import extract_text
+from .overlay.widget import CaptureOverlay
+from .ui.color_picker import ScreenColorPicker
+from .ui.countdown_overlay import CountdownOverlay
+from .ui.pin_window import PinWindow
+from .ui.settings import SettingsDialog
+from .ui.tray import TrayManager
 
 logger = setup_logger("app")
 
@@ -191,8 +200,9 @@ class SnipasteApp(QApplication):
         quit_act.triggered.connect(self.quit)
 
     def _show_startup_notification(self) -> None:
+        from PySide6.QtCore import QEasingCurve, QPropertyAnimation
+
         from .core.theme_pkg import theme as _t
-        from PySide6.QtCore import QPropertyAnimation, QEasingCurve
 
         hotkey_display = self.settings.hotkey.upper().replace('+', ' + ')
 
@@ -569,14 +579,14 @@ class SnipasteApp(QApplication):
     def _on_pin(self, pixmap: QPixmap, pos) -> None:
         win = PinWindow(pixmap, pos, self.ctx)
         win.destroyed.connect(lambda: self.pin_windows.remove(win) if win in self.pin_windows else None)
-        
+
         # Connect signals from PinWindow to app handlers
         win.copy_requested.connect(self._on_copy)
         win.save_requested.connect(self._on_save)
         win.close_requested.connect(win.close)
         win.toggle_topmost_requested.connect(self._on_toggle_topmost)
         win.opacity_changed.connect(self._on_opacity_changed)
-        
+
         self.pin_windows.append(win)
         win.show()
 
@@ -585,7 +595,8 @@ class SnipasteApp(QApplication):
 
     def _on_save(self, pixmap: QPixmap, has_annotations: bool = False) -> None:
         s = self.settings
-        default_name = _("Screenshot_{time}.{fmt}").format(time=datetime.now().strftime('%Y%m%d_%H%M%S'), fmt=s.auto_save_format)
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        default_name = _("Screenshot_{time}.{fmt}").format(time=ts, fmt=s.auto_save_format)
         default_dir = s.auto_save_dir or ""
         default_path = os.path.join(default_dir, default_name) if default_dir else default_name
 
@@ -800,10 +811,11 @@ class SnipasteApp(QApplication):
                     try:
                         sound_path = r"C:\Windows\Media\notify.wav"
                         if os.path.exists(sound_path):
-                            winsound.PlaySound(sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NOWAIT)
+                            flags = winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NOWAIT
+                            winsound.PlaySound(sound_path, flags)
                         else:
                             winsound.MessageBeep(winsound.MB_ICONASTERISK)
-                    except:
+                    except Exception:
                         pass
 
                 # Play in separate thread for zero blocking
@@ -824,7 +836,7 @@ class SnipasteApp(QApplication):
             logger.warning(f"播放截图声音失败: {e}")
             try:
                 self.beep()
-            except:
+            except Exception:
                 pass
 
     def cleanup(self) -> None:

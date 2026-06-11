@@ -15,7 +15,7 @@
     └── effects.py      # 视觉效果
 """
 
-from ..theme import (
+from ..theme import (  # noqa: I001 — must be first to avoid circular import with qss_base
     theme,
     ThemeManager,
     get,

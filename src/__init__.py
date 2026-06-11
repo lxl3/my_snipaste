@@ -1,6 +1,6 @@
 import importlib.metadata
 
-from .app import SnipasteApp
+from .app import SnipasteApp as SnipasteApp
 
 try:
     __version__ = importlib.metadata.version("MySnipaste")

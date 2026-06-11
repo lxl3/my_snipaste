@@ -6,10 +6,7 @@
     # 或自定义: pushbutton_qss(padding="4px 12px")
 """
 
-from typing import Optional
-
 from .theme_pkg import theme as _theme
-
 
 # ─── 基础控件 ────────────────────────────────────────
 
