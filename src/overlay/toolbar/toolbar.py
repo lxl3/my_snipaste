@@ -4,29 +4,31 @@ OverlayToolbar 使用 ToolbarBuilder + TOOLBAR_CONFIG 构建菜单 UI，
 手动构建动作按钮（undo/redo/crop/pin/save/copy/close）并管理动画/状态。
 """
 
+from PySide6.QtCore import QAbstractAnimation, QPropertyAnimation, QSize
 from PySide6.QtWidgets import (
-    QWidget, QToolButton, QFrame, QHBoxLayout, QMenu,
+    QFrame,
     QGraphicsOpacityEffect,
+    QHBoxLayout,
+    QMenu,
+    QToolButton,
+    QWidget,
 )
-from PySide6.QtCore import QSize, QPropertyAnimation, QAbstractAnimation
 
-from ...ui.glass_widget import GlassFrame
-from ...resources.icons.toolbar_icons import TOOLBAR_ICONS
 from ...core.i18n import _
-from ...core.utils import load_icon_from_svg
 from ...core.theme_pkg import theme as _t
-
-from .config import TOOLBAR_CONFIG
+from ...core.utils import load_icon_from_svg
+from ...resources.icons.toolbar_icons import TOOLBAR_ICONS
+from ...ui.glass_widget import GlassFrame
 from .builder import ToolbarBuilder
-from .menus.shape_menu import ShapeMenuHandler
+from .config import TOOLBAR_CONFIG
 from .menus.arrow_menu import ArrowMenuHandler
-from .menus.pen_menu import PenMenuHandler
-from .menus.highlighter_menu import HighlighterMenuHandler
-from .menus.mosaic_menu import MosaicMenuHandler
-from .menus.magnifier_menu import MagnifierMenuHandler
-from .menus.text_menu import TextMenuHandler
 from .menus.eraser_menu import EraserMenuHandler
-
+from .menus.highlighter_menu import HighlighterMenuHandler
+from .menus.magnifier_menu import MagnifierMenuHandler
+from .menus.mosaic_menu import MosaicMenuHandler
+from .menus.pen_menu import PenMenuHandler
+from .menus.shape_menu import ShapeMenuHandler
+from .menus.text_menu import TextMenuHandler
 
 # ─── 工具栏按钮样式 ───
 
@@ -49,10 +51,10 @@ def _toolbar_buttons_style() -> str:
         border: none; background: transparent;
     }}
     QToolTip {{
-        background: {"#2D2D2D" if is_dark else "#FFFFFF"};
-        color: {"#CCCCCC" if is_dark else "#333333"};
-        border: {"1px solid #555555" if is_dark else "1px solid #CCCCCC"};
-        padding: 4px 8px; border-radius: 4px; font-size: 12px;
+        background: transparent;
+        color: $text_secondary;
+        border: none;
+        padding: 0px;
     }}
     QToolButton {{
         color: $text_primary; background: transparent;

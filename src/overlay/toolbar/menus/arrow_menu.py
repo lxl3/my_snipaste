@@ -19,8 +19,8 @@ class ArrowMenuHandler(MenuHandler):
             idx = getattr(self.overlay, '_selected_annotation_idx', None)
             if idx is not None and 0 <= idx < len(self.overlay.annotations):
                 ann = self.overlay.annotations[idx]
-                if ann.get("type") == "arrow":
-                    saved = ann.get("arrow_style", "solid")
+                if ann.type == "arrow":
+                    saved = ann.arrow_style
                     if saved in ("solid", "hollow", "solid_tail", "hollow_tail"):
                         self.overlay.current_arrow_style = saved
 
