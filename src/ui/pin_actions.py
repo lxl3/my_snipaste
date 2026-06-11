@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QLineEdit
 
 from ..core.logger import setup_logger
 from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
+from ..annotations import Annotation
 
 logger = setup_logger("pin_actions")
 
@@ -17,7 +18,7 @@ class PinWindowActionsMixin:
     """Action methods for pin window (text, eraser, undo/redo, toolbar).
 
     Subclass must provide:
-    - self.annotations (list[dict])
+    - self.annotations (list[Annotation])
     - self._undo_stack (list[dict])
     - self._redo_stack (list[dict])
     - self._text_editor (QLineEdit | None)
@@ -46,22 +47,22 @@ class PinWindowActionsMixin:
     def _finish_drawing(self) -> None:
         if self._preview_annotation is None:
             return
-        ann = dict(self._preview_annotation)
+        ann = self._preview_annotation
         self._preview_annotation = None
-        if ann["type"] in ("arrow", "line"):
-            start = QPointF(ann["start"][0], ann["start"][1])
-            end = QPointF(ann["end"][0], ann["end"][1])
+        if ann.type in ("arrow", "line"):
+            start = ann.start
+            end = ann.end
             if (end - start).manhattanLength() < 5:
                 return  # too short
         self._add_annotation(ann)
         self._drawing = False
         self._draw_points = []
 
-    def _add_annotation(self, ann: dict) -> None:
+    def _add_annotation(self, ann: Annotation) -> None:
         self.annotations.append(ann)
         # Select the newly added annotation (matching overlay behavior)
         self._selected_annotation_index = len(self.annotations) - 1
-        self._undo_stack.append({"type": "add", "ann": dict(ann), "index": len(self.annotations) - 1})
+        self._undo_stack.append({"type": "add", "ann": ann.clone(), "index": len(self.annotations) - 1})
         self._redo_stack.clear()
         self._update_toolbar_undo_redo()
         self.update()
@@ -147,24 +148,24 @@ class PinWindowActionsMixin:
                 idx = self._editing_annotation_idx
                 if 0 <= idx < len(self.annotations):
                     ann = self.annotations[idx]
-                    ann["text"] = text
-                    ann["color"] = QColor(self.text_color)
-                    ann["font_family"] = self.text_font_family
-                    ann["font_size"] = self.text_font_size
-                    ann["bold"] = self.text_bold
-                    ann["italic"] = self.text_italic
+                    ann.text = text
+                    ann.color = self.text_color.name()
+                    ann.font_family = self.text_font_family
+                    ann.font_size = self.text_font_size
+                    ann.bold = self.text_bold
+                    ann.italic = self.text_italic
             else:
                 # Store pos as tuple for consistency with other PinWindow annotations
-                self.annotations.append({
-                    "type": "text",
-                    "pos": (self._text_editor_pos.x(), self._text_editor_pos.y()),
-                    "text": text,
-                    "color": QColor(self.text_color),
-                    "font_family": self.text_font_family,
-                    "font_size": self.text_font_size,
-                    "bold": self.text_bold,
-                    "italic": self.text_italic,
-                })
+                self.annotations.append(Annotation(
+                    type="text",
+                    pos=(self._text_editor_pos.x(), self._text_editor_pos.y()),
+                    text=text,
+                    color=self.text_color,
+                    font_family=self.text_font_family,
+                    font_size=self.text_font_size,
+                    bold=self.text_bold,
+                    italic=self.text_italic,
+                ))
                 self._undo_stack.append({"type": "add", "ann": self.annotations[-1], "index": len(self.annotations) - 1})
             self._redo_stack.clear()
             self._update_toolbar_undo_redo()
@@ -217,14 +218,9 @@ class PinWindowActionsMixin:
         logger.debug(f"擦除检测: pos=({pos.x():.0f},{pos.y():.0f}), r={r}, annotations={len(self.annotations)}")
         for i in range(len(self.annotations) - 1, -1, -1):
             ann = self.annotations[i]
-            t = ann["type"]
+            t = ann.type
             if t in ("rect", "ellipse", "mosaic", "blur", "magnifier"):
-                # Support both tuple and QRectF formats
-                rect_data = ann["rect"]
-                if isinstance(rect_data, tuple):
-                    ann_rect = QRectF(rect_data[0], rect_data[1], rect_data[2], rect_data[3])
-                else:
-                    ann_rect = QRectF(rect_data)
+                ann_rect = ann.rect
                 d = self._point_to_rect_distance(pos, ann_rect)
                 logger.debug(f"  [{i}] type={t}, rect={ann_rect}, dist={d:.1f}")
                 if d < r:
@@ -237,9 +233,8 @@ class PinWindowActionsMixin:
                     self.update()
                     return
             elif t in ("arrow", "line"):
-                # Support both tuple and QPointF formats for start/end
-                start = ann["start"] if isinstance(ann["start"], QPointF) else QPointF(ann["start"][0], ann["start"][1])
-                end = ann["end"] if isinstance(ann["end"], QPointF) else QPointF(ann["end"][0], ann["end"][1])
+                start = ann.start
+                end = ann.end
                 d = self._point_to_segment_distance(pos, start, end)
                 logger.debug(f"  [{i}] type={t}, start={start}, end={end}, dist={d:.1f}")
                 if d < r:
@@ -252,10 +247,10 @@ class PinWindowActionsMixin:
                     self.update()
                     return
             elif t == "freehand":
-                pts = ann["points"]
+                pts = ann.points
                 for j in range(len(pts) - 1):
-                    p1 = pts[j] if isinstance(pts[j], QPointF) else QPointF(pts[j][0], pts[j][1])
-                    p2 = pts[j + 1] if isinstance(pts[j + 1], QPointF) else QPointF(pts[j + 1][0], pts[j + 1][1])
+                    p1 = pts[j]
+                    p2 = pts[j + 1]
                     d = self._point_to_segment_distance(pos, p1, p2)
                     if d < r:
                         logger.debug(f"  → 擦除 freehand[{i}] segment {j}, dist={d:.1f}")
@@ -267,20 +262,16 @@ class PinWindowActionsMixin:
                         self.update()
                         return
             elif t == "text":
-                font = QFont(ann["font_family"], ann["font_size"])
-                font.setBold(ann.get("bold", False))
-                font.setItalic(ann.get("italic", False))
+                font = QFont(ann.font_family, ann.font_size)
+                font.setBold(ann.bold)
+                font.setItalic(ann.italic)
                 fm = QFontMetrics(font)
-                tw = fm.horizontalAdvance(ann["text"])
+                tw = fm.horizontalAdvance(ann.text)
                 th = fm.height()
-                # Support both tuple and QPointF formats
-                text_pos = ann["pos"]
-                if isinstance(text_pos, tuple):
-                    text_rect = QRectF(text_pos[0], text_pos[1], tw, th)
-                else:
-                    text_rect = QRectF(text_pos.x(), text_pos.y(), tw, th)
+                text_pos = ann.pos
+                text_rect = QRectF(text_pos.x(), text_pos.y(), tw, th)
                 d = self._point_to_rect_distance(pos, text_rect)
-                logger.debug(f"  [{i}] type=text, pos={ann['pos']}, text_rect={text_rect}, dist={d:.1f}")
+                logger.debug(f"  [{i}] type=text, pos={ann.pos}, text_rect={text_rect}, dist={d:.1f}")
                 if d < r:
                     logger.debug(f"  → 擦除 text annotation {i}")
                     self._on_annotation_removed(i)
@@ -291,10 +282,8 @@ class PinWindowActionsMixin:
                     self.update()
                     return
             elif t == "number_marker":
-                # Support both tuple and QPointF formats
-                marker_pos = ann["pos"]
-                center = QPointF(marker_pos[0], marker_pos[1]) if isinstance(marker_pos, tuple) else QPointF(marker_pos)
-                radius = ann.get("radius", 14)
+                center = ann.pos
+                radius = ann.radius
                 d = math.hypot(pos.x() - center.x(), pos.y() - center.y())
                 logger.debug(f"  [{i}] type=number_marker, center={center}, dist={d:.1f}")
                 if d < r + radius:
@@ -323,29 +312,29 @@ class PinWindowActionsMixin:
         if not (0 <= self._selected_annotation_index < len(self.annotations)):
             return
         ann = self.annotations[self._selected_annotation_index]
-        if key == "color" and "color" in ann:
-            ann["color"] = value if isinstance(value, str) else value.name()
-        elif key == "width" and "width" in ann:
-            ann["width"] = value
-        elif key == "blur_radius" and ann["type"] == "blur":
-            ann["radius"] = value
-            ann.pop("_cached", None)  # force re-render
-        elif key == "magnifier_zoom" and ann["type"] == "magnifier":
-            ann["zoom"] = value
-            ann.pop("_cached", None)  # force re-render with new zoom
-        elif key == "mosaic_scale" and ann["type"] == "mosaic":
-            ann["scale"] = value
-            ann.pop("_cached", None)  # force re-render with new scale
-        elif key == "font_family" and ann["type"] == "text":
-            ann["font_family"] = value
-        elif key == "font_size" and ann["type"] == "text":
-            ann["font_size"] = value
-        elif key == "bold" and ann["type"] == "text":
-            ann["bold"] = value
-        elif key == "italic" and ann["type"] == "text":
-            ann["italic"] = value
-        elif key == "text_color" and ann["type"] == "text":
-            ann["color"] = value if isinstance(value, str) else value.name()
+        if key == "color":
+            ann.color = value if isinstance(value, str) else value.name()
+        elif key == "width":
+            ann.width = value
+        elif key == "blur_radius" and ann.type == "blur":
+            ann.blur_radius = value
+            ann._cached = None
+        elif key == "magnifier_zoom" and ann.type == "magnifier":
+            ann.zoom = value
+            ann._cached = None
+        elif key == "mosaic_scale" and ann.type == "mosaic":
+            ann.scale = value
+            ann._cached = None
+        elif key == "font_family" and ann.type == "text":
+            ann.font_family = value
+        elif key == "font_size" and ann.type == "text":
+            ann.font_size = value
+        elif key == "bold" and ann.type == "text":
+            ann.bold = value
+        elif key == "italic" and ann.type == "text":
+            ann.italic = value
+        elif key == "text_color" and ann.type == "text":
+            ann.color = value if isinstance(value, str) else value.name()
         self.update()
 
     # ─── Undo / Redo ─────────────────────────────────────
@@ -383,24 +372,22 @@ class PinWindowActionsMixin:
     # ─── Image transforms (rotate / flip) ─────────────────
 
     def _transform_annotations(self, xform) -> None:
-        """Apply *xform(x, y) → (x', y')* to every annotation's coordinates.
-        Annotations in PinWindow use tuple coords relative to image (0,0).
-        """
+        """Apply *xform(x, y) → (x', y')* to every annotation's coordinates."""
         for ann in self.annotations:
-            t = ann["type"]
+            t = ann.type
             if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                x, y, w, h = ann["rect"]
-                nx, ny = xform(x, y)
-                ann["rect"] = (nx, ny, w, h)
-                ann.pop("_cached", None)
+                r = ann.rect
+                nx, ny = xform(r.x(), r.y())
+                ann.rect = QRectF(nx, ny, r.width(), r.height())
+                ann._cached = None
             elif t in ("arrow", "line"):
-                ann["start"] = xform(*ann["start"])
-                ann["end"] = xform(*ann["end"])
+                ann.start = QPointF(xform(ann.start.x(), ann.start.y()))
+                ann.end = QPointF(xform(ann.end.x(), ann.end.y()))
             elif t == "freehand":
-                ann["points"] = [xform(*p) for p in ann["points"]]
-                ann.pop("_path", None)
+                ann.points = [QPointF(xform(p.x(), p.y())) for p in ann.points]
+                ann._path = None
             elif t in ("text", "number_marker"):
-                ann["pos"] = xform(*ann["pos"])
+                ann.pos = QPointF(xform(ann.pos.x(), ann.pos.y()))
 
     def _rotate_cw(self) -> None:
         """Rotate image and annotations 90° clockwise."""
@@ -526,37 +513,33 @@ class PinWindowActionsMixin:
         # Filter & offset surviving annotations
         surviving = []
         for a in self.annotations:
-            t = a["type"]
+            t = a.type
             keep = False
             if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                r = a["rect"]
-                r_rect = QRectF(r) if isinstance(r, QRectF) else QRectF(*r)
-                keep = r_rect.intersects(crop_rect)
+                r = a.rect
+                keep = r.intersects(crop_rect)
                 if keep:
-                    a["rect"] = (r_rect.x() - x, r_rect.y() - y,
-                                 r_rect.width(), r_rect.height())
+                    a.rect = QRectF(r.x() - x, r.y() - y, r.width(), r.height())
                 if t in ("mosaic", "blur", "magnifier"):
-                    a.pop("_cached", None)
+                    a._cached = None
             elif t in ("arrow", "line"):
-                sd, ed = a["start"], a["end"]
-                sp = sd if isinstance(sd, QPointF) else QPointF(*sd)
-                ep = ed if isinstance(ed, QPointF) else QPointF(*ed)
+                sp = a.start
+                ep = a.end
                 keep = crop_rect.contains(sp) or crop_rect.contains(ep)
                 if keep:
-                    a["start"] = (sp.x() - x, sp.y() - y)
-                    a["end"] = (ep.x() - x, ep.y() - y)
+                    a.start = QPointF(sp.x() - x, sp.y() - y)
+                    a.end = QPointF(ep.x() - x, ep.y() - y)
             elif t == "freehand":
-                pts = [p if isinstance(p, QPointF) else QPointF(*p) for p in a["points"]]
+                pts = a.points
                 keep = any(crop_rect.contains(p) for p in pts)
                 if keep:
-                    a["points"] = [(p.x() - x, p.y() - y) for p in pts]
-                a.pop("_path", None)
+                    a.points = [QPointF(p.x() - x, p.y() - y) for p in pts]
+                a._path = None
             elif t in ("text", "number_marker"):
-                pd = a["pos"]
-                pos = QPointF(*pd) if isinstance(pd, (list, tuple)) else QPointF(pd)
+                pos = a.pos
                 keep = crop_rect.contains(pos)
                 if keep:
-                    a["pos"] = (pos.x() - x, pos.y() - y)
+                    a.pos = QPointF(pos.x() - x, pos.y() - y)
             if keep:
                 surviving.append(a)
 

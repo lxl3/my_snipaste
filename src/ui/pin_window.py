@@ -13,6 +13,7 @@ from ..core import qss_base
 from ..overlay.toolbar import OverlayToolbar
 from ..overlay.ocr_mixin import OcrMixin
 from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR
+from ..annotations import Annotation
 from .pin_rendering import PinWindowRenderingMixin
 from .pin_actions import PinWindowActionsMixin
 from .glass_widget import GlassMenu
@@ -44,6 +45,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
     def __init__(self, pixmap: QPixmap, pos, ctx: AppContext | None = None) -> None:
         super().__init__()
+        PinWindowRenderingMixin.__init__(self)
         self.ctx = ctx or get_context()
         self.pixmap = pixmap
         self._dragging: bool = False
@@ -66,10 +68,10 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         logger.debug(f"PinWindow init: pixmap physical={pixmap.width()}x{pixmap.height()}, dpr={dpr}, logical={self._base_img_w}x{self._base_img_h}")
 
         # --- Annotation state (same interface as CaptureOverlay) ---
-        self.annotations: list[dict] = []
+        self.annotations: list[Annotation] = []
         self._undo_stack: list[dict] = []
         self._redo_stack: list[dict] = []
-        self._preview_annotation: dict | None = None
+        self._preview_annotation: Annotation | None = None
         self._drawing: bool = False
         self._draw_start: QPointF = QPointF()
         self._draw_points: list[QPointF] = []
@@ -308,10 +310,10 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
         for i in range(len(self.annotations) - 1, -1, -1):
             ann = self.annotations[i]
-            t = ann["type"]
+            t = ann.type
             try:
                 if t in ("rect", "ellipse", "highlighter", "mosaic", "blur", "magnifier"):
-                    r = QRectF(*ann["rect"])
+                    r = ann.rect
                     # Check if point is near border (not inside)
                     if r.contains(pos):
                         # Point is inside - check distance to nearest edge
@@ -323,19 +325,19 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
                         if min_dist <= BORDER_THRESHOLD:
                             return i
                 elif t in ("arrow", "line"):
-                    start = QPointF(*ann["start"])
-                    end = QPointF(*ann["end"])
+                    start = ann.start
+                    end = ann.end
                     # Hit if close to line
                     dist = self._point_to_line_distance(pos, start, end)
                     if dist < 10:
                         return i
                 elif t == "freehand":
-                    pts = [QPointF(*p) for p in ann["points"]]
+                    pts = ann.points
                     for p in pts:
                         if (pos - p).manhattanLength() < 10:
                             return i
                 elif t in ("text", "number_marker"):
-                    ann_pos = QPointF(*ann["pos"])
+                    ann_pos = ann.pos
                     if (pos - ann_pos).manhattanLength() < 20:
                         return i
             except Exception:
@@ -358,16 +360,16 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         ann = self.annotations[idx]
         # Snapshot original position data for drag delta calculation
         self._annotation_drag_orig = {}
-        t = ann["type"]
+        t = ann.type
         if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-            self._annotation_drag_orig["rect"] = QRectF(*ann["rect"])
+            self._annotation_drag_orig["rect"] = QRectF(ann.rect)
         elif t in ("arrow", "line"):
-            self._annotation_drag_orig["start"] = QPointF(*ann["start"])
-            self._annotation_drag_orig["end"] = QPointF(*ann["end"])
+            self._annotation_drag_orig["start"] = QPointF(ann.start)
+            self._annotation_drag_orig["end"] = QPointF(ann.end)
         elif t == "freehand":
-            self._annotation_drag_orig["points"] = [QPointF(*p) for p in ann["points"]]
+            self._annotation_drag_orig["points"] = [QPointF(p) for p in ann.points]
         elif t in ("text", "number_marker"):
-            self._annotation_drag_orig["pos"] = QPointF(*ann["pos"])
+            self._annotation_drag_orig["pos"] = QPointF(ann.pos)
         self._drag_start = event_pos
         self._dragging_annotation = True
         self.setCursor(Qt.ClosedHandCursor)  # 拖动光标
@@ -384,21 +386,21 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         if self._selected_annotation_index < 0:
             return
         ann = self.annotations[self._selected_annotation_index]
-        t = ann["type"]
+        t = ann.type
         orig = self._annotation_drag_orig
         if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier") and "rect" in orig:
             r = orig["rect"]
-            ann["rect"] = (r.x() + delta.x(), r.y() + delta.y(), r.width(), r.height())
+            ann.rect = QRectF(r.x() + delta.x(), r.y() + delta.y(), r.width(), r.height())
             # Clear cache for mosaic, blur, magnifier so they re-render at new position
-            if t in ("mosaic", "blur", "magnifier") and "_cached" in ann:
-                ann.pop("_cached")
+            if t in ("mosaic", "blur", "magnifier") and ann._cached is not None:
+                ann._cached = None
         elif t in ("arrow", "line") and "start" in orig and "end" in orig:
-            ann["start"] = (orig["start"].x() + delta.x(), orig["start"].y() + delta.y())
-            ann["end"] = (orig["end"].x() + delta.x(), orig["end"].y() + delta.y())
+            ann.start = QPointF(orig["start"].x() + delta.x(), orig["start"].y() + delta.y())
+            ann.end = QPointF(orig["end"].x() + delta.x(), orig["end"].y() + delta.y())
         elif t == "freehand" and "points" in orig:
-            ann["points"] = [(p.x() + delta.x(), p.y() + delta.y()) for p in orig["points"]]
+            ann.points = [QPointF(p.x() + delta.x(), p.y() + delta.y()) for p in orig["points"]]
         elif t in ("text", "number_marker") and "pos" in orig:
-            ann["pos"] = (orig["pos"].x() + delta.x(), orig["pos"].y() + delta.y())
+            ann.pos = QPointF(orig["pos"].x() + delta.x(), orig["pos"].y() + delta.y())
 
     # ─── Mouse Events for Drawing ────────────────────────
 
@@ -533,10 +535,9 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
                 pos = self._content_pos(event)
                 hit_idx = self._hit_test_annotations(pos)
                 if hit_idx is not None:
-                    ann_type = self.annotations[hit_idx]["type"]
-                    # Show move cursor (four-way arrows) if select tool or matching tool
+                    ann_type = self.annotations[hit_idx].type
                     if self.current_tool == "select" or self.current_tool == ann_type or self.current_tool == "":
-                        self.setCursor(Qt.SizeAllCursor)  # 四向箭头移动光标
+                        self.setCursor(Qt.SizeAllCursor)
                     else:
                         self.setCursor(Qt.ArrowCursor)
                 else:
@@ -632,15 +633,15 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
             self._drawing = False
         elif t == "number_marker":
             # Count existing number markers
-            count = sum(1 for a in self.annotations if a["type"] == "number_marker") + 1
-            ann = {
-                "type": "number_marker",
-                "pos": (pos.x(), pos.y()),
-                "radius": 14,
-                "number": count,
-                "color": self.current_color.name(),
-                "text_color": "#ffffff",
-            }
+            count = sum(1 for a in self.annotations if a.type == "number_marker") + 1
+            ann = Annotation(
+                type="number_marker",
+                pos=(pos.x(), pos.y()),
+                radius=14,
+                number=count,
+                color=self.current_color.name(),
+                text_color="#ffffff",
+            )
             self._add_annotation(ann)
             self._drawing = False
         elif t in ("rect", "ellipse", "arrow", "line", "highlighter", "freehand", "mosaic", "blur", "magnifier"):
@@ -655,52 +656,52 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
         if t in ("rect", "ellipse", "highlighter"):
             r = QRectF(self._draw_start, pos).normalized()
-            self._preview_annotation = {
-                "type": t,
-                "rect": (r.x(), r.y(), r.width(), r.height()),
-                "color": self.current_color.name(),
-                "width": self.current_width if t not in ("highlighter",) else 12,
-            }
+            self._preview_annotation = Annotation(
+                type=t,
+                rect=(r.x(), r.y(), r.width(), r.height()),
+                color=self.current_color.name(),
+                width=self.current_width if t not in ("highlighter",) else 12,
+            )
         elif t == "mosaic":
             r = QRectF(self._draw_start, pos).normalized()
             if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                self._preview_annotation = {
-                    "type": "mosaic",
-                    "rect": (r.x(), r.y(), r.width(), r.height()),
-                    "scale": self.current_mosaic_scale,
-                }
+                self._preview_annotation = Annotation(
+                    type="mosaic",
+                    rect=(r.x(), r.y(), r.width(), r.height()),
+                    scale=self.current_mosaic_scale,
+                )
         elif t == "blur":
             r = QRectF(self._draw_start, pos).normalized()
             if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                self._preview_annotation = {
-                    "type": "blur",
-                    "rect": (r.x(), r.y(), r.width(), r.height()),
-                    "radius": self.current_blur_radius,
-                }
+                self._preview_annotation = Annotation(
+                    type="blur",
+                    rect=(r.x(), r.y(), r.width(), r.height()),
+                    radius=self.current_blur_radius,
+                )
         elif t == "magnifier":
             r = QRectF(self._draw_start, pos).normalized()
             if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                self._preview_annotation = {
-                    "type": "magnifier",
-                    "rect": (r.x(), r.y(), r.width(), r.height()),
-                    "zoom": self.current_magnifier_zoom,
-                }
+                self._preview_annotation = Annotation(
+                    type="magnifier",
+                    rect=(r.x(), r.y(), r.width(), r.height()),
+                    zoom=self.current_magnifier_zoom,
+                )
         elif t in ("arrow", "line"):
-            self._preview_annotation = {
-                "type": t,
-                "start": (self._draw_start.x(), self._draw_start.y()),
-                "end": (pos.x(), pos.y()),
-                "color": self.current_color.name(),
-                "width": self.current_width,
-            }
+            self._preview_annotation = Annotation(
+                type=t,
+                start=(self._draw_start.x(), self._draw_start.y()),
+                end=(pos.x(), pos.y()),
+                color=self.current_color.name(),
+                width=self.current_width,
+            )
         elif t == "freehand":
             self._draw_points.append(pos)
-            self._preview_annotation = {
-                "type": "freehand",
-                "points": [(p.x(), p.y()) for p in self._draw_points],
-                "color": self.current_color.name(),
-                "width": self.current_width,
-            }
+            self._preview_annotation = Annotation(
+                type="freehand",
+                points=[(p.x(), p.y()) for p in self._draw_points],
+                color=self.current_color.name(),
+                width=self.current_width,
+            )
         self.update()
 
     def _on_ocr(self) -> None:
