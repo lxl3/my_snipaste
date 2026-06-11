@@ -8,9 +8,9 @@
 等需要玻璃态背景的场景。
 """
 
-from PySide6.QtWidgets import QFrame, QMenu
+from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QPainter
-from PySide6.QtCore import Qt, QRectF, QRect
+from PySide6.QtWidgets import QFrame, QMenu
 
 from ..core.theme_pkg import draw_glass_morphism
 from ..core.theme_pkg import theme as _t
@@ -158,7 +158,6 @@ class GlassMenu(QMenu):
 
     def _apply_menu_style(self):
         """应用菜单项样式（根据主题调整文字颜色）"""
-        from ..core import qss_base
         is_dark = _t.is_dark()
 
         # 根据主题调整颜色（玻璃质感 + 清晰可读）

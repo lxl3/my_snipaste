@@ -1,15 +1,12 @@
 """截图设置 Tab"""
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QLineEdit, QSpinBox, QFileDialog
-)
+from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSpinBox, QVBoxLayout
 
-from .base_tab import BaseTab
-from ..widgets.no_scroll_combo import NoScrollComboBox
-from ...settings_card import SettingsCard
-from ...toggle_switch import ToggleRow
 from ....core.i18n import _
 from ....core.settings import AppSettings
+from ...settings_card import SettingsCard
+from ...toggle_switch import ToggleRow
+from ..widgets.no_scroll_combo import NoScrollComboBox
+from .base_tab import BaseTab
 
 
 class CaptureTab(BaseTab):

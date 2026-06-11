@@ -3,17 +3,23 @@
 参考 frosted_glass_demo.py 实现，直接在 self.rect() 绘制，无嵌套结构。
 """
 
-from PySide6.QtCore import Qt, QTimer, QEvent, QRectF, QPoint
-from PySide6.QtWidgets import (
-    QApplication, QDialog, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QPushButton, QLabel,
-)
+from PySide6.QtCore import QEvent, QPoint, QRectF, Qt, QTimer
 from PySide6.QtGui import QPainter
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from ..core.i18n import _
 from ..core import qss_base
-from ..core.theme_pkg import theme as _t
+from ..core.i18n import _
 from ..core.theme_pkg import draw_glass_morphism
+from ..core.theme_pkg import theme as _t
 
 
 class OcrResultDialog(QDialog):

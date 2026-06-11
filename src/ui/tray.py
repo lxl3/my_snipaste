@@ -2,16 +2,16 @@ import os
 import platform
 import subprocess
 
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QAction, QCursor, QIcon, QPixmap
-from PySide6.QtCore import Signal, QObject
-from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
+from ..core import qss_base
 from ..core.i18n import _
-from ..core.utils import create_app_icon, create_emoji_icon
-from ..core.logger import setup_logger, get_current_log_path, get_log_dir
+from ..core.logger import get_log_dir, setup_logger
 from ..core.screenshot_history import ScreenshotHistory
 from ..core.theme_pkg import theme as theme_mgr
-from ..core import qss_base
+from ..core.utils import create_app_icon, create_emoji_icon
 from .glass_widget import GlassMenu
 
 logger = setup_logger("tray")
@@ -47,7 +47,8 @@ class TrayManager(QObject):
             self.tray_icon.setToolTip(_("MySnipaste - Click tray icon to capture"))
 
         menu = GlassMenu()  # 使用玻璃态菜单
-        self._capture_action = QAction(create_emoji_icon("📸"), _("Capture ({hotkey})").format(hotkey=hotkey_display), self.app)
+        label = _("Capture ({hotkey})").format(hotkey=hotkey_display)
+        self._capture_action = QAction(create_emoji_icon("📸"), label, self.app)
         self._capture_action.triggered.connect(self.app.start_capture)
         menu.addAction(self._capture_action)
         menu.addSeparator()

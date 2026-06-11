@@ -1,15 +1,13 @@
 """高级设置 Tab"""
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider
-)
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QVBoxLayout
 
-from .base_tab import BaseTab
-from ..widgets.no_scroll_combo import NoScrollComboBox
-from ...settings_card import SettingsCard
+from ....core import qss_base
 from ....core.i18n import _
 from ....core.settings import AppSettings
-from ....core import qss_base
+from ...settings_card import SettingsCard
+from ..widgets.no_scroll_combo import NoScrollComboBox
+from .base_tab import BaseTab
 
 
 class AdvancedTab(BaseTab):

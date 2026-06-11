@@ -1,7 +1,7 @@
 # MySnipaste 重构计划
 
 > 创建日期：2024-06-08  
-> 状态：规划中
+> 状态：已完成
 
 ---
 
@@ -487,12 +487,12 @@ src/core/theme/
 
 | 任务 | 状态 | 完成日期 | 备注 |
 |------|------|----------|------|
-| 3.1 设计标注模型 | ⬜ 待开始 | | |
-| 3.2 实现统一渲染器 | ⬜ 待开始 | | |
-| 3.3 实现编辑器 | ⬜ 待开始 | | |
-| 3.4 迁移 overlay | ⬜ 待开始 | | |
-| 3.5 迁移 pin_window | ⬜ 待开始 | | |
-| 3.6 删除重复代码 | ⬜ 待开始 | | |
+| 3.1 设计标注模型 | ✅ 完成 | 2026-06-11 | Annotation dataclass in models.py |
+| 3.2 实现统一渲染器 | ✅ 完成 | 2026-06-11 | AnnotationRenderer in renderer.py |
+| 3.3 实现编辑器 | ✅ 完成 | 2026-06-11 | hit testing, handles in editor.py |
+| 3.4 迁移 overlay | ✅ 完成 | 2026-06-11 | rendering.py, actions.py, drawing.py, selection.py, widget.py |
+| 3.5 迁移 pin_window | ✅ 完成 | 2026-06-11 | pin_rendering.py, pin_actions.py, pin_window.py |
+| 3.6 删除重复代码 | ✅ 完成 | 2026-06-11 | 旧渲染代码从 overlay/rendering.py 和 pin_rendering.py 移除 |
 
 ### Phase 4: 依赖注入改进
 
@@ -509,7 +509,7 @@ src/core/theme/
 |------|------|----------|------|
 | 5.1 创建 theme 子包 | ✅ 完成 | 2026-06-09 | core/theme_pkg/ |
 | 5.2-5.5 迁移代码 | ✅ 完成 | 2026-06-09 | 重新导出方式 |
-| 5.6 更新导入 | ⏳ 进行中 | | 渐进式迁移 |
+| 5.6 更新导入 | ✅ 完成 | 2026-06-11 | 所有实际导入已改为 core.theme_pkg |
 
 ---
 

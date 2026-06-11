@@ -11,9 +11,10 @@
             _theme.apply_to_widget(self._special_widget)
 """
 
-from PySide6.QtWidgets import QDialog, QWidget, QScrollArea
-from ..core.theme_pkg import theme as _theme
+from PySide6.QtWidgets import QDialog, QScrollArea, QWidget
+
 from ..core.logger import setup_logger
+from ..core.theme_pkg import theme as _theme
 
 logger = setup_logger("theme_dialog")
 

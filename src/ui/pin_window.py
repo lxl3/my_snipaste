@@ -1,22 +1,19 @@
-import math
-from PIL import ImageFilter
-from PySide6.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QSize, QSizeF, Signal
-from PySide6.QtGui import QPixmap, QPainter, QAction, QColor, QPen, QFont, QFontMetrics, QPainterPath
-from PySide6.QtWidgets import QWidget, QMenu, QApplication, QInputDialog, QLineEdit, QMessageBox
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, QSizeF, Qt, Signal
+from PySide6.QtGui import QAction, QColor, QPainter, QPen, QPixmap
+from PySide6.QtWidgets import QLineEdit, QMessageBox, QWidget
 
-from ..core.logger import setup_logger
-from ..ui.toast import ToastManager
+from ..annotations import Annotation
+from ..core import qss_base
 from ..core.context import AppContext, get_context
 from ..core.i18n import _
-from ..core.utils import qpixmap_to_pil, pil_to_qpixmap, create_emoji_icon
-from ..core import qss_base
-from ..overlay.toolbar import OverlayToolbar
+from ..core.logger import setup_logger
+from ..core.utils import create_emoji_icon, qpixmap_to_pil
 from ..overlay.ocr_mixin import OcrMixin
-from ..core.constants import ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR
-from ..annotations import Annotation
-from .pin_rendering import PinWindowRenderingMixin
-from .pin_actions import PinWindowActionsMixin
+from ..overlay.toolbar import OverlayToolbar
+from ..ui.toast import ToastManager
 from .glass_widget import GlassMenu
+from .pin_actions import PinWindowActionsMixin
+from .pin_rendering import PinWindowRenderingMixin
 
 logger = setup_logger("pin_window")
 
@@ -278,7 +275,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
         # 避免尺寸相同时的无效更新
         if new_img_w == old_width and new_img_h == old_height:
-            logger.debug(f"  Skipped: same size")
+            logger.debug("  Skipped: same size")
             event.accept()
             return
 
@@ -748,8 +745,8 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         """Copy annotated pixmap - called by toolbar copy button."""
         p = self._render_annotated_pixmap()
         self.copy_requested.emit(p)
-        from ..ui.toast import ToastManager
         from ..core.i18n import _
+        from ..ui.toast import ToastManager
         ToastManager.show(_("Copied to clipboard"), "✓", "success", parent=self)
 
     def _render_annotated_pixmap(self) -> QPixmap:
@@ -1154,14 +1151,14 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
     def _on_copy(self) -> None:
         self.copy_requested.emit(self._get_current_pixmap())
-        from ..ui.toast import ToastManager
         from ..core.i18n import _
+        from ..ui.toast import ToastManager
         ToastManager.show(_("Copied to clipboard"), "✓", "success", parent=self)
 
     def _on_save_as(self) -> None:
         self.save_requested.emit(self._get_current_pixmap(), False)
-        from ..ui.toast import ToastManager
         from ..core.i18n import _
+        from ..ui.toast import ToastManager
         ToastManager.show(_("Saved"), "💾", "success", parent=self)
 
     def _on_toggle_topmost(self, checked: bool) -> None:

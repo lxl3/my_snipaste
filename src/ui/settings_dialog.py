@@ -1,26 +1,41 @@
-import sys
-import subprocess
 import json
+import subprocess
+import sys
 
-from PySide6.QtCore import Qt, Signal, QEvent, QPropertyAnimation, QEasingCurve
-from PySide6.QtGui import QColor, QPixmap, QIcon, QKeyEvent
+from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtGui import QColor, QIcon, QKeyEvent, QPixmap
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QVBoxLayout, QHBoxLayout, QTabBar, QTabWidget,
-    QWidget, QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
-    QCheckBox, QSlider, QFileDialog, QMessageBox, QGroupBox,
-    QFormLayout, QScrollArea, QGraphicsOpacityEffect,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QSpinBox,
+    QTabBar,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
-from ..core.i18n import _, available_languages, load_translations
-from .color_picker import get_color
-from ..core.settings import AppSettings, get_settings
-from ..core.constants import PRESET_COLORS
-from ..core.logger import setup_logger
-from ..core.theme_pkg import theme as _theme
+
 from ..core import qss_base
+from ..core.constants import PRESET_COLORS
+from ..core.i18n import _, available_languages, load_translations
+from ..core.logger import setup_logger
+from ..core.settings import AppSettings, get_settings
+from ..core.theme_pkg import theme as _theme
+from .color_picker import get_color
+from .settings_card import SettingsCard
 from .theme_dialog import ThemeAwareDialog
 from .title_bar import TitleBar
-from .toggle_switch import ToggleSwitch, ToggleRow
-from .settings_card import SettingsCard
+from .toggle_switch import ToggleRow
 
 logger = setup_logger("settings_dialog")
 
@@ -1134,7 +1149,7 @@ class SettingsDialog(ThemeAwareDialog):
             return
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as e:
             logger.error(f"Failed to read import file: {e}")
@@ -1147,8 +1162,6 @@ class SettingsDialog(ThemeAwareDialog):
             return
 
         # Apply loaded values to widgets
-        s = self._settings
-
         # General
         if "hotkey" in data:
             capture_widget = self._shortcut_widgets.get("capture")
@@ -1794,7 +1807,6 @@ class SettingsDialog(ThemeAwareDialog):
 
         # Get the application bundle path (.app) on macOS
         # When running from PyInstaller bundle, we need the .app path, not the executable
-        import os
         app_path = sys.executable
 
         # If running from a .app bundle, find the .app directory

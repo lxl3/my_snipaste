@@ -7,13 +7,13 @@
 4. 重置为默认值 (reset_to_defaults)
 """
 
-from .base_tab import BaseTab
-from .general_tab import GeneralTab
-from .capture_tab import CaptureTab
-from .ocr_tab import OcrTab
-from .annotation_tab import AnnotationTab
 from .advanced_tab import AdvancedTab
+from .annotation_tab import AnnotationTab
+from .base_tab import BaseTab
+from .capture_tab import CaptureTab
+from .general_tab import GeneralTab
 from .hotkeys_tab import HotkeysTab
+from .ocr_tab import OcrTab
 
 __all__ = [
     "BaseTab",

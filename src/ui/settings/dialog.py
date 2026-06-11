@@ -6,22 +6,35 @@ import json
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QTabBar,
-    QWidget, QLineEdit, QPushButton, QFileDialog, QMessageBox, QGroupBox,
-    QLabel, QCheckBox,
+    QCheckBox,
+    QDialog,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTabBar,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
-from ..theme_dialog import ThemeAwareDialog
-from ..title_bar import TitleBar
+from ...core import qss_base
 from ...core.i18n import _, load_translations
+from ...core.logger import setup_logger
 from ...core.settings import AppSettings, get_settings
 from ...core.theme_pkg import theme as _theme
-from ...core import qss_base
-from ...core.logger import setup_logger
-
+from ..theme_dialog import ThemeAwareDialog
+from ..title_bar import TitleBar
 from .tabs import (
-    GeneralTab, CaptureTab, AnnotationTab,
-    HotkeysTab, OcrTab, AdvancedTab,
+    AdvancedTab,
+    AnnotationTab,
+    CaptureTab,
+    GeneralTab,
+    HotkeysTab,
+    OcrTab,
 )
 
 logger = setup_logger("settings_dialog")
@@ -312,7 +325,7 @@ class SettingsDialog(ThemeAwareDialog):
 
     def _export_settings(self) -> None:
         """导出设置到 JSON 文件"""
-        path, _ = QFileDialog.getSaveFileName(
+        path, _selected = QFileDialog.getSaveFileName(
             self, _("Export Settings"),
             "mysnipaste_settings.json",
             _("JSON Files (*.json)")
@@ -337,7 +350,7 @@ class SettingsDialog(ThemeAwareDialog):
 
     def _import_settings(self) -> None:
         """从 JSON 文件导入设置"""
-        path, _ = QFileDialog.getOpenFileName(
+        path, _selected = QFileDialog.getOpenFileName(
             self, _("Import Settings"),
             "", _("JSON Files (*.json)")
         )
@@ -345,7 +358,7 @@ class SettingsDialog(ThemeAwareDialog):
             return
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as e:
             logger.error(f"Failed to read import file: {e}")

@@ -5,16 +5,21 @@ at a fixed screen position.  Left-click anywhere copies the color under
 the cursor to the clipboard and closes.
 """
 
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QCursor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
-    QWidget, QApplication, QColorDialog, QDialog,
-    QPushButton, QToolButton, QLabel, QTabBar, QAbstractButton,
+    QAbstractButton,
+    QApplication,
+    QColorDialog,
+    QDialog,
+    QLabel,
+    QTabBar,
+    QWidget,
 )
-from PySide6.QtGui import QPainter, QColor, QPen, QFont, QCursor
-from PySide6.QtCore import Qt, QRect, QPoint, QSize, QTimer, QEvent, Signal
 
 from ..core.i18n import _
-from ..core.utils import capture_all_screens
 from ..core.logger import setup_logger
+from ..core.utils import capture_all_screens
 
 logger = setup_logger("color_picker")
 
@@ -131,7 +136,6 @@ class ScreenColorPicker(QWidget):
 
     def _recalc_layout(self) -> None:
         """Recalculate sub-rectangles when zoom changes."""
-        ps = self._pixel_size
         gp = self._grid_px
 
         # Center vertically, offset right from screen center

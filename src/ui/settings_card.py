@@ -5,8 +5,8 @@
 """
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGraphicsDropShadowEffect
 from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QGraphicsDropShadowEffect, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from ..core.theme_pkg import theme as _t
 
@@ -100,12 +100,12 @@ class SettingsCard(QWidget):
 
     def _apply_style(self):
         """应用卡片样式"""
-        style = _t.qss(f"""
-            SettingsCard {{
+        style = _t.qss("""
+            SettingsCard {
                 background: $bg_secondary;
                 border: 1px solid $border_light;
                 border-radius: 8px;
-            }}
+            }
         """)
         self.setStyleSheet(style)
 

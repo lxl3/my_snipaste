@@ -1,13 +1,11 @@
 """快捷键设置 Tab"""
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel
-)
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout
 
-from .base_tab import BaseTab
-from ..widgets.hotkey_recorder import HotkeyRecorderWidget
-from ...settings_card import SettingsCard
 from ....core.i18n import _
 from ....core.settings import AppSettings
+from ...settings_card import SettingsCard
+from ..widgets.hotkey_recorder import HotkeyRecorderWidget
+from .base_tab import BaseTab
 
 
 class HotkeysTab(BaseTab):

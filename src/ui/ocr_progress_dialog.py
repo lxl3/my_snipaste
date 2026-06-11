@@ -6,13 +6,13 @@
 import math
 import time
 
-from PySide6.QtCore import Qt, QTimer, QRectF, QPoint
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QWidget
-from PySide6.QtGui import QPainter, QColor
+from PySide6.QtCore import QPoint, QRectF, Qt, QTimer
+from PySide6.QtGui import QColor, QPainter
+from PySide6.QtWidgets import QDialog, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from ..core.i18n import _
-from ..core.theme_pkg import theme as _t
 from ..core.theme_pkg import draw_glass_morphism
+from ..core.theme_pkg import theme as _t
 
 
 class OcrProgressDialog(QDialog):

@@ -1,7 +1,7 @@
 """Base class for settings dialog tabs."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QScrollArea
+from PySide6.QtWidgets import QScrollArea, QVBoxLayout, QWidget
 
 from ....core.settings import AppSettings
 

@@ -1,17 +1,15 @@
 """标注设置 Tab"""
-from PySide6.QtGui import QColor, QPixmap, QIcon
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSpinBox
-)
+from PySide6.QtGui import QColor, QIcon, QPixmap
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout
 
-from .base_tab import BaseTab
-from ..widgets.no_scroll_combo import NoScrollComboBox
-from ...settings_card import SettingsCard
-from ...color_picker import get_color
-from ....core.i18n import _
-from ....core.settings import AppSettings
 from ....core.constants import PRESET_COLORS
+from ....core.i18n import _
 from ....core.logger import setup_logger
+from ....core.settings import AppSettings
+from ...color_picker import get_color
+from ...settings_card import SettingsCard
+from ..widgets.no_scroll_combo import NoScrollComboBox
+from .base_tab import BaseTab
 
 logger = setup_logger("annotation_tab")
 

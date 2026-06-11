@@ -1,12 +1,10 @@
 """OCR 设置 Tab"""
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit
-)
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout
 
-from .base_tab import BaseTab
-from ...settings_card import SettingsCard
 from ....core.i18n import _
 from ....core.settings import AppSettings
+from ...settings_card import SettingsCard
+from .base_tab import BaseTab
 
 
 class OcrTab(BaseTab):

@@ -7,17 +7,23 @@ import os
 import platform
 import subprocess
 
-from PySide6.QtCore import Qt, QRectF, QPoint
-from PySide6.QtWidgets import (
-    QDialog, QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel,
-)
+from PySide6.QtCore import QPoint, QRectF, Qt
 from PySide6.QtGui import QPainter
+from PySide6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from ..core.i18n import _
 from ..core import qss_base
-from ..core.theme_pkg import theme as _t
+from ..core.i18n import _
+from ..core.logger import get_current_log_path, get_log_dir
 from ..core.theme_pkg import draw_glass_morphism
-from ..core.logger import get_log_dir, get_current_log_path
+from ..core.theme_pkg import theme as _t
 
 
 class LogViewerDialog(QDialog):

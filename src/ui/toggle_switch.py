@@ -4,12 +4,11 @@
 用于设置页面代替传统的 CheckBox。
 """
 
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Property, Signal
-from PySide6.QtGui import QPainter, QColor, QPen
-from PySide6.QtWidgets import QCheckBox, QWidget, QHBoxLayout, QLabel
+from PySide6.QtCore import Property, QEasingCurve, QPropertyAnimation, Qt, Signal
+from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QWidget
 
 from ..core.theme_pkg import theme as _t
-from ..core import qss_base
 
 
 class ToggleSwitch(QCheckBox):
@@ -74,8 +73,6 @@ class ToggleSwitch(QCheckBox):
         height = self.height()
         track_radius = height // 2
         slider_diameter = 24
-        slider_radius = slider_diameter // 2
-
         # 背景轨道颜色（根据状态和动画位置混合）
         if self.isEnabled():
             if self.isChecked():

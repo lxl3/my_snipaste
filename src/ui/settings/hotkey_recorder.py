@@ -2,13 +2,13 @@
 
 import sys
 
-from PySide6.QtCore import Qt, Signal, QEvent
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QPushButton
+from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QPushButton, QWidget
 
+from ...core import qss_base
 from ...core.i18n import _
 from ...core.logger import setup_logger
-from ...core import qss_base
 
 logger = setup_logger("hotkey_recorder")
 

@@ -1,6 +1,6 @@
-from PySide6.QtCore import Qt, QTimer, Signal, QRect
-from PySide6.QtGui import QPainter, QColor, QFont
-from PySide6.QtWidgets import QWidget, QApplication
+from PySide6.QtCore import QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QPainter
+from PySide6.QtWidgets import QApplication, QWidget
 
 from ..core.i18n import _
 from ..core.logger import setup_logger

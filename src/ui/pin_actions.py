@@ -3,13 +3,13 @@
 import math
 
 from PIL import Image
-from PySide6.QtCore import Qt, QRectF, QPointF, QPoint
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QPixmap, QPainter
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt
+from PySide6.QtGui import QFont, QFontMetrics
 from PySide6.QtWidgets import QLineEdit
 
-from ..core.logger import setup_logger
-from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
 from ..annotations import Annotation
+from ..core.logger import setup_logger
+from ..core.utils import pil_to_qpixmap, qpixmap_to_pil
 
 logger = setup_logger("pin_actions")
 
@@ -166,7 +166,10 @@ class PinWindowActionsMixin:
                     bold=self.text_bold,
                     italic=self.text_italic,
                 ))
-                self._undo_stack.append({"type": "add", "ann": self.annotations[-1], "index": len(self.annotations) - 1})
+                ann = self.annotations[-1]
+                self._undo_stack.append({
+                    "type": "add", "ann": ann, "index": len(self.annotations) - 1
+                })
             self._redo_stack.clear()
             self._update_toolbar_undo_redo()
             self.update()

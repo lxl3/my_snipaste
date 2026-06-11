@@ -2,20 +2,25 @@
 import sys
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QApplication,
+    QApplication,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
 )
 
-from .base_tab import BaseTab
-from ..widgets.no_scroll_combo import NoScrollComboBox
-from ...settings_card import SettingsCard
-from ...toggle_switch import ToggleRow
 from ....core.i18n import _, available_languages
+from ....core.logger import setup_logger
 from ....core.settings import AppSettings
 from ....core.theme_pkg import theme as _theme
-from ....core.logger import setup_logger
 from ...color_picker import get_color
-from PySide6.QtGui import QColor
+from ...settings_card import SettingsCard
+from ...toggle_switch import ToggleRow
+from ..widgets.no_scroll_combo import NoScrollComboBox
+from .base_tab import BaseTab
 
 logger = setup_logger("general_tab")
 

@@ -1,10 +1,10 @@
-from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QEasingCurve, QRect, QRectF, QSize
-from PySide6.QtGui import QColor, QPainter, QLinearGradient, QPen
+from PySide6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, QRect, QRectF, QSize, Qt, QTimer
+from PySide6.QtGui import QColor, QLinearGradient, QPainter
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
 from ..core import qss_base
-from ..core.theme_pkg import theme as _t
 from ..core.theme_pkg import draw_glass_morphism
+from ..core.theme_pkg import theme as _t
 
 
 class ToastNotification(QWidget):
@@ -86,8 +86,8 @@ class ToastNotification(QWidget):
             # 生成渐变色：顶部为主题色，底部稍暗
             color_top = accent
             c = QColor(accent)
-            h, s, l, a = c.getHslF()
-            darker = QColor.fromHslF(h, s, max(l - 0.08, 0.1), a)
+            h, s, lightness, a = c.getHslF()
+            darker = QColor.fromHslF(h, s, max(lightness - 0.08, 0.1), a)
             color_bottom = darker.name()
         else:
             color_top, color_bottom = self.ICON_COLORS.get(self.toast_type, self.ICON_COLORS["success"])
