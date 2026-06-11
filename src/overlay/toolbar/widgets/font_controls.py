@@ -1,9 +1,9 @@
 """字体控件 - 字体选择、字号、加粗/斜体"""
 
-from PySide6.QtWidgets import QPushButton, QComboBox, QSpinBox, QHBoxLayout
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QPushButton, QSpinBox
 
-from ....core.theme_pkg import theme as _t
 from ....core import qss_base
+from ....core.theme_pkg import theme as _t
 
 
 def make_font_combo(

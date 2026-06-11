@@ -1,8 +1,8 @@
 """Overlay drawing state management and tool handling."""
 
-from PySide6.QtWidgets import QLineEdit
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer
 from PySide6.QtGui import QColor, QFont
-from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QTimer
+from PySide6.QtWidgets import QLineEdit
 
 from ..annotations import Annotation
 from ..core.constants import MIN_DRAW_THRESHOLD

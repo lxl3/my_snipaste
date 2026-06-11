@@ -4,7 +4,7 @@
 """
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QToolButton, QPushButton, QMenu, QWidget
+from PySide6.QtWidgets import QMenu, QPushButton, QToolButton
 
 from ....core.theme_pkg import theme as _t
 

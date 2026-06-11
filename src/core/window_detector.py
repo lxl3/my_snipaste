@@ -6,7 +6,9 @@ and compute its rectangle. On other platforms, silently returns None
 """
 
 import platform
+
 from PySide6.QtCore import QPoint, QRect
+
 from ..core.logger import setup_logger
 
 logger = setup_logger("window_detector")

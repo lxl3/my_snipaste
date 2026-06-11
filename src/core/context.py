@@ -16,13 +16,14 @@
             # 使用 self.ctx.settings 代替 get_settings()
             # 使用 self.ctx.theme 代替全局 theme
 """
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .screenshot_history import ScreenshotHistory
     from .settings import AppSettings
     from .theme import ThemeManager
-    from .screenshot_history import ScreenshotHistory
 
 
 class I18nProvider:
@@ -70,9 +71,9 @@ class AppContext:
     @classmethod
     def create(cls) -> "AppContext":
         """创建生产环境的上下文"""
+        from .screenshot_history import ScreenshotHistory
         from .settings import get_settings
         from .theme import theme as theme_manager
-        from .screenshot_history import ScreenshotHistory
 
         return cls(
             settings=get_settings(),

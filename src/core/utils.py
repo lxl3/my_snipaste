@@ -1,12 +1,13 @@
-import sys
 import os
+import sys
 from typing import TYPE_CHECKING
 
 from PIL import Image
-from PySide6.QtCore import Qt, QRect, QRectF, QSize, QPoint
-from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QIcon, QImage, QPen, QScreen, QCursor
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QPoint, QRect, QSize, Qt
+from PySide6.QtGui import QColor, QCursor, QFont, QIcon, QImage, QPainter, QPen, QPixmap, QScreen
 from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtWidgets import QApplication
+
 from .logger import setup_logger
 
 if TYPE_CHECKING:
@@ -96,7 +97,7 @@ def _grab_and_fit(screen: "QScreen") -> QPixmap:
 
 def _draw_cursor(pixmap: QPixmap, cursor_pos: QPoint, offset: QPoint = QPoint(0, 0)) -> None:
     """Draw a cursor icon on the pixmap at the given position."""
-    from PySide6.QtGui import QPolygon, QLinearGradient
+    from PySide6.QtGui import QLinearGradient, QPolygon
 
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.Antialiasing)

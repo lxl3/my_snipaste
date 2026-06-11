@@ -5,17 +5,15 @@ including automatic cleanup of old screenshots when the limit is exceeded.
 """
 
 import json
-import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 
-from .logger import setup_logger
 from .i18n import _
+from .logger import setup_logger
 
 logger = setup_logger("screenshot_history")
 
@@ -48,7 +46,7 @@ class ScreenshotHistory:
         }
     """
 
-    def __init__(self, history_dir: Optional[str] = None):
+    def __init__(self, history_dir: str | None = None):
         """Initialize history manager.
 
         Args:
@@ -104,11 +102,11 @@ class ScreenshotHistory:
         """
         if self._metadata_path.exists():
             try:
-                with open(self._metadata_path, 'r', encoding='utf-8') as f:
+                with open(self._metadata_path, encoding='utf-8') as f:
                     data = json.load(f)
                 logger.debug(f"Loaded metadata with {len(data.get('screenshots', []))} screenshots")
                 return data
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.error(f"Failed to load metadata: {e}, creating new")
 
         # Return default metadata
@@ -123,7 +121,7 @@ class ScreenshotHistory:
             with open(self._metadata_path, 'w', encoding='utf-8') as f:
                 json.dump(self._metadata, f, indent=2, ensure_ascii=False)
             logger.debug("Metadata saved successfully")
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save metadata: {e}")
 
     def _generate_screenshot_id(self) -> str:
@@ -229,7 +227,7 @@ class ScreenshotHistory:
         # Save pixmap to file
         if not pixmap.save(str(filepath), "PNG"):
             logger.error(f"Failed to save screenshot: {filepath}")
-            raise IOError(f"Failed to save screenshot: {filepath}")
+            raise OSError(f"Failed to save screenshot: {filepath}")
 
         # Create metadata entry
         timestamp = int(time.time())
@@ -280,7 +278,7 @@ class ScreenshotHistory:
 
         return screenshots
 
-    def get_thumbnail(self, screenshot_id: str, size: tuple[int, int] = (48, 36)) -> Optional[QPixmap]:
+    def get_thumbnail(self, screenshot_id: str, size: tuple[int, int] = (48, 36)) -> QPixmap | None:
         """Get thumbnail for screenshot.
 
         Args:

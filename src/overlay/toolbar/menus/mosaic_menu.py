@@ -1,6 +1,6 @@
 """马赛克菜单状态同步（含 blur/mosaic 控件显隐）"""
 
-from PySide6.QtWidgets import QToolButton, QMenu
+from PySide6.QtWidgets import QMenu, QToolButton
 
 from .base_menu import MenuHandler
 

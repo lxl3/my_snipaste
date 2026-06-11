@@ -8,32 +8,30 @@ Composed of CaptureOverlay (main class) + 5 mixins:
 - OverlayDrawingMixin   — drawing state / tool selection
 """
 
-import math
 import os
-from PySide6.QtWidgets import QWidget, QApplication, QLineEdit
-from PySide6.QtGui import QPainter, QColor, QPen, QFont, QFontMetrics, QLinearGradient
-from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QSizeF, Signal, QEvent, QTimer
 
-from ..core.utils import capture_all_screens
-from ..core.context import AppContext, get_context
-from ..core.window_detector import detect_window_under_cursor
-from .toolbar import OverlayToolbar
-from .rendering import OverlayRenderingMixin
-from .actions import OverlayActionsMixin
-from .selection import OverlaySelectionMixin
-from .drawing import OverlayDrawingMixin
-from .ocr_mixin import OcrMixin
-from .hotkey_panel import HotkeyHelpPanel
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSizeF, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QPainter, QPen
+from PySide6.QtWidgets import QApplication, QLineEdit, QWidget
+
+from ..annotations import Annotation
 from ..core.constants import (
-    DEFAULT_ANNOTATION_COLOR,
-    HANDLE_SIZE, MIN_SELECTION_SIZE, MIN_DRAW_THRESHOLD,
-    DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, DEFAULT_LINE_WIDTH,
+    MIN_SELECTION_SIZE,
 )
+from ..core.context import AppContext, get_context
 from ..core.i18n import _
 from ..core.logger import setup_logger
-from ..core.theme_pkg import theme as _tw
 from ..core.theme_pkg import draw_glass_morphism, draw_glass_text
-from ..annotations import Annotation
+from ..core.theme_pkg import theme as _tw
+from ..core.utils import capture_all_screens
+from ..core.window_detector import detect_window_under_cursor
+from .actions import OverlayActionsMixin
+from .drawing import OverlayDrawingMixin
+from .hotkey_panel import HotkeyHelpPanel
+from .ocr_mixin import OcrMixin
+from .rendering import OverlayRenderingMixin
+from .selection import OverlaySelectionMixin
+from .toolbar import OverlayToolbar
 
 logger = setup_logger("overlay")
 

@@ -1,11 +1,11 @@
 from __future__ import annotations
-import sys
-import math
 
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QToolButton, QGridLayout, QLabel
+import sys
+
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtGui import QPixmap, QPainter, QIcon
+from PySide6.QtWidgets import QApplication, QGridLayout, QLabel, QToolButton, QVBoxLayout, QWidget
 
 from resources.icons.toolbar_icons import TOOLBAR_ICONS
 

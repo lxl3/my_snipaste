@@ -1,8 +1,7 @@
 import json
 import os
 import sys
-from dataclasses import dataclass, field, asdict
-from typing import Optional
+from dataclasses import asdict, dataclass, field
 
 from .hotkeys import get_default_hotkey
 
@@ -139,7 +138,7 @@ class AppSettings:
             _loaded = AppSettings()
             return _loaded
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             valid_keys = {f.name for f in AppSettings.__dataclass_fields__.values() if f.init}
             filtered = {k: v for k, v in data.items() if k in valid_keys}

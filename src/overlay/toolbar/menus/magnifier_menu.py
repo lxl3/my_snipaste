@@ -1,6 +1,6 @@
 """放大镜菜单状态同步（含 zoom spinbox 同步）"""
 
-from PySide6.QtWidgets import QToolButton, QMenu
+from PySide6.QtWidgets import QMenu, QToolButton
 
 from .base_menu import MenuHandler
 

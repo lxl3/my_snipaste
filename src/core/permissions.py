@@ -1,7 +1,6 @@
 import os
 import platform
 import subprocess
-import sys
 
 from .logger import setup_logger
 
@@ -57,7 +56,11 @@ def check_screen_recording_permission() -> bool | None:
 
     mac_ver = _macos_version()
     if mac_ver and mac_ver < (14, 0):
-        logger.info(f"macOS {mac_ver[0]}.{mac_ver[1]} detected — Screen Recording permission API requires macOS 14+; will attempt capture directly")
+        logger.info(
+            f"macOS {mac_ver[0]}.{mac_ver[1]} detected — "
+            "Screen Recording permission API requires macOS 14+; "
+            "will attempt capture directly"
+        )
         return None
 
     try:
@@ -245,7 +248,6 @@ def _check_input_monitoring() -> bool:
 
 def _find_framework(name: str) -> str | None:
     import ctypes.util
-    import os
     path = ctypes.util.find_library(name)
     if path:
         return path
@@ -263,8 +265,8 @@ def show_permission_dialog(parent=None) -> None:
         return
 
     try:
-        from PySide6.QtWidgets import QMessageBox, QPushButton
         from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QMessageBox
 
         status = get_permission_status()
 

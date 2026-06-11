@@ -10,8 +10,9 @@
 
 import sys
 from typing import Literal
-from PySide6.QtCore import QObject, Signal, QTimer
-from PySide6.QtGui import QPalette, QColor
+
+from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
 from .logger import setup_logger
@@ -181,18 +182,18 @@ def _derive_accent_colors(base_color: str, is_dark: bool) -> dict[str, str]:
     """
     from PySide6.QtGui import QColor
     c = QColor(base_color)
-    h, s, l, _ = c.getHslF()
+    h, s, lightness, _ = c.getHslF()
 
     if is_dark:
         # 暗色模式：hover 更亮，disabled 更淡
-        hover_l = min(l + 0.1, 0.9)
+        hover_l = min(lightness + 0.1, 0.9)
         disabled_s = s * 0.5
-        disabled_l = min(l + 0.2, 0.8)
+        disabled_l = min(lightness + 0.2, 0.8)
     else:
         # 亮色模式：hover 更暗
-        hover_l = max(l - 0.1, 0.1)
+        hover_l = max(lightness - 0.1, 0.1)
         disabled_s = s * 0.5
-        disabled_l = min(l + 0.15, 0.7)
+        disabled_l = min(lightness + 0.15, 0.7)
 
     hover = QColor.fromHslF(h, s, hover_l)
     disabled = QColor.fromHslF(h, disabled_s, disabled_l)
@@ -285,7 +286,10 @@ class ThemeManager(QObject):
                 self._system_timer.setInterval(2000)
                 self._system_timer.timeout.connect(self._check_system_theme)
             if not self._system_timer.isActive():
-                logger.info(f"Started system theme polling (interval={self._system_timer.interval()}ms, detected={self._resolved})")
+                logger.info(
+                    "Started system theme polling "
+                    f"(interval={self._system_timer.interval()}ms, detected={self._resolved})"
+                )
                 self._system_timer.start()
         else:
             if self._system_timer is not None and self._system_timer.isActive():

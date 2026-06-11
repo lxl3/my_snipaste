@@ -2,8 +2,8 @@
 
 import math
 
-from PySide6.QtCore import Qt, QPoint, QPointF, QRect, QRectF
-from PySide6.QtGui import QFont, QFontMetrics, QColor
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
+from PySide6.QtGui import QFont, QFontMetrics
 
 from ..core.constants import HANDLE_SIZE
 

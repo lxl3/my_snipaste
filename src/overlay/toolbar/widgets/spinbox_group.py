@@ -1,8 +1,7 @@
 """带标签的 SpinBox 分组（用于模糊/马赛克/放大镜等）"""
 
-from PySide6.QtWidgets import QLabel, QSpinBox, QWidget, QHBoxLayout
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QWidget
 
-from ....core.theme_pkg import theme as _t
 from ....core.i18n import _
 from .controls import ControlStyles
 

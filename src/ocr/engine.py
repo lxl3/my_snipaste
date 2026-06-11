@@ -1,16 +1,17 @@
 import os
-import sys
-import subprocess
-import tempfile
 import shutil
+import subprocess
+import sys
+import tempfile
+
 import pytesseract
 from PIL import Image
 from PySide6.QtCore import QThread, Signal
 
 from ..core.i18n import _
-from ..core.utils import qpixmap_to_pil, qimage_to_pil
 from ..core.logger import setup_logger
 from ..core.settings import get_settings
+from ..core.utils import qimage_to_pil, qpixmap_to_pil
 
 logger = setup_logger("ocr")
 

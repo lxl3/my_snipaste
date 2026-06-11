@@ -1,11 +1,10 @@
 """增强的日志系统 - 支持颜色输出和日志轮转。"""
 
 import logging
-import sys
 import os
-from logging.handlers import RotatingFileHandler
+import sys
 from datetime import datetime
-import getpass
+from logging.handlers import RotatingFileHandler
 
 _LOG_DIR: str = ""
 
@@ -129,7 +128,7 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
         def _open(self):
             try:
                 return super()._open()
-            except OSError as e:
+            except OSError:
                 import io
                 return io.StringIO()  # 哑 fallback，不丢失日志流
 

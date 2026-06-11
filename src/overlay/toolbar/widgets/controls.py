@@ -1,10 +1,9 @@
 """通用控件工具 - 样式表生成 / 分隔符"""
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout
 
-from ....core.theme_pkg import theme as _t
 from ....core import qss_base
+from ....core.theme_pkg import theme as _t
 
 
 class ControlStyles:

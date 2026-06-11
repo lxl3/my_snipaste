@@ -1,6 +1,6 @@
 """颜色按钮控件"""
 
-from PySide6.QtWidgets import QPushButton, QHBoxLayout
+from PySide6.QtWidgets import QHBoxLayout, QPushButton
 
 from ....core.theme_pkg import theme as _t
 

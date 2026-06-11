@@ -8,8 +8,8 @@
     from .toolbar.builder import ToolbarBuilder
 """
 
-from .toolbar import OverlayToolbar
-from .config import TOOLBAR_CONFIG, ACTION_BUTTONS_CONFIG
 from .builder import ToolbarBuilder
+from .config import ACTION_BUTTONS_CONFIG, TOOLBAR_CONFIG
+from .toolbar import OverlayToolbar
 
 __all__ = ["OverlayToolbar", "TOOLBAR_CONFIG", "ACTION_BUTTONS_CONFIG", "ToolbarBuilder"]

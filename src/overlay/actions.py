@@ -2,15 +2,16 @@
 
 import math
 
-from PySide6.QtWidgets import QMessageBox, QLineEdit
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
-from PySide6.QtCore import Qt, QRectF, QPointF, QRect, QPoint
+from PySide6.QtWidgets import QLineEdit, QMessageBox
+
+from ..annotations import Annotation
 from ..core.i18n import _
 from ..core.logger import setup_logger
-from ..ui.toast import ToastManager
 from ..core.screenshot_history import ScreenshotHistory
-from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
-from ..annotations import Annotation
+from ..core.utils import pil_to_qpixmap, qpixmap_to_pil
+from ..ui.toast import ToastManager
 
 logger = setup_logger("overlay_actions")
 
@@ -37,8 +38,8 @@ class OverlayActionsMixin:
             return
         ToastManager.show(_("OCR recognizing..."), "🔍", "info", parent=self)
         captured = self._render_annotated_pixmap()
-        from ..ocr.engine import OcrWorker
         from ..core.utils import qpixmap_to_pil
+        from ..ocr.engine import OcrWorker
         pil_image = qpixmap_to_pil(captured)
         self._ocr_worker = OcrWorker(pil_image, self.ctx.settings.ocr_language)
         self._ocr_worker.finished.connect(self._on_ocr_finished)

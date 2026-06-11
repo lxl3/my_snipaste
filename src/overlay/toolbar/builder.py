@@ -4,29 +4,33 @@
 支持所有控件类型：颜色按钮、宽度、字体、样式下拉、spinbox_group 等。
 """
 
-from typing import Callable
+from collections.abc import Callable
 
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
-    QWidget, QToolButton, QFrame, QHBoxLayout, QMenu,
-    QWidgetAction, QPushButton, QSpinBox, QComboBox, QLabel,
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QSpinBox,
+    QToolButton,
+    QWidget,
+    QWidgetAction,
 )
 
-from ...core.i18n import _
-from ...core.utils import load_icon_from_svg
-from ...core.theme_pkg import theme as _t
 from ...core import qss_base
+from ...core.i18n import _
+from ...core.theme_pkg import theme as _t
+from ...core.utils import load_icon_from_svg
 from ...resources.icons.toolbar_icons import TOOLBAR_ICONS
-
 from .widgets import (
-    add_color_buttons_to_layout,
-    make_color_picker_btn,
-    add_separator,
     ControlStyles,
+    add_color_buttons_to_layout,
     add_font_controls_to_layout,
+    add_separator,
     add_spinbox_group_to_layout,
+    make_color_picker_btn,
 )
-
 
 # ─── 菜单样式 ───
 
@@ -319,7 +323,6 @@ class ToolbarBuilder:
 
     def _rebuild_text_options(self, layout: QHBoxLayout, config: dict) -> None:
         """批量添加文字工具选项（font_combo + font_size + bold + italic + color）"""
-        from PySide6.QtGui import QColor
 
         has_font = any(o["type"] == "font_combo" for o in config.get("options", []))
         if not has_font:
@@ -353,7 +356,6 @@ class ToolbarBuilder:
 
     def _add_magnifier_zoom(self, layout: QHBoxLayout, config: dict) -> None:
         """为放大镜添加 zoom spinbox（带 Zoom: 标签）"""
-        from PySide6.QtWidgets import QLabel
         opts = next((o for o in config.get("options", []) if o["type"] == "magnifier_zoom"), {})
         zoom_label = QLabel(_("Zoom:"))
         zoom_label.setStyleSheet(ControlStyles().label_qss())

@@ -1,8 +1,7 @@
 """Shared OCR progress dialog and cleanup logic mixin."""
 
 from collections.abc import Callable
-from PySide6.QtCore import Qt, QTimer
-from ..core.i18n import _
+
 from ..core.logger import setup_logger
 from ..ui.ocr_progress_dialog import OcrProgressDialog
 
