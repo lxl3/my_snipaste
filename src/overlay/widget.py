@@ -33,6 +33,7 @@ from ..core.i18n import _
 from ..core.logger import setup_logger
 from ..core.theme_pkg import theme as _tw
 from ..core.theme_pkg import draw_glass_morphism, draw_glass_text
+from ..annotations import Annotation
 
 logger = setup_logger("overlay")
 
@@ -50,6 +51,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
 
     def __init__(self, ctx: AppContext | None = None) -> None:
         super().__init__()
+        OverlayRenderingMixin.__init__(self)
         self.ctx = ctx or get_context()
 
         self.total_geometry: QRect = QRect()
@@ -104,13 +106,13 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.current_blur_radius: int = 10
         self.current_magnifier_zoom: int = 2
         self.current_mosaic_scale: int = 8
-        self.annotations: list[dict] = []
+        self.annotations: list[Annotation] = []
         self._undo_stack: list[dict] = []  # action history for undo
         self._redo_stack: list[dict] = []  # reversed actions for redo
         self._drawing: bool = False
         self._draw_start: QPointF = QPointF()
         self._draw_points: list[QPointF] = []
-        self._preview_annotation: dict | None = None
+        self._preview_annotation: Annotation | None = None
 
         self.eraser_size: int = 20
         self._eraser_target_size: int = 20

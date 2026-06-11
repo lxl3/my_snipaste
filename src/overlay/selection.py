@@ -45,12 +45,12 @@ class OverlaySelectionMixin:
         local = self._sel_to_local(QPointF(pos))
         for i in range(len(self.annotations) - 1, -1, -1):
             ann = self.annotations[i]
-            t = ann["type"]
+            t = ann.type
             if t == "freehand":
                 continue  # freehand is never selectable
             try:
                 if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                    r = QRectF(ann["rect"])
+                    r = ann.rect
                     # Check if point is near border (Snipaste-style)
                     if r.contains(local):
                         # Point is inside - check distance to nearest edge
@@ -62,25 +62,25 @@ class OverlaySelectionMixin:
                         if min_dist <= BORDER_THRESHOLD:
                             return i
                 elif t in ("arrow", "line"):
-                    d = self._point_to_segment_distance(local, ann["start"], ann["end"])
+                    d = self._point_to_segment_distance(local, ann.start, ann.end)
                     if d < BORDER_THRESHOLD + 4:
                         return i
                 elif t == "freehand":
-                    pts = ann["points"]
+                    pts = ann.points
                     for j in range(len(pts) - 1):
                         d = self._point_to_segment_distance(local, pts[j], pts[j + 1])
                         if d < 8:
                             return i
                 elif t == "number_marker":
-                    center = QPointF(ann["pos"])
-                    r = ann.get("radius", 14)
+                    center = ann.pos
+                    r = ann.radius
                     if math.hypot(local.x() - center.x(), local.y() - center.y()) < r + 4:
                         return i
                 elif t == "text":
-                    fm = QFontMetrics(QFont(ann["font_family"], ann["font_size"]))
-                    tw = fm.horizontalAdvance(ann["text"])
+                    fm = QFontMetrics(QFont(ann.font_family, ann.font_size))
+                    tw = fm.horizontalAdvance(ann.text)
                     th = fm.height()
-                    text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
+                    text_rect = QRectF(ann.pos.x(), ann.pos.y(), tw, th)
                     if text_rect.contains(local):
                         return i
             except Exception:
@@ -93,16 +93,16 @@ class OverlaySelectionMixin:
         ann = self.annotations[idx]
         # Snapshot original position data for drag delta calculation
         self._annotation_drag_orig = {}
-        t = ann["type"]
+        t = ann.type
         if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-            self._annotation_drag_orig["rect"] = QRectF(ann["rect"])
+            self._annotation_drag_orig["rect"] = QRectF(ann.rect)
         elif t in ("arrow", "line"):
-            self._annotation_drag_orig["start"] = QPointF(ann["start"])
-            self._annotation_drag_orig["end"] = QPointF(ann["end"])
+            self._annotation_drag_orig["start"] = QPointF(ann.start)
+            self._annotation_drag_orig["end"] = QPointF(ann.end)
         elif t == "freehand":
-            self._annotation_drag_orig["points"] = [QPointF(p) for p in ann["points"]]
+            self._annotation_drag_orig["points"] = [QPointF(p) for p in ann.points]
         elif t in ("text", "number_marker"):
-            self._annotation_drag_orig["pos"] = QPointF(ann["pos"])
+            self._annotation_drag_orig["pos"] = QPointF(ann.pos)
         self._drag_start_pos = event_pos
         self._drag_mode = ("move_annotation",)
         # Keep toolbar visible during annotation drag (consistent with pin_window)
@@ -118,65 +118,65 @@ class OverlaySelectionMixin:
         if self._selected_annotation_idx is None:
             return
         ann = self.annotations[self._selected_annotation_idx]
-        if key == "color" and "color" in ann:
-            ann["color"] = QColor(value) if isinstance(value, str) else value
-        elif key == "width" and "width" in ann:
-            ann["width"] = value
-        elif key == "blur_radius" and ann["type"] == "blur":
-            ann["radius"] = value
-            ann.pop("_cached", None)  # force re-render
-        elif key == "magnifier_zoom" and ann["type"] == "magnifier":
-            ann["zoom"] = value
-            ann.pop("_cached", None)  # force re-render with new zoom
-        elif key == "mosaic_scale" and ann["type"] == "mosaic":
-            ann["scale"] = value
-            ann.pop("_cached", None)  # force re-render with new scale
-        elif key == "font_family" and ann["type"] == "text":
-            ann["font_family"] = value
-        elif key == "font_size" and ann["type"] == "text":
-            ann["font_size"] = value
-        elif key == "bold" and ann["type"] == "text":
-            ann["bold"] = value
-        elif key == "italic" and ann["type"] == "text":
-            ann["italic"] = value
-        elif key == "text_color" and ann["type"] == "text":
-            ann["color"] = QColor(value) if isinstance(value, str) else value
-        elif key == "arrow_style" and ann["type"] in ("arrow", "line"):
-            ann["arrow_style"] = value
+        if key == "color":
+            ann.color = value if isinstance(value, str) else value.name()
+        elif key == "width":
+            ann.width = value
+        elif key == "blur_radius" and ann.type == "blur":
+            ann.blur_radius = value
+            ann._cached = None
+        elif key == "magnifier_zoom" and ann.type == "magnifier":
+            ann.zoom = value
+            ann._cached = None
+        elif key == "mosaic_scale" and ann.type == "mosaic":
+            ann.scale = value
+            ann._cached = None
+        elif key == "font_family" and ann.type == "text":
+            ann.font_family = value
+        elif key == "font_size" and ann.type == "text":
+            ann.font_size = value
+        elif key == "bold" and ann.type == "text":
+            ann.bold = value
+        elif key == "italic" and ann.type == "text":
+            ann.italic = value
+        elif key == "text_color" and ann.type == "text":
+            ann.color = value if isinstance(value, str) else value.name()
+        elif key == "arrow_style" and ann.type in ("arrow", "line"):
+            ann.arrow_style = value
         self.update()
 
     def _get_annotation_bounds_local(self, ann: dict) -> QRectF:
         """Bounding rect of an annotation in *local* (selection-relative) coords."""
-        t = ann["type"]
+        t = ann.type
         try:
             if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                return QRectF(ann["rect"])
+                return ann.rect
             elif t in ("arrow", "line"):
-                pts = [ann["start"], ann["end"]]
+                pts = [ann.start, ann.end]
                 xs = [p.x() for p in pts]
                 ys = [p.y() for p in pts]
-                margin = ann.get("width", 3) + 4
+                margin = ann.width + 4
                 return QRectF(min(xs) - margin, min(ys) - margin,
                               max(xs) - min(xs) + margin * 2,
                               max(ys) - min(ys) + margin * 2)
             elif t == "freehand":
-                pts = ann["points"]
+                pts = ann.points
                 if not pts:
                     return QRectF()
-                margin = ann.get("width", 3) + 4
+                margin = ann.width + 4
                 xs = [p.x() for p in pts]
                 ys = [p.y() for p in pts]
                 return QRectF(min(xs) - margin, min(ys) - margin,
                               max(xs) - min(xs) + margin * 2,
                               max(ys) - min(ys) + margin * 2)
             elif t == "number_marker":
-                r = ann.get("radius", 14)
-                return QRectF(ann["pos"].x() - r, ann["pos"].y() - r, r * 2, r * 2)
+                r = ann.radius
+                return QRectF(ann.pos.x() - r, ann.pos.y() - r, r * 2, r * 2)
             elif t == "text":
-                fm = QFontMetrics(QFont(ann["font_family"], ann["font_size"]))
-                tw = fm.horizontalAdvance(ann["text"])
+                fm = QFontMetrics(QFont(ann.font_family, ann.font_size))
+                tw = fm.horizontalAdvance(ann.text)
                 th = fm.height()
-                return QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
+                return QRectF(ann.pos.x(), ann.pos.y(), tw, th)
         except Exception:
             pass
         return QRectF()
@@ -186,27 +186,27 @@ class OverlaySelectionMixin:
         if self._selected_annotation_idx is None:
             return
         ann = self.annotations[self._selected_annotation_idx]
-        t = ann["type"]
+        t = ann.type
         orig = self._annotation_drag_orig
         if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier") and "rect" in orig:
             r = orig["rect"]
-            ann["rect"] = QRectF(r.x() + delta.x(), r.y() + delta.y(),
-                                  r.width(), r.height())
+            ann.rect = QRectF(r.x() + delta.x(), r.y() + delta.y(),
+                              r.width(), r.height())
             # Invalidate cached render (position-dependent for blur/mosaic/magnifier)
             if t in ("mosaic", "blur", "magnifier"):
-                ann.pop("_cached", None)
+                ann._cached = None
         elif t in ("arrow", "line") and "start" in orig and "end" in orig:
-            ann["start"] = QPointF(orig["start"].x() + delta.x(),
-                                    orig["start"].y() + delta.y())
-            ann["end"] = QPointF(orig["end"].x() + delta.x(),
-                                  orig["end"].y() + delta.y())
+            ann.start = QPointF(orig["start"].x() + delta.x(),
+                                orig["start"].y() + delta.y())
+            ann.end = QPointF(orig["end"].x() + delta.x(),
+                              orig["end"].y() + delta.y())
         elif t == "freehand" and "points" in orig:
-            ann["points"] = [QPointF(p.x() + delta.x(), p.y() + delta.y())
-                             for p in orig["points"]]
-            ann.pop("_path", None)
+            ann.points = [QPointF(p.x() + delta.x(), p.y() + delta.y())
+                         for p in orig["points"]]
+            ann._path = None
         elif t in ("text", "number_marker") and "pos" in orig:
-            ann["pos"] = QPointF(orig["pos"].x() + delta.x(),
-                                  orig["pos"].y() + delta.y())
+            ann.pos = QPointF(orig["pos"].x() + delta.x(),
+                             orig["pos"].y() + delta.y())
 
     # ─── Annotation resize handles ───
 
@@ -215,11 +215,11 @@ class OverlaySelectionMixin:
         For rect/ellipse: 8 handles (4 corners + 4 edge midpoints).
         For arrow/line: 2 handles at start and end points."""
         half = HANDLE_SIZE // 2
-        t = ann["type"]
+        t = ann.type
 
         if t in ("arrow", "line"):
-            sp = QPointF(ann["start"]) + QPointF(offset)
-            ep = QPointF(ann["end"]) + QPointF(offset)
+            sp = ann.start + QPointF(offset)
+            ep = ann.end + QPointF(offset)
             return [
                 QRect(int(sp.x()) - half, int(sp.y()) - half, HANDLE_SIZE, HANDLE_SIZE),
                 QRect(int(ep.x()) - half, int(ep.y()) - half, HANDLE_SIZE, HANDLE_SIZE),
@@ -248,7 +248,7 @@ class OverlaySelectionMixin:
 
     def _get_annotation_handle_names(self, ann: dict) -> list[str]:
         """Handle names matching _get_annotation_handles output order."""
-        if ann["type"] in ("arrow", "line"):
+        if ann.type in ("arrow", "line"):
             return ["start", "end"]
         return self._ANNOTATION_HANDLE_NAMES
 
@@ -276,24 +276,24 @@ class OverlaySelectionMixin:
         ann = self.annotations[idx]
         self._selected_annotation_idx = idx
         self._annotation_drag_orig = {}
-        t = ann["type"]
+        t = ann.type
         if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-            self._annotation_drag_orig["rect"] = QRectF(ann["rect"])
+            self._annotation_drag_orig["rect"] = QRectF(ann.rect)
         elif t in ("arrow", "line"):
-            self._annotation_drag_orig["start"] = QPointF(ann["start"])
-            self._annotation_drag_orig["end"] = QPointF(ann["end"])
+            self._annotation_drag_orig["start"] = QPointF(ann.start)
+            self._annotation_drag_orig["end"] = QPointF(ann.end)
         elif t == "number_marker":
-            self._annotation_drag_orig["pos"] = QPointF(ann["pos"])
-            self._annotation_drag_orig["radius"] = ann.get("radius", 14)
+            self._annotation_drag_orig["pos"] = QPointF(ann.pos)
+            self._annotation_drag_orig["radius"] = ann.radius
         elif t == "text":
-            self._annotation_drag_orig["pos"] = QPointF(ann["pos"])
+            self._annotation_drag_orig["pos"] = QPointF(ann.pos)
         self._drag_start_pos = event_pos
         self._drag_mode = ("resize_annotation", handle)
         self.update()
 
     def _resize_annotation(self, ann: dict, delta: QPointF, handle: str) -> None:
         """Apply *delta* to annotation on the given handle side."""
-        t = ann["type"]
+        t = ann.type
         orig = self._annotation_drag_orig
 
         if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
@@ -319,22 +319,22 @@ class OverlaySelectionMixin:
                 r.setLeft(r.left() + dx)
             elif handle == "rc":
                 r.setRight(r.right() + dx)
-            ann["rect"] = r.normalized()
+            ann.rect = r.normalized()
             if t in ("mosaic", "blur", "magnifier"):
-                ann.pop("_cached", None)
+                ann._cached = None
 
         elif t in ("arrow", "line"):
             start = QPointF(orig["start"])
             end = QPointF(orig["end"])
             if handle in ("start", "end"):
                 pt = start if handle == "start" else end
-                ann[handle] = QPointF(pt.x() + delta.x(), pt.y() + delta.y())
+                setattr(ann, handle, QPointF(pt.x() + delta.x(), pt.y() + delta.y()))
 
         elif t == "text":
             # Text annotations: handles just move (same as drag)
             if "pos" in orig:
-                ann["pos"] = QPointF(orig["pos"].x() + delta.x(),
-                                      orig["pos"].y() + delta.y())
+                ann.pos = QPointF(orig["pos"].x() + delta.x(),
+                                 orig["pos"].y() + delta.y())
 
         elif t == "number_marker":
             pos = QPointF(orig["pos"])
@@ -343,9 +343,9 @@ class OverlaySelectionMixin:
             if handle in ("tl", "tr", "bl", "br"):
                 diag = max(abs(delta.x()), abs(delta.y()))
                 sign = 1 if (delta.x() + delta.y()) > 0 else -1
-                ann["radius"] = max(4, int(orig_r + sign * diag))
+                ann.radius = max(4, int(orig_r + sign * diag))
             else:
-                ann["pos"] = QPointF(pos.x() + delta.x(), pos.y() + delta.y())
+                ann.pos = QPointF(pos.x() + delta.x(), pos.y() + delta.y())
 
     # ─── Selection rectangle handle detection ───
 

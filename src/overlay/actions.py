@@ -10,6 +10,7 @@ from ..core.logger import setup_logger
 from ..ui.toast import ToastManager
 from ..core.screenshot_history import ScreenshotHistory
 from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
+from ..annotations import Annotation
 
 logger = setup_logger("overlay_actions")
 
@@ -161,11 +162,10 @@ class OverlayActionsMixin:
         logger.debug(f"擦除检测: local=({local.x():.0f},{local.y():.0f}), r={r}, annotations={len(self.annotations)}")
         for i in range(len(self.annotations) - 1, -1, -1):
             ann = self.annotations[i]
-            t = ann["type"]
+            t = ann.type
             if t in ("rect", "ellipse", "mosaic"):
-                ann_rect = QRectF(ann["rect"])
-                d = self._point_to_rect_distance(local, ann_rect)
-                logger.debug(f"  [{i}] type={t}, rect={ann_rect}, dist={d:.1f}")
+                d = self._point_to_rect_distance(local, ann.rect)
+                logger.debug(f"  [{i}] type={t}, rect={ann.rect}, dist={d:.1f}")
                 if d < r:
                     logger.debug(f"  → 擦除 annotation {i} (type={t})")
                     self._on_annotation_removed(i)
@@ -176,8 +176,8 @@ class OverlayActionsMixin:
                     self.update()
                     return
             elif t in ("arrow", "line"):
-                d = self._point_to_segment_distance(local, ann["start"], ann["end"])
-                logger.debug(f"  [{i}] type={t}, start={ann['start']}, end={ann['end']}, dist={d:.1f}")
+                d = self._point_to_segment_distance(local, ann.start, ann.end)
+                logger.debug(f"  [{i}] type={t}, start={ann.start}, end={ann.end}, dist={d:.1f}")
                 if d < r:
                     logger.debug(f"  → 擦除 annotation {i} (type={t})")
                     self._on_annotation_removed(i)
@@ -188,7 +188,7 @@ class OverlayActionsMixin:
                     self.update()
                     return
             elif t == "freehand":
-                pts = ann["points"]
+                pts = ann.points
                 for j in range(len(pts) - 1):
                     d = self._point_to_segment_distance(local, pts[j], pts[j + 1])
                     if d < r:
@@ -201,15 +201,15 @@ class OverlayActionsMixin:
                         self.update()
                         return
             elif t == "text":
-                font = QFont(ann["font_family"], ann["font_size"])
-                font.setBold(ann.get("bold", False))
-                font.setItalic(ann.get("italic", False))
+                font = QFont(ann.font_family, ann.font_size)
+                font.setBold(ann.bold)
+                font.setItalic(ann.italic)
                 fm = QFontMetrics(font)
-                tw = fm.horizontalAdvance(ann["text"])
+                tw = fm.horizontalAdvance(ann.text)
                 th = fm.height()
-                text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
+                text_rect = QRectF(ann.pos.x(), ann.pos.y(), tw, th)
                 d = self._point_to_rect_distance(local, text_rect)
-                logger.debug(f"  [{i}] type=text, pos={ann['pos']}, text_rect={text_rect}, dist={d:.1f}")
+                logger.debug(f"  [{i}] type=text, pos={ann.pos}, text_rect={text_rect}, dist={d:.1f}")
                 if d < r:
                     logger.debug(f"  → 擦除 text annotation {i}")
                     self._on_annotation_removed(i)
@@ -220,8 +220,8 @@ class OverlayActionsMixin:
                     self.update()
                     return
             elif t == "number_marker":
-                center = QPointF(ann["pos"])
-                radius = ann.get("radius", 14)
+                center = QPointF(ann.pos)
+                radius = ann.radius
                 d = math.hypot(local.x() - center.x(), local.y() - center.y())
                 logger.debug(f"  [{i}] type=number_marker, center={center}, dist={d:.1f}")
                 if d < r + radius:
@@ -270,36 +270,35 @@ class OverlayActionsMixin:
         remaining = []
         removed_items = []  # track for undo
         for idx, ann in enumerate(self.annotations):
-            t = ann["type"]
+            t = ann.type
             keep = False
             if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                ann_global = QRectF(ann["rect"]).translated(QPointF(self.selection_rect.topLeft()))
-                keep = not sel_rect.intersects(ann_global.toRect())
+                keep = not sel_rect.intersects(ann.rect.translated(QPointF(self.selection_rect.topLeft())).toRect())
             elif t in ("arrow", "line"):
                 # keep segment if neither endpoint is inside the new selection
-                start_in = sel_rect.contains(ann["start"] + QPointF(self.selection_rect.topLeft()))
-                end_in = sel_rect.contains(ann["end"] + QPointF(self.selection_rect.topLeft()))
+                start_in = sel_rect.contains(ann.start + QPointF(self.selection_rect.topLeft()))
+                end_in = sel_rect.contains(ann.end + QPointF(self.selection_rect.topLeft()))
                 keep = not (start_in or end_in)
             elif t == "freehand":
-                pts = ann["points"]
+                pts = ann.points
                 any_in = any(
                     sel_rect.contains(p + QPointF(self.selection_rect.topLeft()))
                     for p in pts
                 )
                 keep = not any_in
             elif t == "text":
-                font = QFont(ann["font_family"], ann["font_size"])
-                font.setBold(ann.get("bold", False))
-                font.setItalic(ann.get("italic", False))
+                font = QFont(ann.font_family, ann.font_size)
+                font.setBold(ann.bold)
+                font.setItalic(ann.italic)
                 fm = QFontMetrics(font)
-                tw = fm.horizontalAdvance(ann["text"])
+                tw = fm.horizontalAdvance(ann.text)
                 th = fm.height()
-                text_global_pos = QPointF(self.selection_rect.topLeft()) + ann["pos"]
+                text_global_pos = QPointF(self.selection_rect.topLeft()) + ann.pos
                 text_global_rect = QRectF(text_global_pos.x(), text_global_pos.y(), tw, th)
                 keep = not sel_rect.intersects(text_global_rect)
             elif t == "number_marker":
-                r = ann.get("radius", 14)
-                marker_global_pos = QPointF(self.selection_rect.topLeft()) + ann["pos"]
+                r = ann.radius
+                marker_global_pos = QPointF(self.selection_rect.topLeft()) + ann.pos
                 marker_global_rect = QRectF(marker_global_pos.x() - r, marker_global_pos.y() - r, r * 2, r * 2)
                 keep = not sel_rect.intersects(marker_global_rect)
             else:
@@ -331,30 +330,30 @@ class OverlayActionsMixin:
         remaining = []
         removed_items = []  # track for undo
         for idx, ann in enumerate(self.annotations):
-            t = ann["type"]
+            t = ann.type
             keep = False
             if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                keep = not local_erase.intersects(ann["rect"])
+                keep = not local_erase.intersects(ann.rect)
             elif t in ("arrow", "line"):
-                start_in = local_erase.contains(ann["start"])
-                end_in = local_erase.contains(ann["end"])
+                start_in = local_erase.contains(ann.start)
+                end_in = local_erase.contains(ann.end)
                 keep = not (start_in or end_in)
             elif t == "freehand":
-                pts = ann["points"]
+                pts = ann.points
                 any_in = any(local_erase.contains(p) for p in pts)
                 keep = not any_in
             elif t == "text":
-                font = QFont(ann["font_family"], ann["font_size"])
-                font.setBold(ann.get("bold", False))
-                font.setItalic(ann.get("italic", False))
+                font = QFont(ann.font_family, ann.font_size)
+                font.setBold(ann.bold)
+                font.setItalic(ann.italic)
                 fm = QFontMetrics(font)
-                tw = fm.horizontalAdvance(ann["text"])
+                tw = fm.horizontalAdvance(ann.text)
                 th = fm.height()
-                text_rect = QRectF(ann["pos"].x(), ann["pos"].y(), tw, th)
+                text_rect = QRectF(ann.pos.x(), ann.pos.y(), tw, th)
                 keep = not local_erase.intersects(text_rect)
             elif t == "number_marker":
-                r = ann.get("radius", 14)
-                marker_rect = QRectF(ann["pos"].x() - r, ann["pos"].y() - r, r * 2, r * 2)
+                r = ann.radius
+                marker_rect = QRectF(ann.pos.x() - r, ann.pos.y() - r, r * 2, r * 2)
                 keep = not local_erase.intersects(marker_rect)
             else:
                 keep = True
@@ -403,19 +402,19 @@ class OverlayActionsMixin:
                 idx = self._editing_annotation_idx
                 if 0 <= idx < len(self.annotations):
                     ann = self.annotations[idx]
-                    ann["text"] = text
-                    ann["color"] = QColor(self.text_color)
-                    ann["font_family"] = self.text_font_family
-                    ann["font_size"] = self.text_font_size
-                    ann["bold"] = self.text_bold
-                    ann["italic"] = self.text_italic
+                    ann.text = text
+                    ann.color = QColor(self.text_color)
+                    ann.font_family = self.text_font_family
+                    ann.font_size = self.text_font_size
+                    ann.bold = self.text_bold
+                    ann.italic = self.text_italic
             else:
-                self.annotations.append({
-                    "type": "text", "pos": self._text_editor_pos, "text": text,
-                    "color": QColor(self.text_color), "font_family": self.text_font_family,
-                    "font_size": self.text_font_size, "bold": self.text_bold,
-                    "italic": self.text_italic,
-                })
+                self.annotations.append(Annotation(
+                    type="text", pos=self._text_editor_pos, text=text,
+                    color=self.text_color, font_family=self.text_font_family,
+                    font_size=self.text_font_size, bold=self.text_bold,
+                    italic=self.text_italic,
+                ))
                 self._undo_stack.append({"type": "add", "ann": self.annotations[-1], "index": len(self.annotations) - 1})
             self._redo_stack.clear()
             self.toolbar.update_undo_redo_state()
@@ -438,27 +437,27 @@ class OverlayActionsMixin:
         if not (0 <= ann_idx < len(self.annotations)):
             return
         ann = self.annotations[ann_idx]
-        if ann["type"] != "text":
+        if ann.type != "text":
             return
 
         self._editing_annotation_idx = ann_idx
         self._deselect_annotation()
 
         # Restore font/color to match the annotation
-        self.text_font_family = ann.get("font_family", self.text_font_family)
-        self.text_font_size = ann.get("font_size", self.text_font_size)
-        self.text_bold = ann.get("bold", False)
-        self.text_italic = ann.get("italic", False)
-        self.text_color = ann.get("color", self.text_color)
+        self.text_font_family = ann.font_family
+        self.text_font_size = ann.font_size
+        self.text_bold = ann.bold
+        self.text_italic = ann.italic
+        self.text_color = ann.color
 
-        local_pos = ann["pos"]
+        local_pos = ann.pos
         self._text_editor_pos = local_pos
         self._text_editor = QLineEdit(self)
         font = QFont(self.text_font_family, self.text_font_size)
         font.setBold(self.text_bold)
         font.setItalic(self.text_italic)
         self._text_editor.setFont(font)
-        self._text_editor.setText(ann.get("text", ""))
+        self._text_editor.setText(ann.text)
         self._text_editor.selectAll()
         # Subtract 1px offset to compensate for QLineEdit internal rendering (same as _start_drawing)
         self._text_editor_window_pos = self.selection_rect.topLeft() + local_pos.toPoint() - QPoint(1, 1)
@@ -556,39 +555,36 @@ class OverlayActionsMixin:
         # Filter & offset surviving annotations, then render them onto cropped pixmap
         surviving = []
         for ann in self.annotations:
-            t = ann["type"]
+            t = ann.type
             keep = False
-            ann_copy = dict(ann)
+            ann_copy = ann.clone()
             if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                r = QRectF(ann["rect"])
+                r = ann.rect
                 r_offset = QRectF(r.x() - x, r.y() - y, r.width(), r.height())
                 keep = r_offset.intersects(crop_rect_bounds)
                 if keep:
-                    ann_copy["rect"] = r_offset
+                    ann_copy.rect = r_offset
                 if t in ("mosaic", "blur", "magnifier"):
-                    ann_copy.pop("_cached", None)
+                    ann_copy._cached = None
             elif t in ("arrow", "line"):
-                sp = QPointF(ann["start"])
-                ep = QPointF(ann["end"])
-                sp_offset = QPointF(sp.x() - x, sp.y() - y)
-                ep_offset = QPointF(ep.x() - x, ep.y() - y)
+                sp_offset = QPointF(ann.start.x() - x, ann.start.y() - y)
+                ep_offset = QPointF(ann.end.x() - x, ann.end.y() - y)
                 keep = crop_rect_bounds.contains(sp_offset) or crop_rect_bounds.contains(ep_offset)
                 if keep:
-                    ann_copy["start"] = sp_offset
-                    ann_copy["end"] = ep_offset
+                    ann_copy.start = sp_offset
+                    ann_copy.end = ep_offset
             elif t == "freehand":
-                pts = [QPointF(p) for p in ann["points"]]
+                pts = ann.points
                 pts_offset = [QPointF(p.x() - x, p.y() - y) for p in pts]
                 keep = any(crop_rect_bounds.contains(p) for p in pts_offset)
                 if keep:
-                    ann_copy["points"] = pts_offset
-                ann_copy.pop("_path", None)
+                    ann_copy.points = pts_offset
+                ann_copy._path = None
             elif t in ("text", "number_marker"):
-                pos = QPointF(ann["pos"])
-                pos_offset = QPointF(pos.x() - x, pos.y() - y)
+                pos_offset = QPointF(ann.pos.x() - x, ann.pos.y() - y)
                 keep = crop_rect_bounds.contains(pos_offset)
                 if keep:
-                    ann_copy["pos"] = pos_offset
+                    ann_copy.pos = pos_offset
             if keep:
                 surviving.append(ann_copy)
 
@@ -659,29 +655,29 @@ class OverlayActionsMixin:
         """
         sr = self.selection_rect
         for ann in self.annotations:
-            t = ann["type"]
+            t = ann.type
             if t in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier"):
-                r = QRectF(ann["rect"])
+                r = ann.rect
                 # transform top-left corner
                 nx, ny = xform(r.x() + sr.x(), r.y() + sr.y())
-                ann["rect"] = QRectF(nx - sr.x(), ny - sr.y(), r.width(), r.height())
+                ann.rect = QRectF(nx - sr.x(), ny - sr.y(), r.width(), r.height())
                 if t in ("mosaic", "blur", "magnifier"):
-                    ann.pop("_cached", None)
+                    ann._cached = None
             elif t in ("arrow", "line"):
-                sx, sy = xform(ann["start"].x() + sr.x(), ann["start"].y() + sr.y())
-                ex, ey = xform(ann["end"].x() + sr.x(), ann["end"].y() + sr.y())
-                ann["start"] = QPointF(sx - sr.x(), sy - sr.y())
-                ann["end"] = QPointF(ex - sr.x(), ey - sr.y())
+                sx, sy = xform(ann.start.x() + sr.x(), ann.start.y() + sr.y())
+                ex, ey = xform(ann.end.x() + sr.x(), ann.end.y() + sr.y())
+                ann.start = QPointF(sx - sr.x(), sy - sr.y())
+                ann.end = QPointF(ex - sr.x(), ey - sr.y())
             elif t == "freehand":
                 new_pts = []
-                for p in ann["points"]:
+                for p in ann.points:
                     nx, ny = xform(p.x() + sr.x(), p.y() + sr.y())
                     new_pts.append(QPointF(nx - sr.x(), ny - sr.y()))
-                ann["points"] = new_pts
-                ann.pop("_path", None)
+                ann.points = new_pts
+                ann._path = None
             elif t in ("text", "number_marker"):
-                nx, ny = xform(ann["pos"].x() + sr.x(), ann["pos"].y() + sr.y())
-                ann["pos"] = QPointF(nx - sr.x(), ny - sr.y())
+                nx, ny = xform(ann.pos.x() + sr.x(), ann.pos.y() + sr.y())
+                ann.pos = QPointF(nx - sr.x(), ny - sr.y())
 
     # ── Rotate ───────────────────────────────────────────────────
 

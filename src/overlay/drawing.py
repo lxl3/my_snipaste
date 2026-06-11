@@ -4,8 +4,8 @@ from PySide6.QtWidgets import QLineEdit
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QTimer
 
-from ..core.constants import MIN_DRAW_THRESHOLD, MIN_SELECTION_SIZE
-
+from ..annotations import Annotation
+from ..core.constants import MIN_DRAW_THRESHOLD
 from ..core.logger import setup_logger
 
 logger = setup_logger("overlay_drawing")
@@ -101,13 +101,13 @@ class OverlayDrawingMixin:
             self._drawing = False
         elif self.current_tool == "number_marker":
             self._marker_counter = getattr(self, '_marker_counter', 0) + 1
-            ann = {
-                "type": "number_marker", "pos": local,
-                "number": self._marker_counter,
-                "color": QColor(self.current_color),
-                "text_color": QColor("#ffffff"),
-                "radius": 14,
-            }
+            ann = Annotation(
+                type="number_marker", pos=local,
+                number=self._marker_counter,
+                color=self.current_color.name(),
+                text_color="#ffffff",
+                radius=14,
+            )
             self.annotations.append(ann)
             self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
             self._redo_stack.clear()
@@ -121,72 +121,72 @@ class OverlayDrawingMixin:
         if self.current_tool == "freehand":
             self._draw_points.append(local)
             if len(self._draw_points) == 2:
-                self.annotations.append({
-                    "type": "freehand", "points": list(self._draw_points),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                })
+                self.annotations.append(Annotation(
+                    type="freehand", points=list(self._draw_points),
+                    color=self.current_color.name(), width=self.current_width,
+                ))
                 self._undo_stack.append({"type": "add", "ann": self.annotations[-1], "index": len(self.annotations) - 1})
                 self._redo_stack.clear()
                 self.toolbar.update_undo_redo_state()
-            elif len(self._draw_points) > 2 and self.annotations and self.annotations[-1]["type"] == "freehand":
+            elif len(self._draw_points) > 2 and self.annotations and self.annotations[-1].type == "freehand":
                 ann = self.annotations[-1]
-                ann["points"] = list(self._draw_points)
-                ann.pop("_path", None)
+                ann.points = list(self._draw_points)
+                ann._path = None
         else:
             dx = local.x() - self._draw_start.x()
             dy = local.y() - self._draw_start.y()
             if self.current_tool in ("rect", "ellipse"):
-                self._preview_annotation = {
-                    "type": self.current_tool, "rect": QRectF(self._draw_start, local).normalized(),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                }
+                self._preview_annotation = Annotation(
+                    type=self.current_tool, rect=QRectF(self._draw_start, local).normalized(),
+                    color=self.current_color.name(), width=self.current_width,
+                )
             elif self.current_tool in ("arrow", "line") and (abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD):
-                self._preview_annotation = {
-                    "type": self.current_tool, "start": QPointF(self._draw_start),
-                    "end": QPointF(local), "color": QColor(self.current_color), "width": self.current_width,
-                    "arrow_style": self.current_arrow_style,
-                }
+                self._preview_annotation = Annotation(
+                    type=self.current_tool, start=QPointF(self._draw_start),
+                    end=QPointF(local), color=self.current_color.name(), width=self.current_width,
+                    arrow_style=self.current_arrow_style,
+                )
             elif self.current_tool == "mosaic":
                 r = QRectF(self._draw_start, local).normalized()
                 if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                    self._preview_annotation = {"type": "mosaic", "rect": r, "scale": self.current_mosaic_scale}
+                    self._preview_annotation = Annotation(type="mosaic", rect=r, scale=self.current_mosaic_scale)
             elif self.current_tool == "highlighter":
-                self._preview_annotation = {
-                    "type": "highlighter", "rect": QRectF(self._draw_start, local).normalized(),
-                    "color": QColor(self.current_color), "width": self.current_width,
-                }
+                self._preview_annotation = Annotation(
+                    type="highlighter", rect=QRectF(self._draw_start, local).normalized(),
+                    color=self.current_color.name(), width=self.current_width,
+                )
             elif self.current_tool == "blur":
                 r = QRectF(self._draw_start, local).normalized()
                 if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                    self._preview_annotation = {"type": "blur", "rect": r, "radius": self.current_blur_radius}
+                    self._preview_annotation = Annotation(type="blur", rect=r, blur_radius=self.current_blur_radius)
             elif self.current_tool == "magnifier":
                 r = QRectF(self._draw_start, local).normalized()
                 if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
-                    self._preview_annotation = {"type": "magnifier", "rect": r, "zoom": self.current_magnifier_zoom}
+                    self._preview_annotation = Annotation(type="magnifier", rect=r, zoom=self.current_magnifier_zoom)
         self.update()
 
     def _finish_drawing(self) -> None:
         """Finish current drawing and add annotation to the list."""
         self._drawing = False
-        if self._preview_annotation and self._preview_annotation["type"] != "freehand":
+        if self._preview_annotation and self._preview_annotation.type != "freehand":
             ann = self._preview_annotation
-            if ann["type"] in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier") and ann["rect"].width() > MIN_DRAW_THRESHOLD and ann["rect"].height() > MIN_DRAW_THRESHOLD:
+            if ann.type in ("rect", "ellipse", "mosaic", "highlighter", "blur", "magnifier") and ann.rect.width() > MIN_DRAW_THRESHOLD and ann.rect.height() > MIN_DRAW_THRESHOLD:
                 self.annotations.append(ann)
                 self._selected_annotation_idx = len(self.annotations) - 1
                 self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
                 self._redo_stack.clear()
                 self.toolbar.update_undo_redo_state()
-            elif ann["type"] in ("arrow", "line"):
-                dx = ann["end"].x() - ann["start"].x()
-                dy = ann["end"].y() - ann["start"].y()
+            elif ann.type in ("arrow", "line"):
+                dx = ann.end.x() - ann.start.x()
+                dy = ann.end.y() - ann.start.y()
                 if abs(dx) > MIN_DRAW_THRESHOLD or abs(dy) > MIN_DRAW_THRESHOLD:
                     self.annotations.append(ann)
                     self._selected_annotation_idx = len(self.annotations) - 1
                     self._undo_stack.append({"type": "add", "ann": ann, "index": len(self.annotations) - 1})
                     self._redo_stack.clear()
                     self.toolbar.update_undo_redo_state()
-        elif self.current_tool == "freehand" and self.annotations and self.annotations[-1]["type"] == "freehand":
-            if len(self.annotations[-1]["points"]) < 2:
+        elif self.current_tool == "freehand" and self.annotations and self.annotations[-1].type == "freehand":
+            if len(self.annotations[-1].points) < 2:
                 self.annotations.pop()
             else:
                 # Freehand drawing complete — push to undo stack (only once, not per segment)
