@@ -10,7 +10,7 @@ Composed of CaptureOverlay (main class) + 5 mixins:
 
 import os
 
-from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSizeF, Qt, Signal
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QLineEdit, QWidget
 
@@ -24,14 +24,15 @@ from ..core.logger import setup_logger
 from ..core.theme_pkg import draw_glass_morphism, draw_glass_text
 from ..core.theme_pkg import theme as _tw
 from ..core.utils import capture_all_screens
-from ..core.window_detector import detect_window_under_cursor
 from .actions import OverlayActionsMixin
+from .crop_mode import CropMode
 from .drawing import OverlayDrawingMixin
 from .hotkey_panel import HotkeyHelpPanel
 from .ocr_mixin import OcrMixin
 from .rendering import OverlayRenderingMixin
 from .selection import OverlaySelectionMixin
 from .toolbar import OverlayToolbar
+from .window_snap import WindowSnapDetector
 
 logger = setup_logger("overlay")
 
@@ -73,8 +74,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self.end_point: QPoint = QPoint()
         self.selection_rect: QRect = QRect()
         self.current_mouse_pos: QPoint = QPoint()
-        self._detected_window_rect: QRect | None = None
-        self._window_snap_rect: QRect | None = None  # pending single-click window snap
+        self.window_snap = WindowSnapDetector(self)
 
         self._drag_mode: tuple | None = None
         self._drag_start_pos: QPointF = QPointF()
@@ -129,12 +129,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         self._selected_annotation_idx: int | None = None
         self._annotation_drag_orig: dict = {}  # original position data for drag
 
-        # ─── Crop mode state ───
-        self._crop_mode: bool = False
-        self._crop_rect: QRectF | None = None
-        self._crop_dragging: bool = False
-        self._crop_start: QPointF = QPointF()
-        self._crop_handle: str = ""  # "", "move", "nw", "ne", "sw", "se"
+        # ─── Crop mode ───
+        self.crop = CropMode(self)
 
         self.text_font_family: str = s.default_font_family
         self.text_font_size: int = s.default_font_size
@@ -274,14 +270,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                          f"rgba({_dim_color.red()},{_dim_color.green()},{_dim_color.blue()},{_dim_color.alpha()})")
 
             # Window/element auto-detect highlight (before any selection)
-            if self._detected_window_rect is not None and self.selection_rect.isNull():
-                wr = self._detected_window_rect
-                # Semi-transparent blue fill
-                painter.fillRect(wr, QColor(_sel_color.red(), _sel_color.green(), _sel_color.blue(), 30))
-                # 2px blue border
-                painter.setPen(QPen(QColor(_sel_color), 2))
-                painter.setBrush(Qt.NoBrush)
-                painter.drawRect(wr)
+            if self.selection_rect.isNull():
+                self.window_snap.paint_highlight(painter, _sel_color)
 
             rect = self.selection_rect
             if not rect.isNull():
@@ -332,34 +322,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 painter.setBrush(QColor(52, 152, 219, 30))
                 painter.drawRect(erase_rect)
 
-            # Crop mode overlay
-            if self._crop_mode and not self.selection_rect.isNull():
-                sr = self.selection_rect
-                if self._crop_rect and not self._crop_rect.isEmpty():
-                    # Convert crop rect to screen coordinates
-                    crop_screen = QRectF(
-                        self._crop_rect.x() + sr.x(),
-                        self._crop_rect.y() + sr.y(),
-                        self._crop_rect.width(),
-                        self._crop_rect.height()
-                    )
-                    # Darken area outside crop rect (within selection)
-                    painter.fillRect(sr.x(), sr.y(), sr.width(), int(self._crop_rect.y()),
-                                     QColor(0, 0, 0, 120))
-                    painter.fillRect(sr.x(), int(crop_screen.bottom()), sr.width(),
-                                     int(sr.height() - self._crop_rect.y() - self._crop_rect.height()),
-                                     QColor(0, 0, 0, 120))
-                    painter.fillRect(sr.x(), int(crop_screen.y()), int(self._crop_rect.x()),
-                                     int(self._crop_rect.height()), QColor(0, 0, 0, 120))
-                    painter.fillRect(int(crop_screen.right()), int(crop_screen.y()),
-                                     int(sr.width() - self._crop_rect.x() - self._crop_rect.width()),
-                                     int(self._crop_rect.height()), QColor(0, 0, 0, 120))
-                    # Draw crop border
-                    painter.setPen(QPen(Qt.white, 2, Qt.DashLine))
-                    painter.setBrush(Qt.NoBrush)
-                    painter.drawRect(crop_screen)
-                    # Draw crop handles
-                    self._draw_crop_handles(painter, crop_screen)
+            self.crop.paint(painter, self.selection_rect)
 
             if not (self.toolbar.toolbar.isVisible() and self.toolbar.toolbar.geometry().contains(self.current_mouse_pos)):
                 self._draw_coord_tooltip(painter)
@@ -416,20 +379,14 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.toolbar.toolbar.hide()
                 self.setCursor(Qt.CrossCursor)
                 self.update()
-            self._detected_window_rect = None
-            self._window_snap_rect = None
+            self.window_snap.reset()
             # 标记在右键释放时关闭，避免释放事件传递到底层窗口
             self._closing_on_release = True
             return
 
         if event.button() == Qt.LeftButton:
             pos = event.position().toPoint()
-            # Window/element snap: save detected rect for later; don't snap
-            # yet so the user can still drag to create a free-form selection.
-            # The snap is applied in mouseReleaseEvent only on single-click.
-            if self._detected_window_rect is not None and self.selection_rect.isNull():
-                self._window_snap_rect = self._detected_window_rect
-                self._detected_window_rect = None
+            self.window_snap.save_for_snap()
             # dot eraser: erase annotations under cursor immediately
             if not self.selection_rect.isNull() and self.current_tool == "eraser_dot":
                 logger.debug(f"dot erase at {pos}, annotations={len(self.annotations)}")
@@ -447,21 +404,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.update()
                 return
 
-            # ─── Crop mode handling ───
-            if self._crop_mode:
-                local_pos = self._sel_to_local(pos)
-                handle = self._get_crop_handle(local_pos)
-                if handle:
-                    # Start resize/move existing crop rect
-                    self._crop_handle = handle
-                    self._crop_start = local_pos
-                    self._crop_dragging = True
-                else:
-                    # Start new crop rect
-                    self._crop_rect = QRectF(local_pos, QSizeF(0, 0))
-                    self._crop_start = local_pos
-                    self._crop_dragging = True
-                    self._crop_handle = ""
+            if self.crop.active:
+                self.crop.handle_mouse_press(pos)
                 return
 
             # ─── Annotation selection / hit-test ───
@@ -520,26 +464,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._erase_fill_rect_current = self.current_mouse_pos
             self.update()
             return
-        # Crop mode handling
-        if self._crop_mode:
-            local_pos = self._sel_to_local(self.current_mouse_pos)
-            if self._crop_dragging:
-                if self._crop_handle == "":
-                    # Drawing new crop rect
-                    self._crop_rect = QRectF(self._crop_start, local_pos).normalized()
-                elif self._crop_handle == "move":
-                    # Moving existing crop rect
-                    delta = local_pos - self._crop_start
-                    self._crop_rect.translate(delta)
-                    self._crop_start = local_pos
-                else:
-                    # Resizing crop rect
-                    self._resize_crop_rect(local_pos)
-            else:
-                # Update cursor based on handle hover
-                handle = self._get_crop_handle(local_pos)
-                self._update_crop_cursor(handle)
-            self.update()
+        if self.crop.active:
+            self.crop.handle_mouse_move(self.current_mouse_pos)
             return
         if self._drawing:
             self._update_drawing()
@@ -553,18 +479,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.selection_rect = self._constrain_rect_to_screen(rect)
             self.update()
         elif self.selection_rect.isNull() and self._selected_annotation_idx is None:
-            # Window/element auto-detect (only before any selection/annotation)
-            win_rect = detect_window_under_cursor(self.current_mouse_pos)
-            if win_rect is not None and win_rect.isValid():
-                win_rect = win_rect.intersected(self.rect())  # clip to overlay
-                if win_rect != self._detected_window_rect:
-                    self._detected_window_rect = win_rect
-                    self.setCursor(Qt.CrossCursor)
-                    self.update()
-            else:
-                if self._detected_window_rect is not None:
-                    self._detected_window_rect = None
-                    self.update()
+            self.window_snap.update_detection(self.current_mouse_pos)
         elif not self.selection_rect.isNull():
             # Check if hovering over annotation border first (Snipaste-style)
             hit_idx = self._hit_test_annotation(self.current_mouse_pos)
@@ -610,10 +525,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._erase_fill_rect_current = None
             self.update()
             return
-        # End crop mode drag
-        if self._crop_mode and self._crop_dragging:
-            self._crop_dragging = False
-            self._crop_handle = ""
+        if self.crop.active and self.crop.dragging:
+            self.crop.handle_mouse_release()
             return
         if self._drawing:
             self._finish_drawing()
@@ -633,10 +546,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self.is_selecting = False
             if self.selection_rect.width() > MIN_SELECTION_SIZE and self.selection_rect.height() > MIN_SELECTION_SIZE:
                 self._position_toolbar()
-            elif self._window_snap_rect is not None:
-                # Single click on detected window (no significant drag) → snap
-                self.selection_rect = self._window_snap_rect
-                self._window_snap_rect = None
+            elif sr := self.window_snap.apply_snap():
+                self.selection_rect = sr
                 self._position_toolbar()
             else:
                 self.selection_rect = QRect()
@@ -648,12 +559,8 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
         if self.selection_rect.isNull():
             return
 
-        # Crop mode: double-click inside crop rect to confirm
-        if self._crop_mode and self._crop_rect:
-            local_pos = self._sel_to_local(event.pos())
-            if self._crop_rect.contains(local_pos):
-                self._execute_crop()
-                return
+        if self.crop.handle_mouse_double_click(event.pos()):
+            return
 
         # Text annotation re-edit (takes priority)
         hit_idx = self._hit_test_annotation(event.pos())
@@ -749,9 +656,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.grabKeyboard()
                 return
 
-            # Cancel crop mode
-            if self._crop_mode:
-                self._exit_crop_mode()
+            if self.crop.handle_escape():
                 return
 
             # Cancel any active operation
@@ -790,12 +695,7 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
                 self.update()
                 return
         elif event.key() in (Qt.Key_Return, Qt.Key_Enter):
-            # Enter key: confirm crop if in crop mode
-            if self._crop_mode:
-                if self._crop_rect and not self._crop_rect.isEmpty():
-                    self._execute_crop()
-                else:
-                    self._exit_crop_mode()
+            if self.crop.handle_enter():
                 return
             # Enter key: auto-finish if selection exists
             if not self.selection_rect.isNull():
@@ -937,65 +837,3 @@ class CaptureOverlay(QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMix
             self._hotkey_panel.hide()
         else:
             self._hotkey_panel.show()
-
-    # ─── Crop mode helpers ───
-
-    def _get_crop_handle(self, pos: QPointF) -> str:
-        """Check if pos is over a crop handle. Returns handle name or empty string."""
-        if not self._crop_rect or self._crop_rect.isEmpty():
-            return ""
-        HANDLE_SIZE = 8
-        r = self._crop_rect
-        handles = {
-            "nw": QRectF(r.left() - HANDLE_SIZE / 2, r.top() - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE),
-            "ne": QRectF(r.right() - HANDLE_SIZE / 2, r.top() - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE),
-            "sw": QRectF(r.left() - HANDLE_SIZE / 2, r.bottom() - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE),
-            "se": QRectF(r.right() - HANDLE_SIZE / 2, r.bottom() - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE),
-        }
-        for name, rect in handles.items():
-            if rect.contains(pos):
-                return name
-        if r.contains(pos):
-            return "move"
-        return ""
-
-    def _update_crop_cursor(self, handle: str) -> None:
-        """Update cursor based on crop handle."""
-        cursors = {
-            "nw": Qt.SizeFDiagCursor,
-            "se": Qt.SizeFDiagCursor,
-            "ne": Qt.SizeBDiagCursor,
-            "sw": Qt.SizeBDiagCursor,
-            "move": Qt.SizeAllCursor,
-        }
-        self.setCursor(cursors.get(handle, Qt.CrossCursor))
-
-    def _resize_crop_rect(self, pos: QPointF) -> None:
-        """Resize crop rect by dragging a corner handle."""
-        if not self._crop_rect:
-            return
-        r = self._crop_rect
-        if self._crop_handle == "nw":
-            r.setTopLeft(pos)
-        elif self._crop_handle == "ne":
-            r.setTopRight(pos)
-        elif self._crop_handle == "sw":
-            r.setBottomLeft(pos)
-        elif self._crop_handle == "se":
-            r.setBottomRight(pos)
-        self._crop_rect = r.normalized()
-
-    def _draw_crop_handles(self, painter: QPainter, rect: QRectF) -> None:
-        """Draw resize handles at corners of crop rect."""
-        HANDLE_SIZE = 8
-        painter.setPen(QPen(Qt.white, 1))
-        painter.setBrush(Qt.white)
-        corners = [
-            (rect.left() - HANDLE_SIZE / 2, rect.top() - HANDLE_SIZE / 2),
-            (rect.right() - HANDLE_SIZE / 2, rect.top() - HANDLE_SIZE / 2),
-            (rect.left() - HANDLE_SIZE / 2, rect.bottom() - HANDLE_SIZE / 2),
-            (rect.right() - HANDLE_SIZE / 2, rect.bottom() - HANDLE_SIZE / 2),
-        ]
-        for x, y in corners:
-            painter.fillRect(int(x), int(y), HANDLE_SIZE, HANDLE_SIZE, Qt.white)
-            painter.drawRect(int(x), int(y), HANDLE_SIZE, HANDLE_SIZE)
