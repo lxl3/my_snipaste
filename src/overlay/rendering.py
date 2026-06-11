@@ -1,50 +1,65 @@
-"""Overlay rendering mixin for annotations."""
+"""Overlay rendering mixin — delegates to the unified AnnotationRenderer."""
 
-import math
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF
+from PySide6.QtGui import QPainter, QPixmap
 
-from PySide6.QtGui import QPainter, QPixmap, QColor, QPen, QFont, QPainterPath
-from PySide6.QtCore import Qt, QRect, QRectF, QPoint, QPointF, QSize
+from ..annotations import AnnotationRenderer
 
-from PIL import ImageFilter
 
-from ..core.constants import (
-    ARROW_SIZE_BASE, ARROW_SPREAD_ANGLE, MOSAIC_SCALE_FACTOR,
-    HANDLE_SIZE, DEFAULT_LINE_WIDTH,
-)
-from ..core.utils import qpixmap_to_pil, pil_to_qpixmap
+class _OverlaySourceProvider:
+    """SourceProvider that renders effects from full_screenshot + selection_rect."""
+
+    def __init__(self):
+        self.screenshot: QPixmap | None = None
+        self.selection_rect: QRectF = QRectF()
+
+    def source_pixmap(self) -> QPixmap:
+        return self.screenshot
+
+    def local_to_source(self, local_rect: QRectF) -> QRect:
+        dpr = self.screenshot.devicePixelRatio() if self.screenshot else 1.0
+        return QRect(
+            round((local_rect.x() + self.selection_rect.x()) * dpr),
+            round((local_rect.y() + self.selection_rect.y()) * dpr),
+            round(local_rect.width() * dpr),
+            round(local_rect.height() * dpr),
+        )
 
 
 class OverlayRenderingMixin:
-    """Rendering logic for all annotation types.
+    """Rendering mixin that uses AnnotationRenderer internally.
 
     Subclass must provide:
     - self.selection_rect (QRectF)
     - self.full_screenshot (QPixmap)
-    - self.annotations (list[dict])
-    - self._preview_annotation (dict | None)
+    - self.annotations (list[Annotation])
+    - self._preview_annotation (Annotation | None)
 
     Mixin expects host QWidget methods: rect(), height(), width()
     """
 
+    def __init__(self) -> None:
+        self._overlay_source = _OverlaySourceProvider()
+        self._renderer = AnnotationRenderer(source=self._overlay_source)
+
+    def _sync_renderer_source(self) -> None:
+        """Keep source provider in sync with current overlay state."""
+        self._overlay_source.screenshot = self.full_screenshot
+        self._overlay_source.selection_rect = self.selection_rect
+
     def _draw_annotations(self, painter: QPainter, sel_size, offset) -> None:
         """Draw annotations + preview on painter."""
-        # Skip annotation being edited (to avoid "ghost" effect)
+        self._sync_renderer_source()
         editing_idx = getattr(self, '_editing_annotation_idx', None)
         for idx, ann in enumerate(self.annotations):
             if editing_idx is not None and idx == editing_idx:
-                continue  # Don't draw the text being edited
-            self._draw_one_annotation(painter, ann, offset)
+                continue
+            self._renderer.draw(painter, ann, QPointF(offset))
         if self._preview_annotation:
-            self._draw_one_annotation(painter, self._preview_annotation, offset)
+            self._renderer.draw(painter, self._preview_annotation, QPointF(offset))
 
     def _render_annotated_pixmap(self) -> QPixmap:
-        """Crop selection from screenshot and draw annotations.
-
-        High DPI note: coordinate conversion is manual.
-        - selection_rect is in logical (screen) coords
-        - full_screenshot physical size = logical size x devicePixelRatio
-        - must copy from full_screenshot in physical coords
-        """
+        """Crop selection from screenshot and draw annotations."""
         logical_rect = self.selection_rect
         if logical_rect.isNull():
             return QPixmap()
@@ -61,6 +76,7 @@ class OverlayRenderingMixin:
         result = self.full_screenshot.copy(physical_rect)
         result.setDevicePixelRatio(dpr)
 
+        self._sync_renderer_source()
         painter = QPainter(result)
         painter.setRenderHint(QPainter.Antialiasing)
         self._draw_annotations(painter, logical_rect.size(), QPoint(0, 0))
@@ -68,310 +84,12 @@ class OverlayRenderingMixin:
 
         return result
 
-    def _draw_one_annotation(self, painter: QPainter, ann: dict, offset) -> None:
-        t = ann["type"]
-        if t == "rect":
-            self._draw_rect(painter, ann, offset)
-        elif t == "ellipse":
-            self._draw_ellipse(painter, ann, offset)
-        elif t == "arrow":
-            self._draw_arrow(painter, ann, offset)
-        elif t == "line":
-            self._draw_line(painter, ann, offset)
-        elif t == "freehand":
-            self._draw_freehand(painter, ann, offset)
-        elif t == "mosaic":
-            self._draw_mosaic(painter, ann, offset)
-        elif t == "highlighter":
-            self._draw_highlighter(painter, ann, offset)
-        elif t == "blur":
-            self._draw_blur(painter, ann, offset)
-        elif t == "number_marker":
-            self._draw_number_marker(painter, ann, offset)
-        elif t == "magnifier":
-            self._draw_magnifier(painter, ann, offset)
-        elif t == "text":
-            self._draw_text(painter, ann, offset)
+    def _draw_one_annotation(self, painter: QPainter, ann, offset) -> None:
+        """Legacy entry point — delegates to AnnotationRenderer."""
+        self._sync_renderer_source()
+        self._renderer.draw(painter, ann, QPointF(offset))
 
-    def _draw_rect(self, painter: QPainter, ann: dict, offset) -> None:
-        r = ann["rect"].translated(offset)
-        painter.setPen(QPen(QColor(ann["color"]), ann["width"]))
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRect(r)
-
-    def _draw_ellipse(self, painter: QPainter, ann: dict, offset) -> None:
-        r = ann["rect"].translated(offset)
-        painter.setPen(QPen(QColor(ann["color"]), ann["width"]))
-        painter.setBrush(Qt.NoBrush)
-        painter.drawEllipse(r)
-
-    def _draw_arrow(self, painter: QPainter, ann: dict, offset) -> None:
-        start = ann["start"] + offset
-        end = ann["end"] + offset
-        width = ann["width"]
-        color = QColor(ann["color"])
-        arrow_style = ann.get("arrow_style", "solid")
-
-        # 画箭杆
-        painter.setPen(QPen(color, width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        painter.drawLine(start, end)
-
-        # 计算箭头几何
-        dx = end.x() - start.x()
-        dy = end.y() - start.y()
-        length = math.sqrt(dx * dx + dy * dy)
-        if length < 1:
-            return
-        ux, uy = dx / length, dy / length
-        base = ARROW_SIZE_BASE + width * 2
-        spread = base * math.tan(ARROW_SPREAD_ANGLE)
-        p1 = QPointF(end.x() - ux * base + uy * spread,
-                     end.y() - uy * base - ux * spread)
-        p2 = QPointF(end.x() - ux * base - uy * spread,
-                     end.y() - uy * base + ux * spread)
-
-        if arrow_style in ("solid", "solid_tail"):
-            # 实心箭头：填充三角形
-            path = QPainterPath()
-            path.moveTo(end)
-            path.lineTo(p1)
-            path.lineTo(p2)
-            path.closeSubpath()
-            painter.setBrush(color)
-            painter.setPen(Qt.NoPen)
-            painter.drawPath(path)
-        else:
-            # 空心箭头：仅画 V 形线条（无填充）
-            painter.setPen(QPen(color, max(1, width), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-            painter.setBrush(Qt.NoBrush)
-            v_path = QPainterPath()
-            v_path.moveTo(p1)
-            v_path.lineTo(end)
-            v_path.lineTo(p2)
-            painter.drawPath(v_path)
-
-        if arrow_style in ("solid_tail", "hollow_tail"):
-            # 带尾箭头：在箭头基部画一条横线 (p1 → p2)
-            painter.setPen(QPen(color, max(1, width), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-            painter.drawLine(p1, p2)
-
-    def _draw_line(self, painter: QPainter, ann: dict, offset) -> None:
-        start = ann["start"] + offset
-        end = ann["end"] + offset
-        painter.setPen(QPen(QColor(ann["color"]), ann["width"], Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        painter.drawLine(start, end)
-
-    def _draw_freehand(self, painter: QPainter, ann: dict, offset) -> None:
-        pts = ann["points"]
-        if len(pts) < 2:
-            return
-        painter.setPen(QPen(QColor(ann["color"]), ann["width"], Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        painter.setBrush(Qt.NoBrush)
-        path = ann.get("_path")
-        if path is None:
-            path = QPainterPath()
-            path.moveTo(pts[0])
-            for i in range(1, len(pts)):
-                path.lineTo(pts[i])
-            ann["_path"] = QPainterPath(path)
-        painter.drawPath(path.translated(offset))
-
-    def _draw_mosaic(self, painter: QPainter, ann: dict, offset) -> None:
-        r = QRectF(ann["rect"]).translated(offset).toRect()
-        if r.isEmpty():
-            return
-
-        cached = ann.get("_cached")
-        if cached is None:
-            dpr = self.full_screenshot.devicePixelRatio()
-            scale = ann.get("scale", MOSAIC_SCALE_FACTOR)
-
-            local_rect = QRectF(ann["rect"])
-            global_x = round((local_rect.x() + self.selection_rect.x()) * dpr)
-            global_y = round((local_rect.y() + self.selection_rect.y()) * dpr)
-
-            px = QPixmap(r.size())
-            px.fill(Qt.transparent)
-            p2 = QPainter(px)
-            src = QRect(
-                global_x, global_y,
-                round(r.width() * dpr),
-                round(r.height() * dpr),
-            )
-            p2.drawPixmap(px.rect(), self.full_screenshot, src)
-            p2.end()
-            small = px.scaled(max(1, r.width() // scale), max(1, r.height() // scale),
-                              Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-            cached = small.scaled(r.width(), r.height(), Qt.IgnoreAspectRatio, Qt.FastTransformation)
-            ann["_cached"] = cached
-
-        painter.drawPixmap(r.topLeft(), cached)
-
-    def _draw_text(self, painter: QPainter, ann: dict, offset) -> None:
-        pos = ann["pos"] + offset
-        painter.setFont(QFont(ann["font_family"], ann["font_size"]))
-        font = painter.font()
-        font.setBold(ann["bold"])
-        font.setItalic(ann["italic"])
-        painter.setFont(font)
-        painter.setPen(QColor(ann["color"]))
-        # drawText(QPointF, text) uses y as baseline; add ascent to align top with click point
-        fm = painter.fontMetrics()
-        painter.drawText(QPointF(pos.x(), pos.y() + fm.ascent()), ann["text"])
-
-    def _draw_highlighter(self, painter: QPainter, ann: dict, offset) -> None:
-        r = QRectF(ann["rect"]).translated(offset)
-        c = QColor(ann["color"])
-        c.setAlphaF(0.3)  # Semi-transparent
-        hl_width = ann.get("width", 12)  # thick by default
-        # Use a thick rounded pen for highlighter effect
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(c)
-        painter.drawRoundedRect(r, hl_width / 2, hl_width / 2)
-
-    def _draw_blur(self, painter: QPainter, ann: dict, offset) -> None:
-        r = QRectF(ann["rect"]).translated(offset).toRect()
-        if r.isEmpty():
-            return
-
-        cached = ann.get("_cached")
-        if cached is None:
-            dpr = self.full_screenshot.devicePixelRatio()
-            radius = ann.get("radius", 10)
-
-            local_rect = QRectF(ann["rect"])
-            global_x = round((local_rect.x() + self.selection_rect.x()) * dpr)
-            global_y = round((local_rect.y() + self.selection_rect.y()) * dpr)
-
-            # Capture the source region
-            px = QPixmap(r.size())
-            px.fill(Qt.transparent)
-            p2 = QPainter(px)
-            src = QRect(
-                global_x, global_y,
-                round(r.width() * dpr),
-                round(r.height() * dpr),
-            )
-            p2.drawPixmap(px.rect(), self.full_screenshot, src)
-            p2.end()
-
-            # Apply Gaussian blur via PIL
-            pil_img = qpixmap_to_pil(px)
-            blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=radius))
-            cached = pil_to_qpixmap(blurred)
-            ann["_cached"] = cached
-
-        painter.drawPixmap(r.topLeft(), cached)
-
-    def _draw_number_marker(self, painter: QPainter, ann: dict, offset) -> None:
-        center = ann["pos"] + offset
-        radius = ann.get("radius", 14)
-        number = ann.get("number", 1)
-        color = QColor(ann.get("color", "#207ff0"))
-        text_color = QColor(ann.get("text_color", "#ffffff"))
-
-        # Draw filled circle
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(color)
-        painter.drawEllipse(center, radius, radius)
-
-        # Draw number text centered in circle
-        font = painter.font()
-        font.setPixelSize(radius)
-        font.setBold(True)
-        painter.setFont(font)
-        painter.setPen(text_color)
-        fm = painter.fontMetrics()
-        text = str(number)
-        tw = fm.horizontalAdvance(text)
-        th = fm.height()
-        text_x = center.x() - tw / 2
-        text_y = center.y() + fm.ascent() / 2
-        painter.drawText(QPointF(text_x, text_y), text)
-
-    def _draw_magnifier(self, painter: QPainter, ann: dict, offset) -> None:
-        r = QRectF(ann["rect"]).translated(offset).toRect()
-        if r.isEmpty():
-            return
-
-        cached = ann.get("_cached")
-        if cached is None:
-            dpr = self.full_screenshot.devicePixelRatio()
-            zoom = ann.get("zoom", 2)
-
-            local_rect = QRectF(ann["rect"])
-            center_x = local_rect.center().x()
-            center_y = local_rect.center().y()
-
-            # Source area in logical coords = magnifier area / zoom
-            src_logical_w = r.width() / zoom
-            src_logical_h = r.height() / zoom
-
-            # Source area in device pixels (full_screenshot coordinates)
-            src_pixel_x = round((center_x - src_logical_w / 2 + self.selection_rect.x()) * dpr)
-            src_pixel_y = round((center_y - src_logical_h / 2 + self.selection_rect.y()) * dpr)
-            src_pixel_w = max(1, round(src_logical_w * dpr))
-            src_pixel_h = max(1, round(src_logical_h * dpr))
-
-            # Extract native-resolution source at 1/zoom size
-            src = QRect(src_pixel_x, src_pixel_y, src_pixel_w, src_pixel_h)
-            px = QPixmap(src.size())
-            px.fill(Qt.transparent)
-            p2 = QPainter(px)
-            p2.drawPixmap(px.rect(), self.full_screenshot, src)
-            p2.end()
-
-            # Smoothly scale up to magnifier display size
-            cached = px.scaled(r.width(), r.height(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-            ann["_cached"] = cached
-
-        painter.drawPixmap(r.topLeft(), cached)
-
-        # Draw border around magnifier
-        painter.setPen(QPen(QColor(0, 120, 215), 2))
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRect(r)
-
-    # ─── Selection indicator ───
-
-    def _draw_selection_indicator(self, painter: QPainter, ann: dict, offset) -> None:
+    def _draw_selection_indicator(self, painter: QPainter, ann, offset) -> None:
         """Draw bounding box + handles around a selected annotation."""
-        if ann["type"] in ("arrow", "line"):
-            self._draw_arrow_handles(painter, ann, offset)
-            return
-        local_bounds = self._get_annotation_bounds_local(ann)
-        if local_bounds.isNull():
-            return
-        # Convert local → global coords
-        global_bounds = local_bounds.translated(offset)
-        # Dashed blue bounding box
-        painter.setPen(QPen(QColor(0, 120, 215), 1.5, Qt.DashLine))
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRect(global_bounds)
-        # 8 square handles (4 corners + 4 edge midpoints)
-        half = HANDLE_SIZE // 2
-        handles = [
-            QRect(int(global_bounds.left()) - half, int(global_bounds.top()) - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(int(global_bounds.right()) - half, int(global_bounds.top()) - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(int(global_bounds.left()) - half, int(global_bounds.bottom()) - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(int(global_bounds.right()) - half, int(global_bounds.bottom()) - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(int(global_bounds.center().x()) - half, int(global_bounds.top()) - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(int(global_bounds.center().x()) - half, int(global_bounds.bottom()) - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(int(global_bounds.left()) - half, int(global_bounds.center().y()) - half, HANDLE_SIZE, HANDLE_SIZE),
-            QRect(int(global_bounds.right()) - half, int(global_bounds.center().y()) - half, HANDLE_SIZE, HANDLE_SIZE),
-        ]
-        for h_rect in handles:
-            painter.fillRect(h_rect, Qt.white)
-            painter.setPen(QPen(QColor(0, 120, 215), 1))
-            painter.drawRect(h_rect)
-
-    def _draw_arrow_handles(self, painter: QPainter, ann: dict, offset) -> None:
-        """Draw only 2 outline handles at arrow/line start and end."""
-        half = HANDLE_SIZE // 2
-        sp = QPointF(ann["start"]) + QPointF(offset)
-        ep = QPointF(ann["end"]) + QPointF(offset)
-        for pt in (sp, ep):
-            rect = QRect(int(pt.x()) - half, int(pt.y()) - half, HANDLE_SIZE, HANDLE_SIZE)
-            painter.setBrush(Qt.NoBrush)
-            painter.setPen(QPen(Qt.white, 1.5))
-            painter.drawRect(rect)
+        self._sync_renderer_source()
+        self._renderer.draw_selection_indicator(painter, ann, QPointF(offset))
