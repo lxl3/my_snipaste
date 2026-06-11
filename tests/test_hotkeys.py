@@ -25,36 +25,36 @@ class TestDefaultHotkey:
 
 class TestParseHotkey:
     def _make_listener(self, hotkey):
-        from src.core.hotkeys import _PynputListener
+        from src.core.hotkeys import _MultiPynputListener
 
-        return _PynputListener(hotkey)
+        return _MultiPynputListener({"test": hotkey})
 
     def test_parse_simple_modifier(self):
         listener = self._make_listener("cmd+shift+x")
-        keys = listener._parse_hotkey()
+        keys = listener._parse_hotkey("cmd+shift+x")
         assert len(keys) == 3
 
     def test_parse_ctrl(self):
         listener = self._make_listener("ctrl+c")
-        keys = listener._parse_hotkey()
+        keys = listener._parse_hotkey("ctrl+c")
         assert len(keys) == 2
 
     def test_parse_function_key(self):
         listener = self._make_listener("f12")
-        keys = listener._parse_hotkey()
+        keys = listener._parse_hotkey("f12")
         assert len(keys) == 1
 
     def test_parse_with_alt(self):
         listener = self._make_listener("alt+shift+f1")
-        keys = listener._parse_hotkey()
+        keys = listener._parse_hotkey("alt+shift+f1")
         assert len(keys) == 3
 
 
 class TestNormalize:
     def _make_listener(self):
-        from src.core.hotkeys import _PynputListener
+        from src.core.hotkeys import _MultiPynputListener
 
-        return _PynputListener("ctrl+shift+x")
+        return _MultiPynputListener({"test": "ctrl+shift+x"})
 
     def test_normalize_ctrl(self):
         from pynput import keyboard
