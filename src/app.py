@@ -36,9 +36,9 @@ from .core import qss_base  # noqa: I001 — must be after theme_pkg to avoid ci
 from .core.utils import ScreenCaptureError, capture_all_screens, create_app_icon
 from .ocr.engine import extract_text
 from .overlay.widget import CaptureOverlay
-from .ui.color_picker import ScreenColorPicker
-from .ui.countdown_overlay import CountdownOverlay
-from .ui.pin_window import PinWindow
+from .ui.common.color_picker import ScreenColorPicker
+from .ui.common.countdown_overlay import CountdownOverlay
+from .ui.pin.pin_window import PinWindow
 from .ui.settings import SettingsDialog
 from .ui.tray import TrayManager
 
@@ -722,7 +722,7 @@ class SnipasteApp(QApplication):
 
         # Brief toast notification
         try:
-            from .ui.toast import ToastManager
+            from .ui.common.toast import ToastManager
             ToastManager.show(_("Screenshot pinned"), icon="📌", toast_type="info")
         except Exception:
             pass
@@ -741,7 +741,7 @@ class SnipasteApp(QApplication):
         self._on_copy(pixmap)
 
         try:
-            from .ui.toast import ToastManager
+            from .ui.common.toast import ToastManager
             ToastManager.show(_("Full screen copied to clipboard"), icon="✓", toast_type="success")
         except Exception:
             pass
@@ -763,7 +763,7 @@ class SnipasteApp(QApplication):
     def _on_color_picked(self, hex_color: str) -> None:
         """Handle color picked from screen color picker."""
         try:
-            from .ui.toast import ToastManager
+            from .ui.common.toast import ToastManager
             ToastManager.show(_("Copied: {color}").format(color=hex_color), icon="🎨", toast_type="success")
         except Exception:
             pass

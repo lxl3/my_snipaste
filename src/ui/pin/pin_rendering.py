@@ -3,7 +3,7 @@
 from PySide6.QtCore import QRect, QRectF
 from PySide6.QtGui import QPainter, QPixmap
 
-from ..annotations import AnnotationRenderer
+from ...annotations import AnnotationRenderer
 
 
 class _PinSourceProvider:

@@ -2,16 +2,16 @@ from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, QSizeF, Qt, Si
 from PySide6.QtGui import QAction, QColor, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QLineEdit, QMessageBox, QWidget
 
-from ..annotations import Annotation
-from ..core import qss_base
-from ..core.context import AppContext, get_context
-from ..core.i18n import _
-from ..core.logger import setup_logger
-from ..core.utils import create_emoji_icon, qpixmap_to_pil
-from ..overlay.ocr_mixin import OcrMixin
-from ..overlay.toolbar import OverlayToolbar
-from ..ui.toast import ToastManager
-from .glass_widget import GlassMenu
+from ...annotations import Annotation
+from ...core import qss_base
+from ...core.context import AppContext, get_context
+from ...core.i18n import _
+from ...core.logger import setup_logger
+from ...core.utils import create_emoji_icon, qpixmap_to_pil
+from ...overlay.ocr_mixin import OcrMixin
+from ...overlay.toolbar import OverlayToolbar
+from ..common.toast import ToastManager
+from ..common.glass_widget import GlassMenu
 from .pin_actions import PinWindowActionsMixin
 from .pin_rendering import PinWindowRenderingMixin
 
@@ -718,7 +718,7 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         self._cleanup_ocr()
         if text:
             ToastManager.show(_("Recognition complete"), "✓", "success", parent=self)
-            from ..ui.ocr_dialog import OcrResultDialog
+            from ..ocr.ocr_dialog import OcrResultDialog
             OcrResultDialog(text, self).exec()
         else:
             QMessageBox.warning(self, _("OCR Result"), _("No text recognized"))
@@ -745,8 +745,8 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
         """Copy annotated pixmap - called by toolbar copy button."""
         p = self._render_annotated_pixmap()
         self.copy_requested.emit(p)
-        from ..core.i18n import _
-        from ..ui.toast import ToastManager
+        from ...core.i18n import _
+        from ..common.toast import ToastManager
         ToastManager.show(_("Copied to clipboard"), "✓", "success", parent=self)
 
     def _render_annotated_pixmap(self) -> QPixmap:
@@ -1151,14 +1151,14 @@ class PinWindow(QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixi
 
     def _on_copy(self) -> None:
         self.copy_requested.emit(self._get_current_pixmap())
-        from ..core.i18n import _
-        from ..ui.toast import ToastManager
+        from ...core.i18n import _
+        from ..common.toast import ToastManager
         ToastManager.show(_("Copied to clipboard"), "✓", "success", parent=self)
 
     def _on_save_as(self) -> None:
         self.save_requested.emit(self._get_current_pixmap(), False)
-        from ..core.i18n import _
-        from ..ui.toast import ToastManager
+        from ...core.i18n import _
+        from ..common.toast import ToastManager
         ToastManager.show(_("Saved"), "💾", "success", parent=self)
 
     def _on_toggle_topmost(self, checked: bool) -> None:

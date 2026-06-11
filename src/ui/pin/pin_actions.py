@@ -7,9 +7,9 @@ from PySide6.QtCore import QPoint, QPointF, QRectF, Qt
 from PySide6.QtGui import QFont, QFontMetrics
 from PySide6.QtWidgets import QLineEdit
 
-from ..annotations import Annotation
-from ..core.logger import setup_logger
-from ..core.utils import pil_to_qpixmap, qpixmap_to_pil
+from ...annotations import Annotation
+from ...core.logger import setup_logger
+from ...core.utils import pil_to_qpixmap, qpixmap_to_pil
 
 logger = setup_logger("pin_actions")
 
@@ -474,8 +474,8 @@ class PinWindowActionsMixin:
         self.setCursor(Qt.CrossCursor)
         self.update()
         # Show usage hint
-        from ..core.i18n import _
-        from ..ui.toast import ToastManager
+        from ...core.i18n import _
+        from ..common.toast import ToastManager
         ToastManager.show(
             _("Drag to select area, Enter to confirm, Esc to cancel"),
             "✂", "info", parent=self, duration=3000
@@ -553,8 +553,8 @@ class PinWindowActionsMixin:
         self._exit_crop_mode()
         self._after_transform()
 
-        from ..core.i18n import _
-        from ..ui.toast import ToastManager
+        from ...core.i18n import _
+        from ..common.toast import ToastManager
         ToastManager.show(
             _("Cropped to {w} × {h}").format(w=new_w, h=new_h),
             "✂", "success", parent=self
