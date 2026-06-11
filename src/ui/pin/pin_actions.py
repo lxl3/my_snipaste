@@ -30,9 +30,11 @@ class PinWindowActionsMixin:
     - self._toolbar_obj (OverlayToolbar)
     - self._preview_annotation (dict | None)
     - self._drawing (bool)
-    - self._draw_points (list)
+    - self._draw_start (QPointF)
+    - self._draw_points (list[QPointF])
     - self._zoom_factor (float)
     - self.SHADOW (int)
+    - self._resized_by_user (bool)
     - self.text_font_family (str)
     - self.text_font_size (int)
     - self.text_bold (bool)
@@ -57,6 +59,100 @@ class PinWindowActionsMixin:
         self._add_annotation(ann)
         self._drawing = False
         self._draw_points = []
+
+    def _content_pos(self, event) -> QPointF:
+        """Convert widget position to content-area coordinates (in original image space)."""
+        display_x = event.position().x() - self.SHADOW
+        display_y = event.position().y() - self.SHADOW
+        if self._zoom_factor != 1.0 and not self._resized_by_user:
+            orig_x = display_x / self._zoom_factor
+            orig_y = display_y / self._zoom_factor
+        else:
+            orig_x = display_x
+            orig_y = display_y
+        return QPointF(orig_x, orig_y)
+
+    def _start_drawing(self, event) -> None:
+        self._deselect_annotation()
+        self._drawing = True
+        pos = self._content_pos(event)
+        self._draw_start = pos
+        self._draw_points = [pos]
+
+        t = self.current_tool
+        if t == "text":
+            self._finish_text(pos)
+            self._drawing = False
+        elif t == "number_marker":
+            count = sum(1 for a in self.annotations if a.type == "number_marker") + 1
+            ann = Annotation(
+                type="number_marker",
+                pos=(pos.x(), pos.y()),
+                radius=14,
+                number=count,
+                color=self.current_color.name(),
+                text_color="#ffffff",
+            )
+            self._add_annotation(ann)
+            self._drawing = False
+        elif t in ("rect", "ellipse", "arrow", "line", "highlighter", "freehand", "mosaic", "blur", "magnifier"):
+            pass
+
+    def _update_drawing(self, event) -> None:
+        pos = self._content_pos(event)
+        t = self.current_tool
+
+        MIN_DRAW_THRESHOLD = 5
+
+        if t in ("rect", "ellipse", "highlighter"):
+            r = QRectF(self._draw_start, pos).normalized()
+            self._preview_annotation = Annotation(
+                type=t,
+                rect=(r.x(), r.y(), r.width(), r.height()),
+                color=self.current_color.name(),
+                width=self.current_width if t not in ("highlighter",) else 12,
+            )
+        elif t == "mosaic":
+            r = QRectF(self._draw_start, pos).normalized()
+            if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
+                self._preview_annotation = Annotation(
+                    type="mosaic",
+                    rect=(r.x(), r.y(), r.width(), r.height()),
+                    scale=self.current_mosaic_scale,
+                )
+        elif t == "blur":
+            r = QRectF(self._draw_start, pos).normalized()
+            if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
+                self._preview_annotation = Annotation(
+                    type="blur",
+                    rect=(r.x(), r.y(), r.width(), r.height()),
+                    radius=self.current_blur_radius,
+                )
+        elif t == "magnifier":
+            r = QRectF(self._draw_start, pos).normalized()
+            if r.width() > MIN_DRAW_THRESHOLD and r.height() > MIN_DRAW_THRESHOLD:
+                self._preview_annotation = Annotation(
+                    type="magnifier",
+                    rect=(r.x(), r.y(), r.width(), r.height()),
+                    zoom=self.current_magnifier_zoom,
+                )
+        elif t in ("arrow", "line"):
+            self._preview_annotation = Annotation(
+                type=t,
+                start=(self._draw_start.x(), self._draw_start.y()),
+                end=(pos.x(), pos.y()),
+                color=self.current_color.name(),
+                width=self.current_width,
+            )
+        elif t == "freehand":
+            self._draw_points.append(pos)
+            self._preview_annotation = Annotation(
+                type="freehand",
+                points=[(p.x(), p.y()) for p in self._draw_points],
+                color=self.current_color.name(),
+                width=self.current_width,
+            )
+        self.update()
 
     def _add_annotation(self, ann: Annotation) -> None:
         self.annotations.append(ann)
