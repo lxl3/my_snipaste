@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QCursor, QKeySequence, QPixmap, QShortcut
+from PySide6.QtGui import QAction, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -13,22 +13,20 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .app_capture import SnipasteCaptureMixin
+from .core.app_helpers import mac_activate_app
 from .core.context import AppContext, init_context
 from .core.hotkeys import MultiHotkeyListener
 from .core.i18n import _, load_translations
 from .core.logger import apply_log_level, setup_logger
 from .core.permissions import (
     check_macos_accessibility,
-    check_screen_recording_permission,
-    open_screen_recording_settings,
     show_permission_dialog,
-    show_permission_guide,
 )
 from .core.screenshot_history import ScreenshotHistory
 from .core.settings import AppSettings, get_settings
 from .core.theme_pkg import theme as theme_manager
-from .core import qss_base  # noqa: I001 — must be after theme_pkg to avoid circular import
-from .core.utils import ScreenCaptureError, capture_all_screens, create_app_icon
+from .core.utils import create_app_icon
 from .ocr.engine import extract_text
 from .overlay.widget import CaptureOverlay
 from .ui.common.color_picker import ScreenColorPicker
@@ -41,46 +39,7 @@ from .ui.tray import TrayManager
 logger = setup_logger("app")
 
 
-def _show_dialog(icon: QMessageBox.Icon, title: str, text: str) -> None:
-    """Show an always-on-top dialog to ensure visibility."""
-    _mac_activate_app()
-    msg = QMessageBox()
-    msg.setIcon(icon)
-    msg.setWindowTitle(title)
-    msg.setText(text)
-    msg.setStandardButtons(QMessageBox.Ok)
-    msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
-    msg.setAttribute(Qt.WA_StyledBackground)
-    msg.setStyleSheet(
-        theme_manager.qss("""
-            QMessageBox {
-                background: $bg_primary;
-                color: $text_primary;
-            }
-            QMessageBox QLabel {
-                color: $text_primary;
-            }
-        """)
-        + qss_base.pushbutton_qss(selector="QMessageBox QPushButton")
-    )
-    msg.exec()
-
-
-def _mac_activate_app() -> None:
-    """macOS: bring app to foreground (needed for tray app)."""
-    if sys.platform != 'darwin':
-        return
-    try:
-        import subprocess
-        subprocess.run([
-            "osascript", "-e",
-            f'tell application "System Events" to set frontmost of every process whose unix id is {os.getpid()} to true'
-        ], capture_output=True, timeout=5)
-    except Exception:
-        pass
-
-
-class SnipasteApp(QApplication):
+class SnipasteApp(QApplication, SnipasteCaptureMixin):
     def __init__(self, argv: list[str]) -> None:
         # macOS 默认不在菜单中显示图标，需要显式启用
         if sys.platform == "darwin":
@@ -197,112 +156,8 @@ class SnipasteApp(QApplication):
 
     def _show_permission_required_notification(self) -> None:
         """Show permission dialog when Input Monitoring permission is not granted."""
-        _mac_activate_app()
+        mac_activate_app()
         show_permission_dialog()
-
-    def start_capture(self) -> None:
-        logger.info("start_capture() 被调用")
-        _mac_activate_app()
-
-        # 防止倒计时进行中重复触发截图
-        if self.countdown_overlay is not None:
-            logger.info("倒计时进行中，忽略重复触发")
-            return
-
-        if self.overlay is not None:
-            self.overlay.close()
-            self.overlay.deleteLater()
-            self.overlay = None
-
-        # Play capture sound immediately (before delay)
-        if self.settings.capture_sound:
-            self._play_capture_sound()
-
-        # Check capture delay setting
-        delay_seconds = self.settings.capture_delay
-        if delay_seconds > 0:
-            logger.info(f"截图延迟 {delay_seconds} 秒，显示倒计时")
-            self.countdown_overlay = CountdownOverlay(delay_seconds)
-            self.countdown_overlay.countdown_finished.connect(self._do_capture)
-            self.countdown_overlay.countdown_cancelled.connect(self._on_countdown_cancelled)
-            self.countdown_overlay.show()
-            self.countdown_overlay.activateWindow()  # 激活窗口
-            self.countdown_overlay.setFocus()  # 设置焦点以接收键盘输入
-            return
-
-        self._do_capture()
-
-    def _on_countdown_cancelled(self) -> None:
-        """倒计时被用户取消"""
-        logger.info("延迟截图已取消")
-        if self.countdown_overlay:
-            self.countdown_overlay.close()
-            self.countdown_overlay.deleteLater()
-            self.countdown_overlay = None
-
-    def _do_capture(self) -> None:
-        """Execute the actual screen capture."""
-        # 清理倒计时覆盖层引用（倒计时已结束）
-        if self.countdown_overlay:
-            self.countdown_overlay = None
-
-        # macOS: check screen recording permission
-        if sys.platform == "darwin":
-            perm = check_screen_recording_permission()
-            logger.debug(f"权限检测结果: {perm}")
-            if perm is False:
-                show_permission_guide()
-                open_screen_recording_settings()
-                _show_dialog(
-                    QMessageBox.Warning, _("Permission Required"),
-                    _("Screen Recording permission is required for MySnipaste.\n\n"
-                      "In System Settings:\n"
-                      "  1. Click the lock to unlock\n"
-                      "  2. Click + and add MySnipaste\n"
-                      "  3. Check the permission\n\n"
-                      "Restart the app after granting permission.")
-                )
-                return
-
-        logger.info("启动截图")
-        try:
-            self.overlay = CaptureOverlay(self.ctx)
-        except ScreenCaptureError as e:
-            logger.error(f"截屏失败: {e}")
-            show_permission_guide()
-            open_screen_recording_settings()
-            _show_dialog(
-                QMessageBox.Critical, _("Capture Failed"),
-                _("{error}\n\n"
-                  "In System Settings:\n"
-                  "  1. Click the lock to unlock\n"
-                  "  2. Click + and add MySnipaste\n"
-                  "  3. Check the permission\n\n"
-                  "Restart the app after granting permission.").format(error=e)
-            )
-            return
-        except Exception as e:
-            logger.exception(f"截图异常: {e}")
-            return
-        self.overlay.pin_requested.connect(self._on_pin)
-        self.overlay.copy_requested.connect(self._on_copy)
-        self.overlay.save_requested.connect(self._on_save)
-        self.overlay.destroyed.connect(self._on_overlay_destroyed)
-        self.overlay.show()
-        self.overlay.raise_()
-        self.overlay.activateWindow()
-        # 延迟抓取键盘，确保窗口完全显示后再执行
-        QTimer.singleShot(50, lambda: self._grab_overlay_keyboard())
-
-    def _grab_overlay_keyboard(self) -> None:
-        """抓取 overlay 键盘焦点，确保键盘事件被正确接收。"""
-        if self.overlay:
-            self.overlay.setFocus()
-            self.overlay.grabKeyboard()
-
-    def _on_overlay_destroyed(self) -> None:
-        """截图覆盖层关闭后的清理工作。"""
-        self.overlay = None
 
     def _on_pin(self, pixmap: QPixmap, pos) -> None:
         win = PinWindow(pixmap, pos, self.ctx)
@@ -403,81 +258,10 @@ class SnipasteApp(QApplication):
         else:
             logger.warning("OCR 识别结果为空")
 
-    def _start_delayed_capture(self) -> None:
-        """Trigger a delayed screenshot (always shows countdown)."""
-        logger.info("延迟截图快捷键触发")
-        _mac_activate_app()
-
-        if self.countdown_overlay is not None:
-            logger.info("倒计时进行中，忽略重复触发")
-            return
-
-        if self.overlay is not None:
-            self.overlay.close()
-            self.overlay.deleteLater()
-            self.overlay = None
-
-        # Use a default 5-second delay for this hotkey
-        delay = 5
-        self.countdown_overlay = CountdownOverlay(delay)
-        self.countdown_overlay.countdown_finished.connect(self._do_capture)
-        self.countdown_overlay.countdown_cancelled.connect(self._on_countdown_cancelled)
-        self.countdown_overlay.show()
-        self.countdown_overlay.activateWindow()
-        self.countdown_overlay.setFocus()
-
-    def _capture_full_and_pin(self) -> None:
-        """Capture full screen and pin directly without selection UI."""
-        logger.info("截图贴图快捷键触发")
-        _mac_activate_app()
-
-        try:
-            pixmap = capture_all_screens(include_cursor=self.settings.capture_cursor)
-        except Exception:
-            logger.exception("全屏截图失败")
-            return
-
-        # Pin at cursor position or screen center
-        cursor_pos = QCursor.pos()
-        screen = QApplication.primaryScreen()
-        screen_geo = screen.geometry()
-        if screen_geo.contains(cursor_pos):
-            pin_pos = cursor_pos
-        else:
-            pin_pos = screen_geo.center()
-
-        self._on_pin(pixmap, pin_pos)
-
-        # Brief toast notification
-        try:
-            from .ui.common.toast import ToastManager
-            ToastManager.show(_("Screenshot pinned"), icon="📌", toast_type="info")
-        except Exception:
-            pass
-
-    def _capture_full(self) -> None:
-        """Capture full screen and copy to clipboard without selection UI."""
-        logger.info("全屏截图快捷键触发")
-        _mac_activate_app()
-
-        try:
-            pixmap = capture_all_screens(include_cursor=self.settings.capture_cursor)
-        except Exception:
-            logger.exception("全屏截图失败")
-            return
-
-        self._on_copy(pixmap)
-
-        try:
-            from .ui.common.toast import ToastManager
-            ToastManager.show(_("Full screen copied to clipboard"), icon="✓", toast_type="success")
-        except Exception:
-            pass
-
     def _open_color_picker(self) -> None:
         """Open the screen color picker tool."""
         logger.info("Color picker hotkey triggered")
-        _mac_activate_app()
+        mac_activate_app()
         if hasattr(self, '_color_picker') and self._color_picker:
             try:
                 self._color_picker.close()
@@ -526,46 +310,6 @@ class SnipasteApp(QApplication):
                 "full_capture": self.settings.hotkey_full,
                 "color_picker": self.settings.hotkey_color_picker,
             })
-
-    def _play_capture_sound(self) -> None:
-        """Play capture sound (platform-specific)."""
-        try:
-            if sys.platform == "win32":
-                # Windows: Use thread to play sound without any blocking
-                import threading
-                import winsound
-
-                def play_sound():
-                    try:
-                        sound_path = r"C:\Windows\Media\notify.wav"
-                        if os.path.exists(sound_path):
-                            flags = winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NOWAIT
-                            winsound.PlaySound(sound_path, flags)
-                        else:
-                            winsound.MessageBeep(winsound.MB_ICONASTERISK)
-                    except Exception:
-                        pass
-
-                # Play in separate thread for zero blocking
-                threading.Thread(target=play_sound, daemon=True).start()
-
-            elif sys.platform == "darwin":
-                # macOS: Play system sound asynchronously (non-blocking)
-                import subprocess
-                subprocess.Popen(
-                    ["afplay", "/System/Library/Sounds/Tink.aiff"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
-            else:
-                # Linux/other: fallback to QApplication.beep()
-                self.beep()
-        except Exception as e:
-            logger.warning(f"播放截图声音失败: {e}")
-            try:
-                self.beep()
-            except Exception:
-                pass
 
     def cleanup(self) -> None:
         if hasattr(self, 'hotkey_listener'):
