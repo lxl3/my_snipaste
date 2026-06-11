@@ -3,8 +3,8 @@ from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QLineEdit, QPush
 
 from ....core.i18n import _
 from ....core.settings import AppSettings
-from ...settings_card import SettingsCard
-from ...toggle_switch import ToggleRow
+from ...common.settings_card import SettingsCard
+from ...common.toggle_switch import ToggleRow
 from ..widgets.no_scroll_combo import NoScrollComboBox
 from .base_tab import BaseTab
 

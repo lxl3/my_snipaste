@@ -26,8 +26,8 @@ from ...core.i18n import _, load_translations
 from ...core.logger import setup_logger
 from ...core.settings import AppSettings, get_settings
 from ...core.theme_pkg import theme as _theme
-from ..theme_dialog import ThemeAwareDialog
-from ..title_bar import TitleBar
+from ..common.theme_dialog import ThemeAwareDialog
+from ..common.title_bar import TitleBar
 from .tabs import (
     AdvancedTab,
     AnnotationTab,

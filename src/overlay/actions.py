@@ -3,7 +3,7 @@
 import math
 
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
+from PySide6.QtGui import QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import QLineEdit, QMessageBox
 
 from ..annotations import Annotation
@@ -11,7 +11,7 @@ from ..core.i18n import _
 from ..core.logger import setup_logger
 from ..core.screenshot_history import ScreenshotHistory
 from ..core.utils import pil_to_qpixmap, qpixmap_to_pil
-from ..ui.toast import ToastManager
+from ..ui.common.toast import ToastManager
 
 logger = setup_logger("overlay_actions")
 
@@ -51,7 +51,7 @@ class OverlayActionsMixin:
         self._cleanup_ocr()
         if text:
             ToastManager.show(_("Recognition complete"), "✓", "success", parent=self)
-            from ..ui.ocr_dialog import OcrResultDialog
+            from ..ui.ocr.ocr_dialog import OcrResultDialog
             self.releaseKeyboard()
             OcrResultDialog(text, self).exec()
             self.grabKeyboard()

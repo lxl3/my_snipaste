@@ -12,8 +12,8 @@ from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QFrame, QMenu
 
-from ..core.theme_pkg import draw_glass_morphism
-from ..core.theme_pkg import theme as _t
+from ...core.theme_pkg import draw_glass_morphism
+from ...core.theme_pkg import theme as _t
 
 
 class GlassFrame(QFrame):

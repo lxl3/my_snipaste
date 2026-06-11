@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBox
 
 from ....core.i18n import _
 from ....core.settings import AppSettings
-from ...settings_card import SettingsCard
+from ...common.settings_card import SettingsCard
 from .base_tab import BaseTab
 
 

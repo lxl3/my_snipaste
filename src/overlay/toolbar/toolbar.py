@@ -18,7 +18,7 @@ from ...core.i18n import _
 from ...core.theme_pkg import theme as _t
 from ...core.utils import load_icon_from_svg
 from ...resources.icons.toolbar_icons import TOOLBAR_ICONS
-from ...ui.glass_widget import GlassFrame
+from ...ui.common.glass_widget import GlassFrame
 from .builder import ToolbarBuilder
 from .config import TOOLBAR_CONFIG
 from .menus.arrow_menu import ArrowMenuHandler

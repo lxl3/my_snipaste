@@ -507,7 +507,7 @@ class ToolbarBuilder:
     # ─── 颜色 ───
 
     def _open_color_picker(self, tool_id: str) -> None:
-        from ...ui.color_picker import get_color
+        from ...ui.common.color_picker import get_color
         color = get_color(self.overlay.current_color, self.overlay)
         if color.isValid():
             self.overlay.current_color = color

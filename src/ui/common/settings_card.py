@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QGraphicsDropShadowEffect, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from ..core.theme_pkg import theme as _t
+from ...core.theme_pkg import theme as _t
 
 
 class SettingsCard(QWidget):

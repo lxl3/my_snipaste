@@ -16,9 +16,9 @@ from ....core.i18n import _, available_languages
 from ....core.logger import setup_logger
 from ....core.settings import AppSettings
 from ....core.theme_pkg import theme as _theme
-from ...color_picker import get_color
-from ...settings_card import SettingsCard
-from ...toggle_switch import ToggleRow
+from ...common.color_picker import get_color
+from ...common.settings_card import SettingsCard
+from ...common.toggle_switch import ToggleRow
 from ..widgets.no_scroll_combo import NoScrollComboBox
 from .base_tab import BaseTab
 

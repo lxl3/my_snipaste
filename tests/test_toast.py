@@ -1,7 +1,7 @@
 import pytest
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
-from src.ui.toast import ToastNotification, ToastManager
+from src.ui.common.toast import ToastNotification, ToastManager
 
 @pytest.fixture(scope="module")
 def qapp():

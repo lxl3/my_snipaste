@@ -8,7 +8,7 @@ from PySide6.QtCore import Property, QEasingCurve, QPropertyAnimation, Qt, Signa
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QWidget
 
-from ..core.theme_pkg import theme as _t
+from ...core.theme_pkg import theme as _t
 
 
 class ToggleSwitch(QCheckBox):

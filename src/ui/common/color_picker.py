@@ -17,9 +17,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..core.i18n import _
-from ..core.logger import setup_logger
-from ..core.utils import capture_all_screens
+from ...core.i18n import _
+from ...core.logger import setup_logger
+from ...core.utils import capture_all_screens
 
 logger = setup_logger("color_picker")
 

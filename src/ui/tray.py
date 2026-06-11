@@ -12,7 +12,7 @@ from ..core.logger import get_log_dir, setup_logger
 from ..core.screenshot_history import ScreenshotHistory
 from ..core.theme_pkg import theme as theme_mgr
 from ..core.utils import create_app_icon, create_emoji_icon
-from .glass_widget import GlassMenu
+from .common.glass_widget import GlassMenu
 
 logger = setup_logger("tray")
 

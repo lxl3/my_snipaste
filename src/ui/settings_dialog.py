@@ -31,11 +31,11 @@ from ..core.i18n import _, available_languages, load_translations
 from ..core.logger import setup_logger
 from ..core.settings import AppSettings, get_settings
 from ..core.theme_pkg import theme as _theme
-from .color_picker import get_color
-from .settings_card import SettingsCard
-from .theme_dialog import ThemeAwareDialog
-from .title_bar import TitleBar
-from .toggle_switch import ToggleRow
+from .common.color_picker import get_color
+from .common.settings_card import SettingsCard
+from .common.theme_dialog import ThemeAwareDialog
+from .common.title_bar import TitleBar
+from .common.toggle_switch import ToggleRow
 
 logger = setup_logger("settings_dialog")
 

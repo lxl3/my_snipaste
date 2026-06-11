@@ -2,8 +2,8 @@ from PySide6.QtCore import QRect, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QPainter
 from PySide6.QtWidgets import QApplication, QWidget
 
-from ..core.i18n import _
-from ..core.logger import setup_logger
+from ...core.i18n import _
+from ...core.logger import setup_logger
 
 logger = setup_logger("countdown_overlay")
 

@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QVBoxLayout
 from ....core import qss_base
 from ....core.i18n import _
 from ....core.settings import AppSettings
-from ...settings_card import SettingsCard
+from ...common.settings_card import SettingsCard
 from ..widgets.no_scroll_combo import NoScrollComboBox
 from .base_tab import BaseTab
 
