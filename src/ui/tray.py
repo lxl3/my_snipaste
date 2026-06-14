@@ -16,6 +16,9 @@ from .common.glass_widget import GlassMenu
 
 logger = setup_logger("tray")
 
+# macOS: QSystemTrayIcon 要求使用原生菜单，GlassMenu 的自定义窗口标志会破坏原生行为
+_IS_MAC = platform.system() == "Darwin"
+
 
 class TrayManager(QObject):
     settings_requested = Signal()
@@ -46,7 +49,7 @@ class TrayManager(QObject):
         else:
             self.tray_icon.setToolTip(_("MySnipaste - Click tray icon to capture"))
 
-        menu = GlassMenu()  # 使用玻璃态菜单
+        menu = QMenu() if _IS_MAC else GlassMenu()
         label = _("Capture ({hotkey})").format(hotkey=hotkey_display)
         self._capture_action = QAction(create_emoji_icon("📸"), label, self.app)
         self._capture_action.triggered.connect(self.app.start_capture)
@@ -63,7 +66,8 @@ class TrayManager(QObject):
         menu.addSeparator()
 
         # Recent screenshots submenu (dynamic - rebuilds on show)
-        self._recent_menu = GlassMenu(_("Recent Screenshots"), menu)  # 使用玻璃态子菜单
+        self._recent_menu = (QMenu(_("Recent Screenshots"), menu) if _IS_MAC
+                              else GlassMenu(_("Recent Screenshots"), menu))
         self._recent_menu.aboutToShow.connect(lambda: self._populate_recent_menu(self._recent_menu))
         self._recent_menu_action = menu.addMenu(self._recent_menu)
         self._recent_menu_action.setIcon(create_emoji_icon("🕒"))
