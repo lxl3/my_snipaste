@@ -367,11 +367,12 @@ class PinWindow(PinWindowEventHandlerMixin, PinWindowMenuMixin, PinWindowRenderi
         if content.startswith(("http://", "https://", "ftp://")):
             import webbrowser
             webbrowser.open(content)
-            ToastManager.show(_("URL opened"), "🔗", "success", parent=self)
+            ToastManager.show(_("URL opened"), "🔗", "success", parent=None)
         else:
             from PySide6.QtWidgets import QApplication
             QApplication.clipboard().setText(content)
-            ToastManager.show(_("Copied to clipboard"), "📋", "success", parent=self)
+            ToastManager.show(_("Copied to clipboard"), "📋", "success", parent=None)
+        self.close()
 
     def _on_done_editing(self) -> None:
         """Called by toolbar 'Done' button. Hides the toolbar."""
