@@ -67,7 +67,10 @@ class PinWindow(PinWindowEventHandlerMixin, PinWindowMenuMixin, PinWindowRenderi
         self._base_img_w = int(pixmap.width() / dpr)
         self._base_img_h = int(pixmap.height() / dpr)
 
-        logger.debug(f"PinWindow init: pixmap physical={pixmap.width()}x{pixmap.height()}, dpr={dpr}, logical={self._base_img_w}x{self._base_img_h}")
+        logger.debug(
+            f"PinWindow init: pixmap physical={pixmap.width()}x{pixmap.height()}, "
+            f"dpr={dpr}, logical={self._base_img_w}x{self._base_img_h}"
+        )
 
         # --- Annotation state (same interface as CaptureOverlay) ---
         self.annotations: list[Annotation] = []
@@ -188,7 +191,11 @@ class PinWindow(PinWindowEventHandlerMixin, PinWindowMenuMixin, PinWindowRenderi
             if img_rect.contains(self._current_mouse_pos):
                 painter.setPen(QPen(QColor(255, 0, 0), 2))
                 painter.setBrush(Qt.NoBrush)
-                scaled_r = self.eraser_size * self._zoom_factor if not self._resized_by_user and self._zoom_factor != 1.0 else self.eraser_size
+                scaled_r = (
+                    self.eraser_size * self._zoom_factor
+                    if not self._resized_by_user and self._zoom_factor != 1.0
+                    else self.eraser_size
+                )
                 painter.drawEllipse(mouse_in_img, scaled_r, scaled_r)
 
         painter.restore()
@@ -335,6 +342,36 @@ class PinWindow(PinWindowEventHandlerMixin, PinWindowMenuMixin, PinWindowRenderi
         """Handle OCR error."""
         self._cleanup_ocr()
         QMessageBox.critical(self, _("OCR Error"), _("Text recognition failed:\n{error}").format(error=error_msg))
+
+    # ─── QR Code Recognition ──────────────────────────────
+
+    def _on_qrcode(self) -> None:
+        captured = self._render_annotated_pixmap()
+        from ..core.utils import qpixmap_to_pil
+        pil_image = qpixmap_to_pil(captured)
+
+        try:
+            import zxingcpp
+            results = zxingcpp.read_barcodes(pil_image)
+        except ImportError:
+            ToastManager.show(_("zxing-cpp not installed"), "❌", "error", parent=self)
+            return
+
+        if not results:
+            ToastManager.show(_("No QR code detected"), "🔍", "warning", parent=self)
+            return
+
+        result = results[0]
+        content = result.text
+
+        if content.startswith(("http://", "https://", "ftp://")):
+            import webbrowser
+            webbrowser.open(content)
+            ToastManager.show(_("URL opened"), "🔗", "success", parent=self)
+        else:
+            from PySide6.QtWidgets import QApplication
+            QApplication.clipboard().setText(content)
+            ToastManager.show(_("Copied to clipboard"), "📋", "success", parent=self)
 
     def _on_done_editing(self) -> None:
         """Called by toolbar 'Done' button. Hides the toolbar."""

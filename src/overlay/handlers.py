@@ -48,7 +48,9 @@ class OverlayEventHandlerMixin:
 
         if event.button() == Qt.RightButton:
             event.accept()
-            if self._drag_mode or not self.selection_rect.isNull():
+            if not self.selection_rect.isNull():
+                return
+            if self._drag_mode:
                 self.selection_rect = QRect()
                 self._drag_mode = None
                 self._deselect_annotation()

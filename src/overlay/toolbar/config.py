@@ -158,6 +158,12 @@ TOOLBAR_CONFIG = [
         "tooltip": "Text Recognition",
         "action": "ocr",
     },
+    {
+        "id": "qrcode",
+        "icon": "qrcode",
+        "tooltip": "QR Code Recognition",
+        "action": "qrcode",
+    },
 ]
 
 # 操作按钮配置

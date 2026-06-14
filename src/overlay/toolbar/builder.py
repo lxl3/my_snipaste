@@ -191,6 +191,8 @@ class ToolbarBuilder:
         action = config["action"]
         if action == "ocr":
             btn.clicked.connect(self.overlay._on_ocr)
+        elif action == "qrcode":
+            btn.clicked.connect(self.overlay._on_qrcode)
         elif action == "undo":
             btn.clicked.connect(self.overlay._on_undo)
         elif action == "redo":

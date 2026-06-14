@@ -53,6 +53,16 @@ class PinWindowMenuMixin:
 
         menu.addSeparator()
 
+        qrcode_action = QAction(create_emoji_icon("📱"), _("QR Code Recognition"), self)
+        qrcode_action.triggered.connect(self._on_qrcode)
+        menu.addAction(qrcode_action)
+
+        ocr_action = QAction(create_emoji_icon("🔍"), _("OCR Text Recognition"), self)
+        ocr_action.triggered.connect(self._on_ocr)
+        menu.addAction(ocr_action)
+
+        menu.addSeparator()
+
         crop_action = QAction(create_emoji_icon("✂️"), _("Crop to selection"), self)
         crop_action.triggered.connect(self._crop)
         menu.addAction(crop_action)

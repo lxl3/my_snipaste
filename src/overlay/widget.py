@@ -18,6 +18,7 @@ from PySide6.QtWidgets import QApplication, QLineEdit, QWidget
 
 from ..annotations import Annotation
 from ..core.context import AppContext, get_context
+from ..core.i18n import _
 from ..core.logger import setup_logger
 from ..core.theme_pkg import theme as _t
 from ..core.utils import capture_all_screens
@@ -162,6 +163,25 @@ class CaptureOverlay(OverlayEventHandlerMixin, OverlayRenderingMixin, OverlayAct
     def _capture_pos(self) -> QPoint:
         """Return top-left corner of selection in screen coordinates."""
         return self.total_geometry.topLeft() + self.selection_rect.topLeft()
+
+    def contextMenuEvent(self, event) -> None:
+        if self.selection_rect.isNull():
+            return
+
+        from PySide6.QtGui import QAction
+        from ..ui.common.glass_widget import GlassMenu
+
+        menu = GlassMenu(self)
+
+        qrcode_action = QAction(_("QR Code Recognition"), self)
+        qrcode_action.triggered.connect(self._on_qrcode)
+        menu.addAction(qrcode_action)
+
+        ocr_action = QAction(_("OCR Text Recognition"), self)
+        ocr_action.triggered.connect(self._on_ocr)
+        menu.addAction(ocr_action)
+
+        menu.exec(event.globalPos())
 
     # ─── Toolbar positioning ───
 

@@ -63,6 +63,38 @@ class OverlayActionsMixin:
         self._cleanup_ocr()
         QMessageBox.critical(self, _("OCR Error"), _("Text recognition failed:\n{error}").format(error=error_msg))
 
+    # ─── QR Code Recognition ───
+
+    def _on_qrcode(self) -> None:
+        if self.selection_rect.isNull():
+            return
+        captured = self._render_annotated_pixmap()
+        from ..core.utils import qpixmap_to_pil
+        pil_image = qpixmap_to_pil(captured)
+
+        try:
+            import zxingcpp
+            results = zxingcpp.read_barcodes(pil_image)
+        except ImportError:
+            ToastManager.show(_("zxing-cpp not installed"), "❌", "error", parent=self)
+            return
+
+        if not results:
+            ToastManager.show(_("No QR code detected"), "🔍", "warning", parent=self)
+            return
+
+        result = results[0]
+        content = result.text
+
+        if content.startswith(("http://", "https://", "ftp://")):
+            import webbrowser
+            webbrowser.open(content)
+            ToastManager.show(_("URL opened"), "🔗", "success", parent=self)
+        else:
+            from PySide6.QtWidgets import QApplication
+            QApplication.clipboard().setText(content)
+            ToastManager.show(_("Copied to clipboard"), "📋", "success", parent=self)
+
     # ─── Pin / Copy / Save ───
 
     def on_pin(self) -> None:
