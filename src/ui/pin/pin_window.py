@@ -320,7 +320,7 @@ class PinWindow(PinWindowEventHandlerMixin, PinWindowMenuMixin, PinWindowRenderi
         """Perform OCR on the pinned image with annotations."""
         ToastManager.show(_("OCR recognizing..."), "🔍", "info", parent=self)
         captured = self._render_annotated_pixmap()
-        from ..ocr.engine import OcrWorker
+        from ...ocr.engine import OcrWorker
         pil_image = qpixmap_to_pil(captured)
         self._ocr_worker = OcrWorker(pil_image, self.ctx.settings.ocr_language)
         self._ocr_worker.finished.connect(self._on_ocr_finished)
@@ -333,7 +333,7 @@ class PinWindow(PinWindowEventHandlerMixin, PinWindowMenuMixin, PinWindowRenderi
         self._cleanup_ocr()
         if text:
             ToastManager.show(_("Recognition complete"), "✓", "success", parent=self)
-            from ..ocr.ocr_dialog import OcrResultDialog
+            from ...ocr.ocr_dialog import OcrResultDialog
             OcrResultDialog(text, self).exec()
         else:
             QMessageBox.warning(self, _("OCR Result"), _("No text recognized"))
@@ -347,7 +347,7 @@ class PinWindow(PinWindowEventHandlerMixin, PinWindowMenuMixin, PinWindowRenderi
 
     def _on_qrcode(self) -> None:
         captured = self._render_annotated_pixmap()
-        from ..core.utils import qpixmap_to_pil
+        from ...core.utils import qpixmap_to_pil
         pil_image = qpixmap_to_pil(captured)
 
         try:
