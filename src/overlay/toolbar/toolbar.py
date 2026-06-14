@@ -300,11 +300,12 @@ class OverlayToolbar:
 
     def close_menus(self) -> None:
         """关闭所有打开的子菜单"""
+        if self._builder:
+            self._builder._hide_all_menus()
+            self._builder._uncheck_all_tools()
         if self._current_menu and self._current_menu.isVisible():
             self._current_menu.hide()
             self._current_menu = None
-        for btn in self._tool_btns.values():
-            btn.setChecked(False)
 
     # ─── Undo/Redo ───
 
