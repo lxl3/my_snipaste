@@ -83,7 +83,7 @@ class PinWindowEventHandlerMixin:
 
             hit_idx = self._hit_test_annotations(pos)
             if hit_idx is not None:
-                ann_type = self.annotations[hit_idx]["type"]
+                ann_type = self.annotations[hit_idx].type
                 if self.current_tool == "select" or self.current_tool == ann_type:
                     self._select_annotation(hit_idx, pos)
                     event.accept()
