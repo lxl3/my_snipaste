@@ -39,7 +39,9 @@ TOOLBAR_FIXED_WIDTH = 420  # px - 足够容纳最宽的工具菜单
 TOOLBAR_FIXED_HEIGHT = 32  # px - 标准工具栏高度
 
 
-class CaptureOverlay(OverlayEventHandlerMixin, QWidget, OcrMixin, OverlayRenderingMixin, OverlayActionsMixin, OverlayTransformsMixin, OverlaySelectionMixin, OverlayDrawingMixin):
+class CaptureOverlay(OverlayEventHandlerMixin, OverlayRenderingMixin, OverlayActionsMixin,
+                     OverlayTransformsMixin, OverlaySelectionMixin, OverlayDrawingMixin,
+                     OcrMixin, QWidget):
     """Full-screen semi-transparent overlay with selection, annotation, and OCR."""
 
     pin_requested = Signal(object, object)

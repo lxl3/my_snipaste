@@ -30,8 +30,8 @@ from .pin_resize import PinWindowResizeMixin
 logger = setup_logger("pin_window")
 
 
-class PinWindow(PinWindowEventHandlerMixin, QWidget, OcrMixin, PinWindowRenderingMixin, PinWindowActionsMixin,
-                PinWindowResizeMixin, PinWindowMenuMixin):
+class PinWindow(PinWindowEventHandlerMixin, PinWindowMenuMixin, PinWindowRenderingMixin,
+                PinWindowActionsMixin, PinWindowResizeMixin, OcrMixin, QWidget):
     """Floating pinned window with drop shadow, zoom, and annotation tools."""
 
     # Signals for communication with main application
