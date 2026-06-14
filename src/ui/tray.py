@@ -10,7 +10,7 @@ from ..core import qss_base
 from ..core.i18n import _
 from ..core.logger import get_log_dir, setup_logger
 from ..core.screenshot_history import ScreenshotHistory
-from ..core.theme_pkg import theme as theme_mgr
+from ..core.theme_pkg import theme as _t
 from ..core.utils import create_app_icon, create_emoji_icon
 from .common.glass_widget import GlassMenu
 
@@ -98,7 +98,7 @@ class TrayManager(QObject):
         self.tray_icon.setContextMenu(menu)
         self._menu = menu
         self._apply_menu_style()
-        theme_mgr.theme_changed.connect(self._on_theme_changed)
+        _t.theme_changed.connect(self._on_theme_changed)
 
         if platform.system() == "Darwin":
             self.tray_icon.activated.connect(self._on_tray_mac)
@@ -262,7 +262,7 @@ class TrayManager(QObject):
 
     def cleanup(self) -> None:
         try:
-            theme_mgr.theme_changed.disconnect(self._on_theme_changed)
+            _t.theme_changed.disconnect(self._on_theme_changed)
         except (TypeError, RuntimeError):
             pass
         if self.tray_icon:

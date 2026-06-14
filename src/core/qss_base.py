@@ -6,7 +6,7 @@
     # 或自定义: pushbutton_qss(padding="4px 12px")
 """
 
-from .theme_pkg import theme as _theme
+from .theme_pkg import theme as _t
 
 # ─── 基础控件 ────────────────────────────────────────
 
@@ -36,7 +36,7 @@ def pushbutton_qss(
         if font_size:
             parts.append(f"font-size: {font_size}")
         font_part = "; " + "; ".join(parts)
-    return _theme.qss(f"""
+    return _t.qss(f"""
         {selector} {{
             padding: {padding};
             border: {border};
@@ -64,7 +64,7 @@ def lineedit_qss(
     placeholder_color: str = "$text_placeholder",
 ) -> str:
     """通用 QLineEdit 样式。"""
-    return _theme.qss(f"""
+    return _t.qss(f"""
         QLineEdit {{
             padding: {padding};
             border: {border};
@@ -103,7 +103,7 @@ def combobox_qss(
         font_size: 如 "12px"，子菜单紧凑场景使用。
     """
     font_part = f"font-size: {font_size}; " if font_size else ""
-    return _theme.qss(f"""
+    return _t.qss(f"""
         QComboBox {{
             padding: {padding};
             border: {border};
@@ -143,7 +143,7 @@ def spinbox_qss(
     btn_bg: str = "transparent",
 ) -> str:
     """通用 QSpinBox 样式。"""
-    return _theme.qss(f"""
+    return _t.qss(f"""
         QSpinBox {{
             padding: {padding};
             border: {border};
@@ -181,7 +181,7 @@ def checkbox_qss(
     color: str = "$text_primary",
 ) -> str:
     """通用 QCheckBox 样式。"""
-    return _theme.qss(f"""
+    return _t.qss(f"""
         QCheckBox {{
             color: {color};
         }}
@@ -209,7 +209,7 @@ def groupbox_qss(
     font_weight: str = "600",
 ) -> str:
     """通用 QGroupBox 样式。"""
-    return _theme.qss(f"""
+    return _t.qss(f"""
         QGroupBox {{
             font-weight: {font_weight};
             border: {border};
@@ -236,7 +236,7 @@ def slider_qss(
 ) -> str:
     """通用 QSlider（水平）样式。"""
     margin = f"-{(int(handle_size.replace('px', '')) - int(groove_height.replace('px', ''))) // 2}px 0"
-    return _theme.qss(f"""
+    return _t.qss(f"""
         QSlider::groove:horizontal {{
             height: {groove_height};
             background: {groove_bg};
@@ -268,7 +268,7 @@ def scrollbar_qss(
     使用 text_secondary (#666666 亮色, #999999 暗色) 作为 handle 背景，
     确保在两种模式下都有足够的对比度。
     """
-    return _theme.qss(f"""
+    return _t.qss(f"""
         QScrollBar:vertical {{
             width: {width};
             background: transparent;
@@ -328,7 +328,7 @@ def menu_qss(
     icon_padding: str = "6px",
 ) -> str:
     """通用 QMenu 样式（普通弹出菜单）。"""
-    return _theme.qss(f"""
+    return _t.qss(f"""
         QMenu {{
             background: {bg};
             border: {border};
@@ -374,5 +374,5 @@ def label_qss(
         parts.append(f"font-weight: {font_weight}")
     props = "; ".join(parts) + ";"
     if selector:
-        return _theme.qss(f"{selector} {{ {props} }}")
-    return _theme.qss(props)
+        return _t.qss(f"{selector} {{ {props} }}")
+    return _t.qss(props)

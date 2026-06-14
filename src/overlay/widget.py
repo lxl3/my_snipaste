@@ -19,7 +19,7 @@ from PySide6.QtWidgets import QApplication, QLineEdit, QWidget
 from ..annotations import Annotation
 from ..core.context import AppContext, get_context
 from ..core.logger import setup_logger
-from ..core.theme_pkg import theme as _tw
+from ..core.theme_pkg import theme as _t
 from ..core.utils import capture_all_screens
 from .actions import OverlayActionsMixin
 from .crop_mode import CropMode
@@ -264,8 +264,8 @@ class CaptureOverlay(OverlayEventHandlerMixin, OverlayRenderingMixin, OverlayAct
                     return QColor(fallback_r, fallback_g, fallback_b, fallback_a)
                 except Exception:
                     return QColor(fallback_r, fallback_g, fallback_b, fallback_a)
-            _dim_color = _hex_to_qcolor(_tw.get("overlay_dim", "#0000008C"), 0, 0, 0, 140)
-            _sel_color = _hex_to_qcolor(_tw.get("sel_border", "#0078D7"), 0, 120, 215)
+            _dim_color = _hex_to_qcolor(_t.get("overlay_dim", "#0000008C"), 0, 0, 0, 140)
+            _sel_color = _hex_to_qcolor(_t.get("sel_border", "#0078D7"), 0, 120, 215)
             logger.debug(f"[paintEvent] overlay_dim -> "
                          f"rgba({_dim_color.red()},{_dim_color.green()},{_dim_color.blue()},{_dim_color.alpha()})")
 

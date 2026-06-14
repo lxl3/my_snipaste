@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 from ....core.i18n import _, available_languages
 from ....core.logger import setup_logger
 from ....core.settings import AppSettings
-from ....core.theme_pkg import theme as _theme
+from ....core.theme_pkg import theme as _t
 from ...common.color_picker import get_color
 from ...common.settings_card import SettingsCard
 from ...common.toggle_switch import ToggleRow
@@ -167,20 +167,20 @@ class GeneralTab(BaseTab):
         theme_mode = self._theme_combo.currentData()
         if theme_mode:
             logger.info(f"主题预览切换: {theme_mode}")
-            _theme.set_mode(theme_mode)
-            _theme.apply_to_app(QApplication.instance())
+            _t.set_mode(theme_mode)
+            _t.apply_to_app(QApplication.instance())
             self._update_accent_btn_style()
 
     def _on_accent_color_click(self) -> None:
         """选择主题色"""
-        current = QColor(_theme.accent_color)
+        current = QColor(_t.accent_color)
         new_color = get_color(current, self, _("Select Accent Color"))
         if new_color.isValid():
             hex_color = new_color.name()
             if self._dialog:
                 self._dialog._settings.accent_color = hex_color
-            _theme.set_accent_color(hex_color)
-            _theme.apply_to_app(QApplication.instance())
+            _t.set_accent_color(hex_color)
+            _t.apply_to_app(QApplication.instance())
             self._update_accent_btn_style()
             logger.info(f"自定义主题色: {hex_color}")
 
@@ -188,8 +188,8 @@ class GeneralTab(BaseTab):
         """重置主题色"""
         if self._dialog:
             self._dialog._settings.accent_color = ""
-        _theme.set_accent_color("")
-        _theme.apply_to_app(QApplication.instance())
+        _t.set_accent_color("")
+        _t.apply_to_app(QApplication.instance())
         self._update_accent_btn_style()
         logger.info("主题色恢复默认")
 
@@ -197,8 +197,8 @@ class GeneralTab(BaseTab):
         """更新主题色按钮样式"""
         if not self._accent_btn:
             return
-        color = _theme.accent_color
-        border = _theme.get("border")
+        color = _t.accent_color
+        border = _t.get("border")
         self._accent_btn.setStyleSheet(f"""
             QPushButton {{
                 background: {color};
@@ -233,7 +233,7 @@ class GeneralTab(BaseTab):
             self._theme_combo.setCurrentIndex(theme_idx)
 
         if settings.accent_color:
-            _theme.set_accent_color(settings.accent_color)
+            _t.set_accent_color(settings.accent_color)
         self._update_accent_btn_style()
 
         if self._launch_checkbox:
@@ -262,6 +262,6 @@ class GeneralTab(BaseTab):
         # Reset accent color to default
         if self._dialog:
             self._dialog._settings.accent_color = ""
-        _theme.set_accent_color("")
-        _theme.apply_to_app(QApplication.instance())
+        _t.set_accent_color("")
+        _t.apply_to_app(QApplication.instance())
         self._update_accent_btn_style()

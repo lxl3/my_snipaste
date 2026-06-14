@@ -25,7 +25,7 @@ from .core.permissions import (
 )
 from .core.screenshot_history import ScreenshotHistory
 from .core.settings import AppSettings, get_settings
-from .core.theme_pkg import theme as theme_manager
+from .core.theme_pkg import theme as _t
 from .core.utils import create_app_icon
 from .ocr.engine import extract_text
 from .overlay.widget import CaptureOverlay
@@ -56,7 +56,7 @@ class SnipasteApp(QApplication, SnipasteCaptureMixin):
         self.countdown_overlay: CountdownOverlay | None = None
         self.pin_windows: list = []
         self.settings: AppSettings = get_settings()
-        self.ctx: AppContext = init_context(AppContext(settings=self.settings, theme=theme_manager))
+        self.ctx: AppContext = init_context(AppContext(settings=self.settings, theme=_t))
         self.hotkey_listener: MultiHotkeyListener | None = None
         apply_log_level(self.settings.log_level)
 
@@ -79,11 +79,11 @@ class SnipasteApp(QApplication, SnipasteCaptureMixin):
         load_translations(self.settings.language)
 
         # 初始化主题（必须在任何 UI 组件创建前）
-        theme_manager.set_mode(self.settings.theme)
+        _t.set_mode(self.settings.theme)
         # 加载自定义主题色
         if self.settings.accent_color:
-            theme_manager.set_accent_color(self.settings.accent_color)
-        theme_manager.apply_to_app(self)
+            _t.set_accent_color(self.settings.accent_color)
+        _t.apply_to_app(self)
 
         # 设置应用图标
         app_icon = create_app_icon()
@@ -296,9 +296,9 @@ class SnipasteApp(QApplication, SnipasteCaptureMixin):
         logger.info(f"设置已更新，准备切换快捷键: {self.settings.hotkey}")
         load_translations(self.settings.language)
         # 重新应用主题和自定义主题色
-        theme_manager.set_mode(self.settings.theme)
-        theme_manager.set_accent_color(self.settings.accent_color)
-        theme_manager.apply_to_app(self)
+        _t.set_mode(self.settings.theme)
+        _t.set_accent_color(self.settings.accent_color)
+        _t.apply_to_app(self)
         have_hotkey = check_macos_accessibility()
         self.tray.refresh_menu_text(have_hotkey)
         if self.hotkey_listener:

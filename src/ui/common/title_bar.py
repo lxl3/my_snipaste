@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
-from ...core.theme_pkg import theme as _theme
+from ...core.theme_pkg import theme as _t
 
 
 class TitleBar(QWidget):
@@ -70,14 +70,14 @@ class TitleBar(QWidget):
         self._refresh_style()
 
         # 监听主题切换
-        _theme.theme_changed.connect(self._on_theme_changed)
+        _t.theme_changed.connect(self._on_theme_changed)
 
     # ─── 主题感知 ───────────────────────────────────────
 
     def _refresh_style(self) -> None:
         """根据当前主题重新生成标题和按钮的 QSS。"""
         self._title_label.setStyleSheet(
-            _theme.qss(
+            _t.qss(
                 f"font-size: {self._title_size}; "
                 f"font-weight: {self._title_weight}; "
                 f"color: $text_primary;"
@@ -95,7 +95,7 @@ class TitleBar(QWidget):
     @staticmethod
     def _btn_qss() -> str:
         """TitleBar 按钮基础样式（无边框透明，hover 显示背景）。"""
-        return _theme.qss("""
+        return _t.qss("""
             QPushButton {
                 background: transparent;
                 border: none;
@@ -117,7 +117,7 @@ class TitleBar(QWidget):
     def destroy(self, destroyWindow: bool = True, destroySubWindows: bool = True) -> None:
         """断开主题信号连接后销毁。"""
         try:
-            _theme.theme_changed.disconnect(self._on_theme_changed)
+            _t.theme_changed.disconnect(self._on_theme_changed)
         except (TypeError, RuntimeError):
             pass
         return super().destroy(destroyWindow, destroySubWindows)

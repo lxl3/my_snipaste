@@ -13,7 +13,7 @@ from ..core.constants import MIN_SELECTION_SIZE
 from ..core.i18n import _
 from ..core.logger import setup_logger
 from ..core.theme_pkg import draw_glass_morphism, draw_glass_text
-from ..core.theme_pkg import theme as _tw
+from ..core.theme_pkg import theme as _t
 from .hotkey_panel import HotkeyHelpPanel
 
 logger = setup_logger("overlay")
@@ -441,7 +441,7 @@ class OverlayEventHandlerMixin:
         bh = th + padding_v * 2
         hint_rect = QRect(bx, by, bw, bh)
 
-        is_dark = _tw.is_dark()
+        is_dark = _t.is_dark()
         draw_glass_morphism(painter, hint_rect, radius=12, is_dark=is_dark, draw_shadow=True)
         draw_glass_text(
             painter,

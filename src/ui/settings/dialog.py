@@ -25,7 +25,7 @@ from ...core import qss_base
 from ...core.i18n import _, load_translations
 from ...core.logger import setup_logger
 from ...core.settings import AppSettings, get_settings
-from ...core.theme_pkg import theme as _theme
+from ...core.theme_pkg import theme as _t
 from ..common.theme_dialog import ThemeAwareDialog
 from ..common.title_bar import TitleBar
 from .tabs import (
@@ -137,12 +137,12 @@ class SettingsDialog(ThemeAwareDialog):
 
         outer.addWidget(content, stretch=1)
 
-        _theme.apply_to_widget(self)
+        _t.apply_to_widget(self)
         self._apply_styles()
 
     def _apply_styles(self) -> None:
         """应用对话框样式表"""
-        dialog_specific = _theme.qss("""
+        dialog_specific = _t.qss("""
             QDialog {
                 background: $bg_primary;
                 border: 1px solid $border;
@@ -222,14 +222,14 @@ class SettingsDialog(ThemeAwareDialog):
 
     def _on_before_theme_apply(self) -> None:
         """主题切换前的准备"""
-        _theme.apply_to_widget(self._tabs)
+        _t.apply_to_widget(self._tabs)
         _tab_bar = self._tabs.findChild(QTabBar)
         if _tab_bar:
-            _theme.apply_to_widget(_tab_bar)
+            _t.apply_to_widget(_tab_bar)
         for i in range(self._tabs.count()):
             tab_widget = self._tabs.widget(i)
             if tab_widget:
-                _theme.apply_to_widget(tab_widget)
+                _t.apply_to_widget(tab_widget)
 
     def _on_theme_changed(self, mode: str) -> None:
         """主题切换时重新应用样式"""
@@ -242,7 +242,7 @@ class SettingsDialog(ThemeAwareDialog):
         for label in self.findChildren(QLabel):
             style = label.styleSheet()
             if style and '$' in style:
-                label.setStyleSheet(_theme.qss(style))
+                label.setStyleSheet(_t.qss(style))
 
         # 刷新 GeneralTab 的主题色按钮
         if hasattr(self._general_tab, '_update_accent_btn_style'):

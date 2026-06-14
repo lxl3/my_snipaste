@@ -5,7 +5,7 @@ import sys
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMessageBox
 
-from .theme_pkg import theme as theme_manager
+from .theme_pkg import theme as _t
 from . import qss_base
 
 
@@ -34,7 +34,7 @@ def show_dialog(icon: QMessageBox.Icon, title: str, text: str) -> None:
     msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
     msg.setAttribute(Qt.WA_StyledBackground)
     msg.setStyleSheet(
-        theme_manager.qss("""
+        _t.qss("""
             QMessageBox {
                 background: $bg_primary;
                 color: $text_primary;
