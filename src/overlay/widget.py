@@ -49,7 +49,7 @@ class CaptureOverlay(OverlayEventHandlerMixin, OverlayRenderingMixin, OverlayAct
     save_requested = Signal(object, bool)  # (pixmap, has_annotations)
 
     def __init__(self, ctx: AppContext | None = None) -> None:
-        super().__init__()
+        QWidget.__init__(self)
         OverlayRenderingMixin.__init__(self)
         self.ctx = ctx or get_context()
 

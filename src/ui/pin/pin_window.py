@@ -48,7 +48,7 @@ class PinWindow(PinWindowEventHandlerMixin, PinWindowMenuMixin, PinWindowRenderi
     MIN_HEIGHT = 100
 
     def __init__(self, pixmap: QPixmap, pos, ctx: AppContext | None = None) -> None:
-        super().__init__()
+        QWidget.__init__(self)
         PinWindowRenderingMixin.__init__(self)
         self.ctx = ctx or get_context()
         self.pixmap = pixmap
