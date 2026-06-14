@@ -283,7 +283,10 @@ class CaptureOverlay(OverlayEventHandlerMixin, OverlayRenderingMixin, OverlayAct
                 painter.fillRect(0, rect.top(), rect.left(), rect.height(), _dim_color)
                 painter.fillRect(rect.right() + 1, rect.top(), w - rect.right() - 1, rect.height(), _dim_color)
 
+                painter.save()
+                painter.setClipRect(rect)
                 self._draw_annotations(painter, rect.size(), rect.topLeft())
+                painter.restore()
 
                 # Selection indicator for selected annotation
                 if self._selected_annotation_idx is not None:
