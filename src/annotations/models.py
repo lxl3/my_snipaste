@@ -429,12 +429,22 @@ class Annotation:
 
     # ── cloning ───────────────────────────────────────────────
 
+    def __deepcopy__(self, memo):
+        """Custom deepcopy that skips unpicklable Qt objects (_path, _cached)."""
+        # Copy all fields except Qt caches
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for k, v in self.__dict__.items():
+            if k in ('_path', '_cached'):
+                setattr(result, k, None)
+            else:
+                setattr(result, k, copy.deepcopy(v, memo))
+        return result
+
     def clone(self) -> Annotation:
         """Return an independent copy (caches excluded)."""
-        a = copy.deepcopy(self)
-        a._path = None
-        a._cached = None
-        return a
+        return copy.deepcopy(self)
 
 
 # ── Internal helpers ──────────────────────────────────────────────
