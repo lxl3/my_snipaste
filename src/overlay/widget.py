@@ -122,6 +122,7 @@ class CaptureOverlay(OverlayEventHandlerMixin, OverlayRenderingMixin, OverlayAct
         self._erase_fill_rect_start: QPoint | None = None
         self._erase_fill_rect_current: QPoint | None = None
 
+        self._last_mouse_release_time: float = 0.0
         self._text_editor: QLineEdit | None = None
         self._text_editor_pos: QPointF | None = None
         self._editing_annotation_idx: int | None = None  # non-None when re-editing existing text

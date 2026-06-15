@@ -94,6 +94,7 @@ class OverlayActionsMixin:
             from PySide6.QtWidgets import QApplication
             QApplication.clipboard().setText(content)
             ToastManager.show(_("Copied to clipboard"), "📋", "success", parent=None)
+        logger.debug("CLOSE TRIGGER: QR code recognition completed")
         self.close()
 
     # ─── Pin / Copy / Save ───
@@ -112,6 +113,7 @@ class OverlayActionsMixin:
 
         self.pin_requested.emit(pixmap, self._capture_pos())
         # 先关闭覆盖层，再显示 Toast（parent=None 避免阻塞关闭）
+        logger.debug("CLOSE TRIGGER: pin operation")
         self.close()
         ToastManager.show(_("Pinned to desktop"), "📌", "info", parent=None)
 
@@ -129,6 +131,7 @@ class OverlayActionsMixin:
 
         self.copy_requested.emit(pixmap)
         ToastManager.show(_("Copied to clipboard"), "✓", "success", parent=None)
+        logger.debug("CLOSE TRIGGER: copy operation")
         self.close()
 
     def on_save(self) -> None:

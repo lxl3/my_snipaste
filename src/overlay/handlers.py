@@ -5,6 +5,7 @@ other mixins via the composition pattern.
 """
 
 import os
+import time
 
 from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
@@ -176,13 +177,26 @@ class OverlayEventHandlerMixin:
             self.update()
 
     def mouseReleaseEvent(self, event) -> None:
+        from PySide6.QtWidgets import QApplication
+        kb_mods = QApplication.keyboardModifiers()
+        logger.debug(f"mouseReleaseEvent button={event.button()} _closing_on_release={self._closing_on_release} "
+                     f"is_selecting={self.is_selecting} _drag_mode={self._drag_mode} "
+                     f"_drawing={self._drawing} _erasing={self._erasing} "
+                     f"kb_mods={kb_mods} nativeMods={event.modifiers()}")
         if event.button() != Qt.LeftButton:
             event.accept()
             if self._closing_on_release:
+                logger.debug("CLOSE TRIGGER: right/middle button release with _closing_on_release=True")
                 self.close()
             return
         # end eraser drag
         self._erasing = False
+
+        # Record mouse release time BEFORE any early returns.
+        # The spurious Ctrl+C (macOS Cmd→Ctrl via grabKeyboard) arrives
+        # immediately after mouse release — timing guard in keyPressEvent
+        # uses this to distinguish intentional Ctrl+C from spurious ones.
+        self._last_mouse_release_time = time.monotonic()
 
         # confirm fill erase selection
         if self._erase_fill_rect_start is not None:
@@ -239,6 +253,9 @@ class OverlayEventHandlerMixin:
             self._auto_finish()
 
     def keyPressEvent(self, event) -> None:
+        logger.debug(f"keyPressEvent key={event.key()} mods={event.modifiers()} "
+                     f"nativeScanCode={event.nativeScanCode()} "
+                     f"nativeModifiers={event.nativeModifiers()}")
         # Hotkey help panel toggle
         if event.key() == Qt.Key_Question or event.key() == Qt.Key_F1:
             self._toggle_hotkey_panel()
@@ -299,6 +316,7 @@ class OverlayEventHandlerMixin:
             if self._selected_annotation_idx is not None:
                 self._deselect_annotation()
                 return
+            logger.debug("CLOSE TRIGGER: Escape key with no active state")
             self.close()
             return
         elif event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
@@ -321,6 +339,14 @@ class OverlayEventHandlerMixin:
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Y:
             self._redo()
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_C:
+            # Timing guard: ignore Ctrl+C within 300ms of mouse release.
+            # macOS grabKeyboard() maps Cmd → ControlModifier, which can
+            # generate spurious Ctrl+C right after a drag operation.
+            elapsed = time.monotonic() - self._last_mouse_release_time
+            if elapsed < 0.3:
+                logger.debug(f"Ctrl+C SKIPPED: only {elapsed*1000:.0f}ms since mouse release (likely spurious)")
+                super().keyPressEvent(event)
+                return
             self.on_copy()
         elif event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_S:
             self.on_save()
@@ -334,6 +360,7 @@ class OverlayEventHandlerMixin:
         """Execute auto action based on capture_after_action setting."""
         s = self.ctx.settings
         action = s.capture_after_action
+        logger.debug(f"_auto_finish: action={action}")
 
         if action == "copy":
             logger.info("Auto-finishing: copy to clipboard")
@@ -360,6 +387,7 @@ class OverlayEventHandlerMixin:
         pixmap = self._render_annotated_pixmap()
         pixmap.save(filepath)
         logger.info(f"Auto-saved to {filepath}")
+        logger.debug("CLOSE TRIGGER: auto-save completed")
         self.close()
 
     def _execute_erase_fill(self) -> None:
