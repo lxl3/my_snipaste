@@ -24,7 +24,10 @@ PYINSTALLER_HIDDEN_IMPORTS = [
     "pynput._util.darwin",
     "pynput.keyboard._darwin",
 ]
-PYINSTALLER_EXCLUDES = ["tkinter", "matplotlib"]
+PYINSTALLER_EXCLUDES = [
+    "tkinter", "matplotlib",
+    "numpy", "PIL.ImageQt",
+]
 
 
 def get_project_dir() -> Path:
@@ -315,6 +318,87 @@ def sign_app(app_path: Path) -> None:
 
 
 # ─── macOS .icns icon ───
+
+
+# ─── Post-build app pruning ───
+
+
+def prune_app(app_path: Path) -> None:
+    """Remove unused Qt frameworks, translations, and numpy from a bundled .app.
+
+    Call this AFTER PyInstaller finishes but BEFORE codesigning.
+    """
+    frameworks = app_path / "Contents" / "Frameworks"
+    resources = app_path / "Contents" / "Resources"
+    qt_lib = frameworks / "PySide6" / "Qt" / "lib"
+
+    print_step("裁剪打包体积——移除无用模块")
+
+    numpy_dirs = [frameworks / "numpy", frameworks / "numpy-2.2.5.dist-info"]
+    for d in numpy_dirs:
+        if d.exists():
+            sz = d.stat().st_size
+            shutil.rmtree(d)
+            print(f"  删除: numpy ({sz / (1024*1024):.1f} MB)")
+    res_numpy = resources / "numpy"
+    if res_numpy.exists():
+        res_numpy.is_symlink() and res_numpy.unlink() or shutil.rmtree(res_numpy)
+
+    UNUSED_QT_FRAMEWORKS = [
+        "QtPdf.framework",
+        "QtQuick.framework",
+        "QtQml.framework",
+        "QtQmlModels.framework",
+        "QtQmlMeta.framework",
+        "QtQmlWorkerScript.framework",
+        "QtVirtualKeyboard.framework",
+        "QtNetwork.framework",
+        "QtDBus.framework",
+        "QtOpenGL.framework",
+    ]
+    removed_bytes = 0
+    for name in UNUSED_QT_FRAMEWORKS:
+        path = qt_lib / name
+        if path.exists():
+            size = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+            shutil.rmtree(path)
+            removed_bytes += size
+            print(f"  删除: {name} ({size / (1024*1024):.1f} MB)")
+
+    unused_bindings = [
+        frameworks / "PySide6/QtNetwork.abi3.so",
+        frameworks / "PySide6/QtDBus.abi3.so",
+    ]
+    for path in unused_bindings:
+        if path.exists():
+            sz = path.stat().st_size
+            removed_bytes += sz
+            path.unlink()
+            print(f"  删除: {path.name} ({sz / (1024*1024):.1f} MB)")
+
+    trans_dir = frameworks / "PySide6" / "Qt" / "translations"
+    if trans_dir.exists():
+        keep = {"qt_zh_CN.qm", "qtbase_zh_CN.qm"}
+        for f in trans_dir.iterdir():
+            if f.suffix == ".qm" and f.name not in keep:
+                sz = f.stat().st_size
+                removed_bytes += sz
+                f.unlink()
+        print(f"  清理 Qt 翻译: 仅保留 zh_CN")
+
+    for lib in ["libcrypto.3.dylib", "libssl.3.dylib"]:
+        path = frameworks / lib
+        if path.exists():
+            sz = path.stat().st_size
+            removed_bytes += sz
+            path.unlink()
+            print(f"  删除: {lib} ({sz / (1024*1024):.1f} MB)")
+        res_sym = resources / lib
+        res_sym.exists() and res_sym.unlink()
+
+    print(f"\n  裁剪总量: {removed_bytes / (1024*1024):.1f} MB")
+    total = sum(f.stat().st_size for f in app_path.rglob("*") if f.is_file())
+    print(f"  剩余大小: {total / (1024*1024):.1f} MB")
 
 
 def create_icns(project_dir: Path) -> None:

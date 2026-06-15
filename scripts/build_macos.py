@@ -19,6 +19,7 @@ from build_common import (
     find_tesseract,
     prepare_tesseract_bundle,
     patch_info_plist,
+    prune_app,
     sign_app,
     create_icns,
 )
@@ -76,6 +77,7 @@ def build_app() -> bool:
             print(f"  大小: {total_size / (1024 * 1024):.1f} MB")
             if tesseract_bin:
                 print("  Tesseract OCR: 已打包")
+            prune_app(app_path)
             patch_info_plist(app_path)
             sign_app(app_path)
             return True

@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from build_common import (
     BUILD_NAME,
+    PYINSTALLER_EXCLUDES,
     print_step,
     clean_build,
     check_source_changed,
@@ -187,6 +188,9 @@ def run_pyinstaller(use_spec=True, force_rebuild=False, onedir=False) -> bool:
         icon = PROJECT_DIR / ("icon.ico" if is_windows else "icon.icns")
         if icon.exists():
             cmd.extend(["--icon", str(icon)])
+
+        for mod in PYINSTALLER_EXCLUDES:
+            cmd.extend(["--exclude-module", mod])
 
         cmd.extend(add_data_args)
         cmd.append(str(PROJECT_DIR / "main.py"))
