@@ -12,9 +12,10 @@ class ToastNotification(QWidget):
 
     # 图标背景颜色方案（用于圆形图标容器）
     ICON_COLORS = {
-        "success": ("#28A745", "#20803A"),  # 绿色渐变
-        "info": ("#00897B", "#00695C"),     # 深青渐变
-        "error": ("#DC3545", "#A82835"),    # 红色渐变
+        "success": ("#28A745", "#20803A"),
+        "info": ("#00897B", "#00695C"),
+        "warning": ("#FF9800", "#E68900"),
+        "error": ("#DC3545", "#A82835"),
     }
 
     def __init__(self, message: str, icon: str = "✓",
