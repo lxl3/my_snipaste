@@ -40,8 +40,8 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/your-username/my_snipaste.git
-cd my_snipaste
+git clone https://github.com/your-username/opensnipaste.git
+cd opensnipaste
 
 # 2. 安装依赖
 pip install -r requirements.txt
@@ -151,7 +151,7 @@ dist/openSnipaste.exe
 ## 项目结构
 
 ```
-my_snipaste/
+opensnipaste/
 ├── main.py                    # 入口文件
 ├── pyproject.toml             # 项目配置（版本、pytest、ruff）
 ├── requirements.txt           # Python 依赖

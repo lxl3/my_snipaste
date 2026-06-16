@@ -4,7 +4,7 @@
 
 ### 1. 启用 Gitee Go
 
-1. 打开仓库：https://gitee.com/xin-lin-lll/my_snipaste
+1. 打开仓库：https://gitee.com/xin-lin-lll/opensnipaste
 2. 点击 **服务** → **Gitee Go**
 3. 点击 **启用 Gitee Go**
 4. 授权必要权限

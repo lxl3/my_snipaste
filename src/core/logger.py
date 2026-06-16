@@ -157,7 +157,7 @@ def setup_logger(name="openSnipaste", level=logging.DEBUG, enable_colors=True):
 
     # ─── /tmp/ fallback (for packaged app) ───
     try:
-        tmp_log = "/tmp/my_snipaste.log"
+        tmp_log = "/tmp/opensnipaste.log"
         tmp_handler = SafeRotatingFileHandler(
             tmp_log,
             maxBytes=2 * 1024 * 1024,

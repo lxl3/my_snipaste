@@ -712,8 +712,8 @@ if assets_icons.exists():
 
 ```python
 datas=[
-    ('D:\\project\\my_snipaste\\tesseract_bundle\\tessdata', 'tesseract/tessdata'),
-    ('D:\\project\\my_snipaste\\assets\\icons', 'assets/icons'),  # 添加此行
+    ('D:\\project\\opensnipaste\\tesseract_bundle\\tessdata', 'tesseract/tessdata'),
+    ('D:\\project\\opensnipaste\\assets\\icons', 'assets/icons'),  # 添加此行
 ],
 ```
 
@@ -910,7 +910,7 @@ Co-Authored-By: Claude Sonnet 4 <noreply@anthropic.com>"
 ## 项目结构
 
 ```
-my_snipaste/
+opensnipaste/
 ├── main.py              # 入口文件
 ├── build.py             # 构建脚本（自动下载 Tesseract 并打包）
 ├── icon.ico             # 应用图标（多尺寸）

@@ -200,7 +200,7 @@ python -m py_compile src/editor.py
 运行程序，截一个大图（如全屏），验证工具栏显示：
 
 ```bash
-cd D:\project\my_snipaste
+cd D:\project\opensnipaste
 python main.py
 ```
 
@@ -413,7 +413,7 @@ Co-Authored-By: Claude Sonnet 4 <noreply@anthropic.com>"
 运行程序并截取小图：
 
 ```bash
-cd D:\project\my_snipaste
+cd D:\project\opensnipaste
 python main.py
 ```
 

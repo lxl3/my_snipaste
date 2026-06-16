@@ -262,7 +262,7 @@ cmd = [
 ### 项目结构
 
 ```
-my_snipaste/
+opensnipaste/
 ├── icon.ico                 # 主图标文件（多尺寸）
 ├── assets/
 │   └── icons/

@@ -28,7 +28,7 @@ class TestGetAppDir:
 
     def test_ends_with_project_root(self):
         path = _get_app_dir()
-        assert path.endswith("my_snipaste")
+        assert path.endswith("opensnipaste")
 
     def test_not_frozen_in_test(self):
         path = _get_app_dir()

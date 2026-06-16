@@ -4,7 +4,7 @@
 
 ### 查看构建状态
 
-**仓库地址**: https://github.com/lxl3/my_snipaste
+**仓库地址**: https://github.com/lxl3/opensnipaste
 
 1. 打开仓库页面
 2. 点击 **Actions** 标签
@@ -99,7 +99,7 @@ git push github v1.0.0
 # 5. 等待 12-15 分钟
 
 # 6. 查看 Release
-# https://github.com/lxl3/my_snipaste/releases
+# https://github.com/lxl3/opensnipaste/releases
 ```
 
 ---
@@ -233,7 +233,7 @@ on:
 在 `README.md` 中添加构建状态徽章：
 
 ```markdown
-![Build Status](https://github.com/lxl3/my_snipaste/actions/workflows/build-cross-platform.yml/badge.svg)
+![Build Status](https://github.com/lxl3/opensnipaste/actions/workflows/build-cross-platform.yml/badge.svg)
 ```
 
 ### 邮件通知
@@ -258,5 +258,5 @@ on:
 ## 技术支持
 
 - **GitHub Actions 文档**: https://docs.github.com/actions
-- **问题反馈**: https://github.com/lxl3/my_snipaste/issues
+- **问题反馈**: https://github.com/lxl3/opensnipaste/issues
 - **构建日志**: Actions → 运行记录 → 任务详情

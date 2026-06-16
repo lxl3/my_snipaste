@@ -62,7 +62,7 @@ git push origin v1.0.0
 
 ```bash
 # 添加 GitHub 远程仓库
-git remote add github https://github.com/your-username/my_snipaste.git
+git remote add github https://github.com/your-username/opensnipaste.git
 git push github master
 
 # 打标签触发构建
@@ -120,7 +120,7 @@ git push origin v1.0.0
 
 ```bash
 # 添加 GitHub 远程仓库
-git remote add github https://github.com/your-username/my_snipaste.git
+git remote add github https://github.com/your-username/opensnipaste.git
 
 # 推送所有内容
 git push github master

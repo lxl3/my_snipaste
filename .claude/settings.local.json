@@ -34,7 +34,7 @@
       "Bash(pkill -f \"python main.py\")",
       "Bash(tee /tmp/pin_debug.log)",
       "Bash(git *)",
-      "Bash(awk '/def _build_general_tab/,/def _build_capture_tab/ {if \\(/def _build_capture_tab/\\) exit; print NR}' \"D:\\\\project\\\\my_snipaste\\\\src\\\\ui\\\\settings_dialog.py\")",
+      "Bash(awk '/def _build_general_tab/,/def _build_capture_tab/ {if \\(/def _build_capture_tab/\\) exit; print NR}' \"D:\\\\project\\\\opensnipaste\\\\src\\\\ui\\\\settings_dialog.py\")",
       "Skill(frontend-design)",
       "Read(//mnt/d/project/**)",
       "Bash(sed -i 's/setAlignment\\(Qt\\\\.AlignCenter\\)/setAlignment\\(Qt.AlignVCenter\\)/g' src/overlay/toolbar.py)"

@@ -2,7 +2,7 @@
   "mcpServers": {
     "codegraph": {
       "command": "npx",
-      "args": ["@colbymchenry/codegraph", "serve", "--mcp", "--path", "/Users/a60036901/Desktop/project/AI/my_snipaste"],
+      "args": ["@colbymchenry/codegraph", "serve", "--mcp", "--path", "/Users/a60036901/Desktop/project/AI/opensnipaste"],
       "type": "stdio"
     }
   }

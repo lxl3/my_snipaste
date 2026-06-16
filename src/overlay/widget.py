@@ -250,7 +250,7 @@ class CaptureOverlay(OverlayEventHandlerMixin, OverlayRenderingMixin, OverlayAct
         if CaptureOverlay._first_paint:
             CaptureOverlay._first_paint = False
             try:
-                fp = os.path.join(os.environ.get("TEMP", os.environ.get("TMPDIR", ".")), "my_snipaste_debug_screenshot.png")
+                fp = os.path.join(os.environ.get("TEMP", os.environ.get("TMPDIR", ".")), "opensnipaste_debug_screenshot.png")
                 self.full_screenshot.save(fp)
                 logger.info(f"[paintEvent] saved debug screenshot to {fp}, "
                            f"size={self.full_screenshot.width()}x{self.full_screenshot.height()}, "
