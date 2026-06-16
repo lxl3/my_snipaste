@@ -5,4 +5,4 @@ from .app import SnipasteApp as SnipasteApp
 try:
     __version__ = importlib.metadata.version("MySnipaste")
 except importlib.metadata.PackageNotFoundError:
-    __version__ = "1.0.1"
+    __version__ = "1.2.0"
