@@ -3,7 +3,7 @@ name: frontend-design
 description: "Use when styling PySide6/Qt6 widget UIs, implementing dark/light theme switching, writing QSS (Qt Style Sheets), fixing theme adaptation bugs, or designing dialog/window layouts for this project. Triggers: 'theme', 'QSS', 'dark mode', 'light mode', 'styling', 'UI design', '暗色模式', '主题切换', '样式'."
 ---
 
-# PySide6/Qt6 Frontend Design for MySnipaste
+# PySide6/Qt6 Frontend Design for openSnipaste
 
 ## Overview
 

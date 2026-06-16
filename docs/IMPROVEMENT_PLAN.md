@@ -1,7 +1,7 @@
-# MySnipaste 项目改进建议
+# openSnipaste 项目改进建议
 
 ## 概述
-这是对 MySnipaste 截图工具项目的全面评估和改进建议。项目整体架构良好,文档完善,但在测试覆盖率、代码质量、项目配置等方面还有提升空间。
+这是对 openSnipaste 截图工具项目的全面评估和改进建议。项目整体架构良好,文档完善,但在测试覆盖率、代码质量、项目配置等方面还有提升空间。
 
 ---
 
@@ -296,7 +296,7 @@ repos:
 ```
 MIT License
 
-Copyright (c) 2026 MySnipaste Team
+Copyright (c) 2026 openSnipaste Team
 ...
 ```
 
@@ -471,7 +471,7 @@ import sentry_sdk
 sentry_sdk.init(
     dsn="https://...",
     environment="production",
-    release=f"mysnipaste@{__version__}"
+    release=f"opensnipaste@{__version__}"
 )
 ```
 
@@ -582,7 +582,7 @@ mypy src/
 
 # 5. 构建成功
 python scripts/build_windows.py
-# 预期: dist/MySnipaste.exe 生成成功
+# 预期: dist/openSnipaste.exe 生成成功
 
 # 6. 功能测试
 python main.py

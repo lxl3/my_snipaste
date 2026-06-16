@@ -53,7 +53,7 @@ class SettingsDialog(ThemeAwareDialog):
         self._load_settings()
 
     def _build_ui(self) -> None:
-        self.setWindowTitle(_("MySnipaste Settings"))
+        self.setWindowTitle(_("openSnipaste Settings"))
         self.setMinimumSize(520, 420)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setAttribute(Qt.WA_StyledBackground)
@@ -64,7 +64,7 @@ class SettingsDialog(ThemeAwareDialog):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        self._title_bar = TitleBar(self, _("MySnipaste Settings"))
+        self._title_bar = TitleBar(self, _("openSnipaste Settings"))
         outer.addWidget(self._title_bar)
 
         content = QWidget()
@@ -327,7 +327,7 @@ class SettingsDialog(ThemeAwareDialog):
         """导出设置到 JSON 文件"""
         path, _selected = QFileDialog.getSaveFileName(
             self, _("Export Settings"),
-            "mysnipaste_settings.json",
+            "opensnipaste_settings.json",
             _("JSON Files (*.json)")
         )
         if not path:

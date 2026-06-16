@@ -1,4 +1,4 @@
-# MySnipaste 重构计划
+# openSnipaste 重构计划
 
 ## Goal
 消除架构债务：死代码、不一致导入、上帝类，不引入新功能。

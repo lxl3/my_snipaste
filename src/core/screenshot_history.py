@@ -25,7 +25,7 @@ class ScreenshotHistory:
     Automatically cleans up old screenshots when the limit is exceeded.
 
     Storage structure:
-        ~/.config/MySnipaste/history/
+        ~/.config/openSnipaste/history/
         ├── 20260527_143022.png
         ├── 20260527_143045.png
         └── history.json
@@ -51,10 +51,10 @@ class ScreenshotHistory:
 
         Args:
             history_dir: Optional custom directory (for testing).
-                        Default: Path.home() / ".config/MySnipaste/history"
+                        Default: Path.home() / ".config/openSnipaste/history"
         """
         if history_dir is None:
-            self._history_dir = Path.home() / ".config" / "MySnipaste" / "history"
+            self._history_dir = Path.home() / ".config" / "openSnipaste" / "history"
         else:
             self._history_dir = Path(history_dir)
 

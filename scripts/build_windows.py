@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-MySnipaste Windows 构建脚本（PyInstaller，自动下载 Tesseract）
+openSnipaste Windows 构建脚本（PyInstaller，自动下载 Tesseract）
 
 用法:
     python scripts/build_windows.py
@@ -215,7 +215,7 @@ def run_pyinstaller(use_spec=True, force_rebuild=False, onedir=False) -> bool:
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="MySnipaste Windows 构建工具")
+    parser = argparse.ArgumentParser(description="openSnipaste Windows 构建工具")
     parser.add_argument("--skip-download", action="store_true", help="跳过 Tesseract 下载")
     parser.add_argument("--force-rebuild", action="store_true", help="强制重新构建")
     parser.add_argument("--no-spec", action="store_true", help="不使用 spec 文件")

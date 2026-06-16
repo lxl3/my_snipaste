@@ -1,4 +1,4 @@
-# MySnipaste 重构计划
+# openSnipaste 重构计划
 
 > 创建日期：2024-06-08  
 > 状态：已完成

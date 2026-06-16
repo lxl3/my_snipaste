@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-MySnipaste Windows Nuitka 构建脚本
+openSnipaste Windows Nuitka 构建脚本
 
 用法:
     python scripts/build_nuitka_windows.py
@@ -139,7 +139,7 @@ def build_and_package():
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="MySnipaste Windows Nuitka 构建工具")
+    parser = argparse.ArgumentParser(description="openSnipaste Windows Nuitka 构建工具")
     parser.add_argument(
         "--clean", "-c", action="store_true",
         help="清理旧构建文件，强制从零编译（默认：增量编译，更快）",
@@ -147,7 +147,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 60)
-    print("  MySnipaste Windows Nuitka 构建工具")
+    print("  openSnipaste Windows Nuitka 构建工具")
     print("=" * 60)
 
     if sys.platform != "win32":

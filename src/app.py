@@ -45,12 +45,12 @@ class SnipasteApp(QApplication, SnipasteCaptureMixin):
         if sys.platform == "darwin":
             QApplication.setAttribute(Qt.AA_DontShowIconsInMenus, False)
         super().__init__(argv)
-        self.setApplicationName("MySnipaste")
-        self.setOrganizationName("MySnipaste")
+        self.setApplicationName("openSnipaste")
+        self.setOrganizationName("openSnipaste")
         self.setQuitOnLastWindowClosed(False)
 
         # 阶段 1: 最小化初始化 - 只设置必要的内容
-        logger.info("MySnipaste 启动 - 阶段 1: 基础设置")
+        logger.info("openSnipaste 启动 - 阶段 1: 基础设置")
 
         self.overlay: CaptureOverlay | None = None
         self.countdown_overlay: CountdownOverlay | None = None
@@ -73,7 +73,7 @@ class SnipasteApp(QApplication, SnipasteCaptureMixin):
 
     def _async_init(self) -> None:
         """异步初始化重量级组件，避免阻塞托盘显示"""
-        logger.info("MySnipaste 启动 - 阶段 2: 异步加载组件")
+        logger.info("openSnipaste 启动 - 阶段 2: 异步加载组件")
 
         # 加载翻译文件
         load_translations(self.settings.language)
@@ -127,7 +127,7 @@ class SnipasteApp(QApplication, SnipasteCaptureMixin):
         else:
             logger.warning("Input Monitoring 权限未授予，全局快捷键不可用")
 
-        logger.info("MySnipaste 应用初始化完成")
+        logger.info("openSnipaste 应用初始化完成")
 
         # 阶段 3: 显示启动提示框
         if have_hotkey:
@@ -143,7 +143,7 @@ class SnipasteApp(QApplication, SnipasteCaptureMixin):
         self._menu_widget = QWidget()
         self._menu_widget.setAttribute(Qt.WA_DontShowOnScreen, True)
         self._menubar = QMenuBar(self._menu_widget)
-        app_menu = self._menubar.addMenu("MySnipaste")
+        app_menu = self._menubar.addMenu("openSnipaste")
         pref = app_menu.addAction(_("Preferences..."))
         pref.setMenuRole(QAction.PreferencesRole)
         pref.triggered.connect(self._open_settings)

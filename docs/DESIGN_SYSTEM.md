@@ -1,4 +1,4 @@
-# MySnipaste 设计系统
+# openSnipaste 设计系统
 
 > 最后更新: 2026-06-04
 > 负责人: 开发团队

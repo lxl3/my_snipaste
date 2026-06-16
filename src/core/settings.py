@@ -19,7 +19,7 @@ def _get_settings_dir() -> str:
             base = os.environ.get("APPDATA", os.path.expanduser("~"))
         else:
             base = os.path.expanduser("~/.config")
-        _SETTINGS_DIR = os.path.join(base, "MySnipaste")
+        _SETTINGS_DIR = os.path.join(base, "openSnipaste")
     return _SETTINGS_DIR
 
 

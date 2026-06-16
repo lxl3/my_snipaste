@@ -84,8 +84,8 @@ ocr_logger.debug("OCR 引擎初始化")
 
 输出示例：
 ```
-12:34:56 [INFO    ] MySnipaste.screenshot: 截图开始
-12:34:57 [DEBUG   ] MySnipaste.ocr: OCR 引擎初始化
+12:34:56 [INFO    ] openSnipaste.screenshot: 截图开始
+12:34:57 [DEBUG   ] openSnipaste.ocr: OCR 引擎初始化
 ```
 
 ### 记录异常
@@ -135,17 +135,17 @@ all_handler = RotatingFileHandler(
 ### 控制台格式（彩色）
 
 ```
-13:45:12 [INFO    ] MySnipaste: 程序启动
-13:45:13 [WARNING ] MySnipaste.ocr: 检测到低内存
-13:45:14 [ERROR   ] MySnipaste.screenshot: 截图失败
+13:45:12 [INFO    ] openSnipaste: 程序启动
+13:45:13 [WARNING ] openSnipaste.ocr: 检测到低内存
+13:45:14 [ERROR   ] openSnipaste.screenshot: 截图失败
 ```
 
 ### 文件格式（带行号）
 
 ```
-2026-05-22 13:45:12 [INFO    ] MySnipaste:45 - 程序启动
-2026-05-22 13:45:13 [WARNING ] MySnipaste.ocr:128 - 检测到低内存
-2026-05-22 13:45:14 [ERROR   ] MySnipaste.screenshot:203 - 截图失败
+2026-05-22 13:45:12 [INFO    ] openSnipaste:45 - 程序启动
+2026-05-22 13:45:13 [WARNING ] openSnipaste.ocr:128 - 检测到低内存
+2026-05-22 13:45:14 [ERROR   ] openSnipaste.screenshot:203 - 截图失败
 ```
 
 ## 清理旧日志

@@ -1,4 +1,4 @@
-# MySnipaste 构建指南
+# openSnipaste 构建指南
 
 ## 本地构建
 
@@ -11,7 +11,7 @@ pip install -r requirements.txt
 # 构建（自动下载 Tesseract）
 python scripts/build_windows.py
 
-# 输出：dist/MySnipaste.exe
+# 输出：dist/openSnipaste.exe
 ```
 
 ### macOS
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 # 构建
 python scripts/build_macos.py
 
-# 输出：dist/MySnipaste.app
+# 输出：dist/openSnipaste.app
 ```
 
 ---
@@ -72,9 +72,9 @@ git push github v1.0.0
 
 ### 构建产物
 
-- **Windows**: `MySnipaste-Windows.zip`
-- **macOS**: `MySnipaste-macOS.zip`
-- **GitHub 额外**: `MySnipaste-macOS.dmg` (仅 GitHub Actions)
+- **Windows**: `openSnipaste-Windows.zip`
+- **macOS**: `openSnipaste-macOS.zip`
+- **GitHub 额外**: `openSnipaste-macOS.dmg` (仅 GitHub Actions)
 
 ---
 
@@ -144,7 +144,7 @@ git push github --tags
 
 **A:** 可能的原因：
 1. **代码签名**：macOS 未签名应用需要右键打开
-2. **权限问题**：运行 `chmod +x MySnipaste.app/Contents/MacOS/*`
+2. **权限问题**：运行 `chmod +x openSnipaste.app/Contents/MacOS/*`
 3. **Tesseract 路径**：确保应用能找到 Tesseract
 
 ### Q: 如何自定义图标？

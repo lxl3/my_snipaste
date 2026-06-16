@@ -1,10 +1,10 @@
-# MySnipaste 架构与执行流程
+# openSnipaste 架构与执行流程
 
-本文档详细介绍 MySnipaste 项目的架构设计、执行流程和各功能的实现方式。
+本文档详细介绍 openSnipaste 项目的架构设计、执行流程和各功能的实现方式。
 
 ## 📋 项目概述
 
-MySnipaste 是一个基于 **PySide6 (Qt6)** 的跨平台截图工具，核心功能包括：
+openSnipaste 是一个基于 **PySide6 (Qt6)** 的跨平台截图工具，核心功能包括：
 - 📸 截图（多屏支持、高DPI适配）
 - ✏️ 标注（形状、箭头、画笔、马赛克、文字）
 - 📌 贴图（钉到桌面）
@@ -40,13 +40,13 @@ graph TD
 **步骤 1: 基础配置**
 ```python
 # 设置应用元数据
-self.setApplicationName("MySnipaste")
-self.setOrganizationName("MySnipaste")
+self.setApplicationName("openSnipaste")
+self.setOrganizationName("openSnipaste")
 self.setQuitOnLastWindowClosed(False)  # 托盘应用不随窗口关闭退出
 ```
 
 **步骤 2: 设置管理** (`src/core/settings.py`)
-- 从 `~/.config/MySnipaste/settings.json` 加载配置
+- 从 `~/.config/openSnipaste/settings.json` 加载配置
 - 支持的设置项：
   - 快捷键 (`hotkey`)
   - 语言 (`language`)
@@ -850,7 +850,7 @@ def show_permission_dialog():
     msg.setIcon(QMessageBox.Warning)
     msg.setWindowTitle("Permission Required")
     msg.setText(
-        "MySnipaste needs permissions to work:\n\n"
+        "openSnipaste needs permissions to work:\n\n"
         "1. Input Monitoring - for global hotkeys\n"
         "2. Screen Recording - for screenshots\n\n"
         "Click 'Open System Settings' to grant permissions."
@@ -879,7 +879,7 @@ def open_screen_recording_settings():
 ```json
 // src/resources/locales/zh_CN.json
 {
-    "MySnipaste Started": "MySnipaste 已启动",
+    "openSnipaste Started": "openSnipaste 已启动",
     "Press {hotkey} to capture": "按 {hotkey} 启动截图",
     "Settings...": "设置...",
     "Quit": "退出"
@@ -916,7 +916,7 @@ import PyInstaller.__main__
 
 PyInstaller.__main__.run([
     'main.py',
-    '--name=MySnipaste',
+    '--name=openSnipaste',
     '--windowed',                    # GUI 应用（无控制台）
     '--onefile',                     # 单文件
     '--icon=icon.ico',
@@ -1280,4 +1280,4 @@ def test_hotkey_listener():
 
 **文档版本**: 1.0  
 **更新时间**: 2026-05-27  
-**维护者**: MySnipaste Team
+**维护者**: openSnipaste Team

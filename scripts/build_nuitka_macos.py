@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-MySnipaste macOS Nuitka 构建脚本
+openSnipaste macOS Nuitka 构建脚本
 
 用法:
     python scripts/build_nuitka_macos.py
@@ -125,7 +125,7 @@ def build_and_package():
 
 def main():
     print("=" * 60)
-    print("  MySnipaste macOS Nuitka 构建工具")
+    print("  openSnipaste macOS Nuitka 构建工具")
     print("=" * 60)
 
     try:
@@ -146,7 +146,7 @@ def main():
     print("  [OK] macOS Nuitka 构建完成")
     print("=" * 60)
     print(f"\n输出位置: {DIST_DIR / BUILD_NAME}.app")
-    print("\n测试运行: open dist/MySnipaste.app")
+    print("\n测试运行: open dist/openSnipaste.app")
 
 
 if __name__ == "__main__":

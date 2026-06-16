@@ -117,7 +117,7 @@ class OcrWorker(QThread):
                 self.error.emit(_("Tesseract OCR engine is not ready"))
                 return
 
-            tmp_dir = tempfile.mkdtemp(prefix="mysnipaste_ocr_")
+            tmp_dir = tempfile.mkdtemp(prefix="opensnipaste_ocr_")
             input_path = os.path.join(tmp_dir, "input.png")
             self.pil_image.save(input_path, format="PNG")
 

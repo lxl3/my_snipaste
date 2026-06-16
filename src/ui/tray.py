@@ -45,9 +45,9 @@ class TrayManager(QObject):
         icon = create_app_icon()
         self.tray_icon = QSystemTrayIcon(icon)
         if have_hotkey:
-            self.tray_icon.setToolTip(_("MySnipaste - Press {hotkey} to capture").format(hotkey=hotkey_display))
+            self.tray_icon.setToolTip(_("openSnipaste - Press {hotkey} to capture").format(hotkey=hotkey_display))
         else:
-            self.tray_icon.setToolTip(_("MySnipaste - Click tray icon to capture"))
+            self.tray_icon.setToolTip(_("openSnipaste - Click tray icon to capture"))
 
         menu = QMenu() if _IS_MAC else GlassMenu()
         label = _("Capture ({hotkey})").format(hotkey=hotkey_display)
@@ -134,9 +134,9 @@ class TrayManager(QObject):
             self._quit_action.setText(_("Quit"))
         if self.tray_icon:
             self.tray_icon.setToolTip(
-                _("MySnipaste - Press {hotkey} to capture").format(hotkey=hotkey_display)
+                _("openSnipaste - Press {hotkey} to capture").format(hotkey=hotkey_display)
                 if have_hotkey
-                else _("MySnipaste - Click tray icon to capture")
+                else _("openSnipaste - Click tray icon to capture")
             )
 
     def _apply_menu_style(self) -> None:

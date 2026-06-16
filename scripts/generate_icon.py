@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-MySnipaste 图标生成脚本
+openSnipaste 图标生成脚本
 
 根据 SVG 设计生成多尺寸应用图标：
 - 透明背景
@@ -153,7 +153,7 @@ def generate_ico_icon():
 def main():
     """主函数"""
     print("=" * 60)
-    print("  MySnipaste 图标生成工具")
+    print("  openSnipaste 图标生成工具")
     print("=" * 60)
 
     # 生成 PNG

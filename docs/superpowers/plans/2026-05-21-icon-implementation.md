@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 为 MySnipaste 创建并集成应用图标（圆角框+字母A，深灰色系，多尺寸支持）
+**Goal:** 为 openSnipaste 创建并集成应用图标（圆角框+字母A，深灰色系，多尺寸支持）
 
 **Architecture:** 使用 Python/Pillow 生成矢量图标，支持多尺寸（16-256px），导出为 ICO 和 PNG 格式，集成到 PyInstaller 构建流程和系统托盘显示
 
@@ -23,7 +23,7 @@
 - `tests/test_icon_generation.py` - 图标生成测试
 
 ### 修改文件
-- `MySnipaste.spec` - 添加 icon 参数
+- `openSnipaste.spec` - 添加 icon 参数
 - `build.py` - 添加 --icon 参数
 - `src/app.py` - 加载系统托盘图标
 
@@ -41,7 +41,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-MySnipaste 图标生成脚本
+openSnipaste 图标生成脚本
 
 根据设计规格生成多尺寸应用图标：
 - 圆角矩形框（截图功能）
@@ -211,7 +211,7 @@ def generate_ico_icon():
 def main():
     """主函数"""
     print("=" * 60)
-    print("  MySnipaste 图标生成工具")
+    print("  openSnipaste 图标生成工具")
     print("=" * 60)
     
     # 生成 PNG
@@ -430,7 +430,7 @@ python scripts/generate_icon.py
 期望输出：
 ```
 ============================================================
-  MySnipaste 图标生成工具
+  openSnipaste 图标生成工具
 ============================================================
 正在生成 PNG 图标...
   ✓ icon-16.png
@@ -504,20 +504,20 @@ Co-Authored-By: Claude Sonnet 4 <noreply@anthropic.com>"
 ## Task 3: 集成图标到 PyInstaller 构建
 
 **Files:**
-- Modify: `MySnipaste.spec:29`
+- Modify: `openSnipaste.spec:29`
 - Modify: `build.py:183`
 
 - [ ] **Step 1: 读取当前 spec 文件**
 
 ```bash
-cat MySnipaste.spec | grep -A 5 "exe = EXE"
+cat openSnipaste.spec | grep -A 5 "exe = EXE"
 ```
 
 确认当前没有 icon 参数
 
-- [ ] **Step 2: 修改 MySnipaste.spec 添加 icon 参数**
+- [ ] **Step 2: 修改 openSnipaste.spec 添加 icon 参数**
 
-在 `MySnipaste.spec` 的 `exe = EXE(...)` 部分，在 `console=False,` 之后添加 `icon` 参数：
+在 `openSnipaste.spec` 的 `exe = EXE(...)` 部分，在 `console=False,` 之后添加 `icon` 参数：
 
 ```python
 exe = EXE(
@@ -526,7 +526,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='MySnipaste',
+    name='openSnipaste',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -586,7 +586,7 @@ if not use_spec:
 
 ```bash
 # 查看 spec 文件修改
-git diff MySnipaste.spec
+git diff openSnipaste.spec
 
 # 查看 build.py 修改
 git diff build.py
@@ -597,10 +597,10 @@ git diff build.py
 - [ ] **Step 5: Commit**
 
 ```bash
-git add MySnipaste.spec build.py
+git add openSnipaste.spec build.py
 git commit -m "feat: 集成图标到 PyInstaller 构建流程
 
-- MySnipaste.spec: 添加 icon='icon.ico' 参数
+- openSnipaste.spec: 添加 icon='icon.ico' 参数
 - build.py: 命令行模式添加 --icon 参数
 - 打包后的 exe 将显示自定义图标
 
@@ -722,13 +722,13 @@ datas=[
 ```bash
 git diff src/app.py
 git diff build.py
-git diff MySnipaste.spec
+git diff openSnipaste.spec
 ```
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/app.py build.py MySnipaste.spec
+git add src/app.py build.py openSnipaste.spec
 git commit -m "feat: 更新系统托盘使用自定义图标
 
 - 添加 load_app_icon() 方法加载图标
@@ -781,7 +781,7 @@ python build.py --skip-download
 # 在 Windows 资源管理器中查看
 explorer dist
 
-# 右键 MySnipaste.exe -> 属性，查看图标
+# 右键 openSnipaste.exe -> 属性，查看图标
 ```
 
 验证清单：
@@ -792,7 +792,7 @@ explorer dist
 - [ ] **Step 4: 运行打包后的应用测试托盘图标**
 
 ```bash
-dist\MySnipaste.exe
+dist\openSnipaste.exe
 ```
 
 验证清单：
@@ -821,12 +821,12 @@ def test_icon_in_build():
     print("\n测试构建集成...")
     
     # 检查 spec 文件
-    spec_path = PROJECT_DIR / "MySnipaste.spec"
+    spec_path = PROJECT_DIR / "openSnipaste.spec"
     if spec_path.exists():
         content = spec_path.read_text(encoding='utf-8')
         assert "icon='icon.ico'" in content or 'icon="icon.ico"' in content, \
             "spec 文件中未找到 icon 参数"
-        print("  ✓ MySnipaste.spec 包含 icon 参数")
+        print("  ✓ openSnipaste.spec 包含 icon 参数")
     
     # 检查 build.py
     build_path = PROJECT_DIR / "build.py"
@@ -878,7 +878,7 @@ python tests/test_icon_generation.py
 期望输出包含：
 ```
 测试构建集成...
-  ✓ MySnipaste.spec 包含 icon 参数
+  ✓ openSnipaste.spec 包含 icon 参数
   ✓ build.py 包含 --icon 参数
   ✓ 构建配置正确
 ```
@@ -949,7 +949,7 @@ my_snipaste/
 ```markdown
 ## 应用图标
 
-MySnipaste 使用自定义设计的应用图标：
+openSnipaste 使用自定义设计的应用图标：
 
 **设计元素：**
 - 🔲 圆角矩形框 - 象征截图选区
@@ -1033,7 +1033,7 @@ python build.py --skip-download --force-rebuild
 
 ```bash
 ls -lh icon.ico assets/icons/*.png
-ls -lh dist/MySnipaste.exe
+ls -lh dist/openSnipaste.exe
 ```
 
 确认：
@@ -1103,7 +1103,7 @@ Co-Authored-By: Claude Sonnet 4 <noreply@anthropic.com>"
 - [ ] `tests/test_icon_generation.py` 所有测试通过
 
 ### 集成验证
-- [ ] `MySnipaste.spec` 包含 `icon='icon.ico'`
+- [ ] `openSnipaste.spec` 包含 `icon='icon.ico'`
 - [ ] `build.py` 包含 `--icon` 参数
 - [ ] `src/app.py` 加载并使用自定义图标
 - [ ] 图标资源被正确打包到 exe 中
@@ -1155,7 +1155,7 @@ Co-Authored-By: Claude Sonnet 4 <noreply@anthropic.com>"
 1. 检查 PNG 文件是否被正确打包：
    ```bash
    # 解压 exe 查看
-   pyinstaller MySnipaste.spec --debug
+   pyinstaller openSnipaste.spec --debug
    ```
 2. 检查路径是否正确（开发环境 vs 打包环境）
 3. 降级使用 ICO 文件：

@@ -219,7 +219,7 @@ class GeneralTab(BaseTab):
             _("Permission Settings"),
             _("System Settings opened.\n\n"
               "Please enable Input Monitoring and Screen Recording permissions,\n"
-              "then restart MySnipaste for changes to take effect.")
+              "then restart openSnipaste for changes to take effect.")
         )
 
     def load_settings(self, settings: AppSettings):

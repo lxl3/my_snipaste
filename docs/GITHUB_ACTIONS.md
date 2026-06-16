@@ -32,13 +32,13 @@ GitHub Actions 会在以下情况自动运行：
 #### 1. Build Windows App
 - **环境**: Windows Server 2022
 - **Python**: 3.12
-- **输出**: `MySnipaste-Windows.zip`
+- **输出**: `openSnipaste-Windows.zip`
 - **时长**: ~8-10 分钟
 
 #### 2. Build macOS App
 - **环境**: macOS 13
 - **Python**: 3.12
-- **输出**: `MySnipaste-macOS.dmg` + `MySnipaste-macOS.zip`
+- **输出**: `openSnipaste-macOS.dmg` + `openSnipaste-macOS.zip`
 - **时长**: ~10-12 分钟
 
 #### 3. Create Release
@@ -56,8 +56,8 @@ GitHub Actions 会在以下情况自动运行：
 1. Actions → 选择运行记录
 2. 滚动到底部 → Artifacts
 3. 下载：
-   - `MySnipaste-Windows`
-   - `MySnipaste-macOS`
+   - `openSnipaste-Windows`
+   - `openSnipaste-macOS`
 
 ### 方式2：从 Releases 下载
 
@@ -182,7 +182,7 @@ jobs:
 # 修改 artifact 名称
 - uses: actions/upload-artifact@v4
   with:
-    name: MySnipaste-Windows-v${{ github.ref_name }}
+    name: openSnipaste-Windows-v${{ github.ref_name }}
 ```
 
 ### 条件执行

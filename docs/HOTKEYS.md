@@ -50,9 +50,9 @@ alt / option       # Alt/Option 键
 ```
 
 **配置文件位置**（计划）：
-- Windows: `%APPDATA%\MySnipaste\config.json`
-- macOS: `~/Library/Application Support/MySnipaste/config.json`
-- Linux: `~/.config/MySnipaste/config.json`
+- Windows: `%APPDATA%\openSnipaste\config.json`
+- macOS: `~/Library/Application Support/openSnipaste/config.json`
+- Linux: `~/.config/openSnipaste/config.json`
 
 ---
 
@@ -64,8 +64,8 @@ alt / option       # Alt/Option 键
 - 权限主体是 **Terminal.app** 或 **iTerm2.app**
 - 如果终端应用已有权限，快捷键可以直接工作
 
-**打包版本（`MySnipaste.app`）**：
-- 权限主体是 **MySnipaste.app** 本身
+**打包版本（`openSnipaste.app`）**：
+- 权限主体是 **openSnipaste.app** 本身
 - 需要单独授予 **Input Monitoring** 权限
 - 这是最常见的"打包后快捷键不工作"的原因
 
@@ -76,7 +76,7 @@ alt / option       # Alt/Option 键
 1. 打开 **系统设置**（macOS 13+）或 **系统偏好设置**（macOS 12-）
 2. 进入 **隐私与安全性** → **输入监控**
 3. 点击锁图标解锁（需要管理员密码）
-4. 点击 **+** 按钮，选择 **MySnipaste.app**
+4. 点击 **+** 按钮，选择 **openSnipaste.app**
 5. 勾选启用
 6. **完全退出并重启应用**（重要！）
 
@@ -114,7 +114,7 @@ tail -f logs/$(ls -t logs/ | head -1)/app.log
    python main.py
    
    # .app 模式
-   重新打开 MySnipaste.app
+   重新打开 openSnipaste.app
    ```
 
 2. **检查快捷键冲突**
@@ -182,12 +182,12 @@ else:
 2. **授予 Input Monitoring 权限**
    ```
    系统设置 → 隐私与安全性 → 输入监控
-   → 点击 + → 选择 MySnipaste.app → 勾选启用
+   → 点击 + → 选择 openSnipaste.app → 勾选启用
    ```
 
 3. **完全退出并重启应用**
    - 从托盘菜单选择「退出」（不要直接关闭窗口）
-   - 重新打开 MySnipaste.app
+   - 重新打开 openSnipaste.app
 
 4. **如果还是不行，重置权限数据库**（谨慎操作）
    ```bash
@@ -203,7 +203,7 @@ else:
 **为什么开发模式可以，打包后不行？**
 
 - 开发模式：权限主体是 Terminal.app（已有权限）
-- 打包版本：权限主体是 MySnipaste.app（需要单独授权）
+- 打包版本：权限主体是 openSnipaste.app（需要单独授权）
 
 ### Q: macOS 上快捷键不工作（开发模式）
 
@@ -228,7 +228,7 @@ else:
 
 2. **权限不足**
    - 某些防病毒软件可能拦截全局快捷键
-   - 解决：将 MySnipaste 添加到白名单
+   - 解决：将 openSnipaste 添加到白名单
 
 3. **其他应用占用**
    - 检查是否有其他截图软件在运行

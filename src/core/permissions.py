@@ -164,9 +164,9 @@ def show_permission_guide() -> None:
         return
     _SCREEN_CAPTURE_WARNED = True
     logger.warning("=" * 60)
-    logger.warning("  MySnipaste needs Screen Recording permission")
+    logger.warning("  openSnipaste needs Screen Recording permission")
     logger.warning("  System Settings > Privacy & Security > Screen Recording")
-    logger.warning("  Add and enable MySnipaste")
+    logger.warning("  Add and enable openSnipaste")
     logger.warning("=" * 60)
 
 
@@ -271,7 +271,7 @@ def show_permission_dialog(parent=None) -> None:
         status = get_permission_status()
 
         # Build status message
-        lines = ["MySnipaste 需要以下权限才能正常工作：\n"]
+        lines = ["openSnipaste 需要以下权限才能正常工作：\n"]
 
         if status["input_monitoring"]:
             lines.append("✓ Input Monitoring（输入监控）- 已授予")
@@ -297,7 +297,7 @@ def show_permission_dialog(parent=None) -> None:
             msg.setInformativeText(
                 "\n如何授予权限：\n"
                 "1. 点击下方「打开系统设置」按钮\n"
-                "2. 在「输入监控」中勾选 MySnipaste\n"
+                "2. 在「输入监控」中勾选 openSnipaste\n"
                 "3. 完全退出并重启应用\n\n"
                 "注意：直接点击窗口关闭按钮不会完全退出，\n"
                 "请从托盘菜单选择「退出」。"

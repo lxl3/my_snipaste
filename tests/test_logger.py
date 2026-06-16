@@ -18,20 +18,20 @@ from src.core.logger import (
 
 class TestSetupLogger:
     def test_returns_logger_instance(self):
-        logger = setup_logger("MySnipaste")
+        logger = setup_logger("openSnipaste")
         assert isinstance(logger, logging.Logger)
 
     def test_main_logger_name(self):
-        logger = setup_logger("MySnipaste")
-        assert logger.name == "MySnipaste"
+        logger = setup_logger("openSnipaste")
+        assert logger.name == "openSnipaste"
 
     def test_sub_logger_has_correct_name(self):
         sub = setup_logger("ocr")
-        assert sub.name == "MySnipaste.ocr"
+        assert sub.name == "openSnipaste.ocr"
 
     def test_sub_logger_inherits_handlers(self):
         """A sub-logger should propagate to the parent logger (no duplicate handlers)."""
-        main = setup_logger("MySnipaste")
+        main = setup_logger("openSnipaste")
         sub = setup_logger("ocr")
         # Sub-logger should not have its own handlers (inherits from parent)
         assert len(sub.handlers) == 0
@@ -39,12 +39,12 @@ class TestSetupLogger:
 
     def test_setup_twice_returns_same_instance(self):
         """Calling setup_logger twice for the same name should not duplicate handlers."""
-        first = setup_logger("MySnipaste")
-        second = setup_logger("MySnipaste")
+        first = setup_logger("openSnipaste")
+        second = setup_logger("openSnipaste")
         assert first is second
 
     def test_level_is_debug_by_default(self):
-        logger = setup_logger("MySnipaste")
+        logger = setup_logger("openSnipaste")
         assert logger.level == logging.DEBUG
 
 
@@ -52,35 +52,35 @@ class TestGetLogger:
     def test_returns_child_logger(self):
         logger = get_logger("test")
         assert isinstance(logger, logging.Logger)
-        assert logger.name == "MySnipaste.test"
+        assert logger.name == "openSnipaste.test"
 
 
 class TestApplyLogLevel:
     def test_apply_debug(self, monkeypatch):
-        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("MySnipaste"))
+        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("openSnipaste"))
         apply_log_level("DEBUG")
-        assert logging.getLogger("MySnipaste").level <= logging.DEBUG
+        assert logging.getLogger("openSnipaste").level <= logging.DEBUG
 
     def test_apply_info(self, monkeypatch):
-        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("MySnipaste"))
+        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("openSnipaste"))
         apply_log_level("INFO")
-        logger = logging.getLogger("MySnipaste")
+        logger = logging.getLogger("openSnipaste")
         assert logger.level == logging.INFO
 
     def test_apply_warning(self, monkeypatch):
-        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("MySnipaste"))
+        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("openSnipaste"))
         apply_log_level("WARNING")
-        assert logging.getLogger("MySnipaste").level == logging.WARNING
+        assert logging.getLogger("openSnipaste").level == logging.WARNING
 
     def test_apply_error(self, monkeypatch):
-        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("MySnipaste"))
+        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("openSnipaste"))
         apply_log_level("ERROR")
-        assert logging.getLogger("MySnipaste").level == logging.ERROR
+        assert logging.getLogger("openSnipaste").level == logging.ERROR
 
     def test_unknown_level_defaults_to_debug(self, monkeypatch):
-        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("MySnipaste"))
+        monkeypatch.setattr("src.core.logger.logger", logging.getLogger("openSnipaste"))
         apply_log_level("INVALID_LEVEL")
-        assert logging.getLogger("MySnipaste").level == logging.DEBUG
+        assert logging.getLogger("openSnipaste").level == logging.DEBUG
 
 
 class TestColoredFormatter:

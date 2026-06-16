@@ -1,4 +1,4 @@
-# MySnipaste UX 快速优化设计文档
+# openSnipaste UX 快速优化设计文档
 
 **设计日期**: 2026-05-27  
 **设计者**: Claude (基于用户需求)  
@@ -8,7 +8,7 @@
 
 ## 概述
 
-本设计针对 MySnipaste 截图工具的用户体验进行快速优化，重点解决用户反馈的三大痛点：
+本设计针对 openSnipaste 截图工具的用户体验进行快速优化，重点解决用户反馈的三大痛点：
 1. **视觉反馈缺失** - 操作后无明确提示
 2. **编辑体验不佳** - 工具设置不记忆、颜色选择不便
 3. **历史管理缺失** - 无法查看最近的截图
@@ -360,7 +360,7 @@ def _build_color_buttons(self, layout):
 
 **存储位置**:
 ```
-~/.config/MySnipaste/history/
+~/.config/openSnipaste/history/
 ├── 20260527_143022.png  # 截图文件
 ├── 20260527_143045.png
 ├── ...
@@ -397,7 +397,7 @@ class ScreenshotHistory:
     """截图历史管理"""
     
     def __init__(self):
-        self.history_dir = Path.home() / ".config/MySnipaste/history"
+        self.history_dir = Path.home() / ".config/openSnipaste/history"
         self.history_file = self.history_dir / "history.json"
         self.max_count = 100
     

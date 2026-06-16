@@ -58,11 +58,11 @@ class ColoredFormatter(logging.Formatter):
         return message
 
 
-def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
+def setup_logger(name="openSnipaste", level=logging.DEBUG, enable_colors=True):
     """配置并返回增强的日志记录器
 
     Args:
-        name: 日志记录器名称，非 "MySnipaste" 时自动作为子 logger
+        name: 日志记录器名称，非 "openSnipaste" 时自动作为子 logger
         level: 日志级别
         enable_colors: 是否在控制台启用颜色（Windows/Linux 均支持）
 
@@ -73,7 +73,7 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
         - 自动创建按日期命名的日志目录
     """
     # 非主 logger 时返回子 logger（继承父 logger 的 handlers）
-    if name != "MySnipaste":
+    if name != "openSnipaste":
         return get_logger(name)
 
     logger = logging.getLogger(name)
@@ -102,7 +102,7 @@ def setup_logger(name="MySnipaste", level=logging.DEBUG, enable_colors=True):
     # ─── File handler (rotating) ───
     global _LOG_DIR
     if getattr(sys, 'frozen', False):
-        _LOG_DIR = os.path.expanduser("~/Library/Logs/MySnipaste")
+        _LOG_DIR = os.path.expanduser("~/Library/Logs/openSnipaste")
     else:
         _LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
     log_dir = _LOG_DIR
@@ -179,16 +179,16 @@ logger = setup_logger()
 
 
 def apply_log_level(level_str: str) -> None:
-    """Apply a log level string (DEBUG/INFO/WARNING/ERROR) to all MySnipaste loggers at runtime.
+    """Apply a log level string (DEBUG/INFO/WARNING/ERROR) to all openSnipaste loggers at runtime.
 
     Updates both the logger levels and handler levels, except for error.log handlers
     which always remain at ERROR level.
     """
     level = getattr(logging, level_str.upper(), logging.DEBUG)
 
-    # Update all loggers that start with "MySnipaste"
+    # Update all loggers that start with "openSnipaste"
     for name, lg in logging.Logger.manager.loggerDict.items():
-        if isinstance(lg, logging.Logger) and name.startswith("MySnipaste"):
+        if isinstance(lg, logging.Logger) and name.startswith("openSnipaste"):
             lg.setLevel(level)
             for handler in lg.handlers:
                 # Keep error.log handler at ERROR level
@@ -200,8 +200,8 @@ def apply_log_level(level_str: str) -> None:
                         pass
                 handler.setLevel(level)
 
-    # Also update the main MySnipaste logger (may not be in loggerDict if not a PlaceHolder)
-    main_logger = logging.getLogger("MySnipaste")
+    # Also update the main openSnipaste logger (may not be in loggerDict if not a PlaceHolder)
+    main_logger = logging.getLogger("openSnipaste")
     main_logger.setLevel(level)
     for handler in main_logger.handlers:
         if isinstance(handler, logging.FileHandler):
@@ -215,7 +215,7 @@ def apply_log_level(level_str: str) -> None:
 
 def get_logger(name):
     """获取指定名称的日志记录器（继承主配置）"""
-    return logging.getLogger(f"MySnipaste.{name}")
+    return logging.getLogger(f"openSnipaste.{name}")
 
 
 def get_log_dir() -> str:

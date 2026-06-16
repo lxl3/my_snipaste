@@ -64,7 +64,7 @@ class LogViewerDialog(QDialog):
         title_layout = QHBoxLayout(title_bar)
         title_layout.setContentsMargins(16, 0, 8, 0)
 
-        title_label = QLabel(_("MySnipaste Log"))
+        title_label = QLabel(_("openSnipaste Log"))
         title_label.setStyleSheet(_t.qss("font-size: 14px; font-weight: 600; color: $text_primary;"))
         self._title_label = title_label
         title_layout.addWidget(title_label)

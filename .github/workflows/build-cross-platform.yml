@@ -42,13 +42,13 @@ jobs:
     - name: Create archive
       run: |
         cd dist
-        Compress-Archive -Path MySnipaste.exe -DestinationPath MySnipaste-Windows.zip
+        Compress-Archive -Path openSnipaste.exe -DestinationPath openSnipaste-Windows.zip
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: MySnipaste-Windows
-        path: dist/MySnipaste-Windows.zip
+        name: openSnipaste-Windows
+        path: dist/openSnipaste-Windows.zip
         retention-days: 30
 
   build-macos:
@@ -84,29 +84,29 @@ jobs:
       run: |
         brew install create-dmg
         create-dmg \
-          --volname "MySnipaste" \
+          --volname "openSnipaste" \
           --window-pos 200 120 \
           --window-size 600 400 \
           --icon-size 100 \
-          --icon "MySnipaste.app" 175 120 \
-          --hide-extension "MySnipaste.app" \
+          --icon "openSnipaste.app" 175 120 \
+          --hide-extension "openSnipaste.app" \
           --app-drop-link 425 120 \
-          "dist/MySnipaste-macOS.dmg" \
-          "dist/MySnipaste.app"
+          "dist/openSnipaste-macOS.dmg" \
+          "dist/openSnipaste.app"
 
     - name: Create ZIP fallback
       if: always()
       run: |
         cd dist
-        zip -r MySnipaste-macOS.zip MySnipaste.app
+        zip -r openSnipaste-macOS.zip openSnipaste.app
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: MySnipaste-macOS
+        name: openSnipaste-macOS
         path: |
-          dist/MySnipaste-macOS.dmg
-          dist/MySnipaste-macOS.zip
+          dist/openSnipaste-macOS.dmg
+          dist/openSnipaste-macOS.zip
         retention-days: 30
 
   create-release:
@@ -125,9 +125,9 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          artifacts/MySnipaste-Windows/*.zip
-          artifacts/MySnipaste-macOS/*.dmg
-          artifacts/MySnipaste-macOS/*.zip
+          artifacts/openSnipaste-Windows/*.zip
+          artifacts/openSnipaste-macOS/*.dmg
+          artifacts/openSnipaste-macOS/*.zip
         draft: false
         prerelease: false
       env:

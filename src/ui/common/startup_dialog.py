@@ -1,4 +1,4 @@
-"""Themed startup notification dialog for MySnipaste."""
+"""Themed startup notification dialog for openSnipaste."""
 
 import sys
 
@@ -24,7 +24,7 @@ def show_startup_notification(settings: AppSettings) -> None:
     settings_key = '⌘,' if sys.platform == 'darwin' else 'Ctrl+,'
 
     dialog = QDialog()
-    dialog.setWindowTitle("MySnipaste")
+    dialog.setWindowTitle("openSnipaste")
     dialog.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
     dialog.setFixedSize(360, 260)
     dialog.setAttribute(Qt.WA_TranslucentBackground)
@@ -60,7 +60,7 @@ def show_startup_notification(settings: AppSettings) -> None:
     content_layout.setContentsMargins(24, 0, 24, 24)
     content_layout.setSpacing(18)
 
-    title = QLabel("MySnipaste")
+    title = QLabel("openSnipaste")
     title.setObjectName("title")
     title.setAlignment(Qt.AlignCenter)
     content_layout.addWidget(title)

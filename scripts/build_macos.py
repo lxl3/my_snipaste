@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-MySnipaste macOS 构建脚本（PyInstaller，支持 Tesseract OCR 打包）
+openSnipaste macOS 构建脚本（PyInstaller，支持 Tesseract OCR 打包）
 """
 
 import os
@@ -42,7 +42,7 @@ def build_app() -> bool:
         "--name", BUILD_NAME,
         "--windowed",
         "--onedir",
-        "--osx-bundle-identifier", "com.mysnipaste.app",
+        "--osx-bundle-identifier", "com.opensnipaste.app",
     ]
 
     icon = PROJECT_DIR / "icon.icns"
@@ -90,7 +90,7 @@ def build_app() -> bool:
 
 def main() -> None:
     print("=" * 60)
-    print("  MySnipaste macOS 构建工具（PyInstaller）")
+    print("  openSnipaste macOS 构建工具（PyInstaller）")
     print("=" * 60)
 
     if sys.platform != "darwin":
@@ -103,7 +103,7 @@ def main() -> None:
         sys.exit(1)
 
     print(f"\n输出: {DIST_DIR / BUILD_NAME}.app")
-    print("运行: open dist/MySnipaste.app")
+    print("运行: open dist/openSnipaste.app")
 
 
 if __name__ == "__main__":

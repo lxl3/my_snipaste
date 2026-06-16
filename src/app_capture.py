@@ -83,10 +83,10 @@ class SnipasteCaptureMixin:
                 open_screen_recording_settings()
                 show_dialog(
                     QMessageBox.Warning, _("Permission Required"),
-                    _("Screen Recording permission is required for MySnipaste.\n\n"
+                    _("Screen Recording permission is required for openSnipaste.\n\n"
                       "In System Settings:\n"
                       "  1. Click the lock to unlock\n"
-                      "  2. Click + and add MySnipaste\n"
+                      "  2. Click + and add openSnipaste\n"
                       "  3. Check the permission\n\n"
                       "Restart the app after granting permission.")
                 )
@@ -104,7 +104,7 @@ class SnipasteCaptureMixin:
                 _("{error}\n\n"
                   "In System Settings:\n"
                   "  1. Click the lock to unlock\n"
-                  "  2. Click + and add MySnipaste\n"
+                  "  2. Click + and add openSnipaste\n"
                   "  3. Check the permission\n\n"
                   "Restart the app after granting permission.").format(error=e)
             )

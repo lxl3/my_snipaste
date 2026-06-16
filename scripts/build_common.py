@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Shared build utilities for MySnipaste packaging (PyInstaller & Nuitka).
+Shared build utilities for openSnipaste packaging (PyInstaller & Nuitka).
 """
 
 import os
@@ -12,7 +12,7 @@ from collections import deque
 from pathlib import Path
 from typing import Optional
 
-BUILD_NAME = "MySnipaste"
+BUILD_NAME = "openSnipaste"
 PYINSTALLER_HIDDEN_IMPORTS = [
     "PySide6.QtCore",
     "PySide6.QtGui",
@@ -278,10 +278,10 @@ def patch_info_plist(app_path: Path) -> None:
         with open(plist_path, "rb") as f:
             plist = plistlib.load(f)
         plist["NSScreenCaptureUsageDescription"] = (
-            "MySnipaste needs screen recording permission to capture screenshots."
+            "openSnipaste needs screen recording permission to capture screenshots."
         )
         plist["NSInputMonitoringUsageDescription"] = (
-            "MySnipaste needs input monitoring permission to detect global hotkeys."
+            "openSnipaste needs input monitoring permission to detect global hotkeys."
         )
         with open(plist_path, "wb") as f:
             plistlib.dump(plist, f)

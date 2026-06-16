@@ -1073,7 +1073,7 @@ class ScreenshotHistory:
             from pathlib import Path as P
             home = P.home()
             if home.exists():
-                self.history_dir = home / ".config/MySnipaste/history"
+                self.history_dir = home / ".config/openSnipaste/history"
             else:
                 self.history_dir = Path("./screenshot_history")
         
@@ -1275,7 +1275,7 @@ from ..core.screenshot_history import ScreenshotHistory
 测试步骤：
 1. 运行 `python main.py`
 2. 截图并复制
-3. 检查 `~/.config/MySnipaste/history/` 目录
+3. 检查 `~/.config/openSnipaste/history/` 目录
 4. 应该有一个 `.png` 文件和 `history.json`
 
 预期：截图自动保存到历史目录

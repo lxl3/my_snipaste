@@ -23,8 +23,8 @@
 2. 点击运行记录
 3. 查看 **产物** (Artifacts)
 4. 下载：
-   - `MySnipaste-Windows.zip`
-   - `MySnipaste-macOS.zip`
+   - `openSnipaste-Windows.zip`
+   - `openSnipaste-macOS.zip`
 
 ---
 

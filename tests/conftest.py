@@ -14,7 +14,7 @@ def temp_settings_dir():
     old["path"] = settings_mod._SETTINGS_PATH
     old["loaded"] = settings_mod._loaded
 
-    with tempfile.TemporaryDirectory(prefix="mysnipaste_test_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="opensnipaste_test_") as tmpdir:
         settings_mod._SETTINGS_DIR = tmpdir
         settings_mod._SETTINGS_PATH = os.path.join(tmpdir, "settings.json")
         settings_mod._loaded = None

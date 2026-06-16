@@ -1,4 +1,4 @@
-# MySnipaste 图标设计规格
+# openSnipaste 图标设计规格
 
 **日期**: 2026-05-21  
 **设计者**: Claude (with user collaboration)  
@@ -6,7 +6,7 @@
 
 ## 设计概述
 
-为 MySnipaste 截图工具设计应用图标，需要同时体现截图和 OCR 文字识别两个核心功能。图标将用于 Windows 系统的各种场景：桌面快捷方式、任务栏、系统托盘等。
+为 openSnipaste 截图工具设计应用图标，需要同时体现截图和 OCR 文字识别两个核心功能。图标将用于 Windows 系统的各种场景：桌面快捷方式、任务栏、系统托盘等。
 
 ### 设计目标
 
@@ -217,7 +217,7 @@ def draw_icon(size):
 
 #### 方法 1: 修改 spec 文件
 
-在 `MySnipaste.spec` 中添加图标：
+在 `openSnipaste.spec` 中添加图标：
 
 ```python
 exe = EXE(
@@ -226,7 +226,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='MySnipaste',
+    name='openSnipaste',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -274,7 +274,7 @@ my_snipaste/
 ├── scripts/
 │   └── generate_icon.py     # 图标生成脚本
 ├── build.py                 # 更新添加图标参数
-└── MySnipaste.spec          # 更新添加图标路径
+└── openSnipaste.spec          # 更新添加图标路径
 ```
 
 ## 实现计划
@@ -286,7 +286,7 @@ my_snipaste/
 - [ ] 生成 PNG 和 ICO 文件
 
 ### 阶段 2: 集成到构建流程
-- [ ] 更新 `MySnipaste.spec` 添加图标路径
+- [ ] 更新 `openSnipaste.spec` 添加图标路径
 - [ ] 更新 `build.py` 添加图标参数
 - [ ] 测试打包后的图标显示
 

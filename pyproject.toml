@@ -1,5 +1,5 @@
 [project]
-name = "MySnipaste"
+name = "openSnipaste"
 version = "1.2.0"
 description = "A cross-platform screenshot tool inspired by Snipaste"
 
