@@ -353,7 +353,6 @@ def prune_app(app_path: Path) -> None:
         "QtQmlWorkerScript.framework",
         "QtVirtualKeyboard.framework",
         "QtNetwork.framework",
-        "QtDBus.framework",
         "QtOpenGL.framework",
     ]
     removed_bytes = 0
@@ -367,7 +366,6 @@ def prune_app(app_path: Path) -> None:
 
     unused_bindings = [
         frameworks / "PySide6/QtNetwork.abi3.so",
-        frameworks / "PySide6/QtDBus.abi3.so",
     ]
     for path in unused_bindings:
         if path.exists():
